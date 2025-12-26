@@ -1,0 +1,8 @@
+{
+  "name": "InJazi - Success Architect",
+  "description": "A mobile-first goal tracking app powered by Gemini AI. Plan flexible timelines, execute daily tasks, verify with video, and receive proactive agent guidance.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

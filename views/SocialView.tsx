@@ -201,96 +201,144 @@ export default function SocialView() {
         </div>
     );
 
-    const renderLessons = () => (
-        <div className="p-4 pb-28 space-y-8 animate-fade-in">
-            {isLoadingLessons ? (
-                <div className="text-center py-20">
-                    <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin mx-auto mb-4"></div>
-                    <p className="text-gray-400 font-medium">Loading curriculum...</p>
+const renderLessons = () => {
+    if (isLoadingLessons) {
+        return (
+            <div className="h-full flex flex-col items-center justify-center p-10 text-center animate-fade-in bg-white/50 backdrop-blur-sm">
+                <div className="relative mb-10 scale-125">
+                    <div className="w-24 h-24 rounded-full border-4 border-gray-100"></div>
+                    <div className="absolute top-0 left-0 w-24 h-24 rounded-full border-4 border-primary border-t-transparent animate-[spin_0.6s_linear_infinite]"></div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <Icons.BookOpen className="w-10 h-10 text-primary animate-pulse" />
+                    </div>
+                    <div className="absolute -bottom-2 -right-2 bg-primary/10 p-2 rounded-xl shadow-lg animate-bounce">
+                        <Icons.Zap className="w-4 h-4 text-primary"/>
+                    </div>
                 </div>
-            ) : lessons.length > 0 ? (
-                lessons.map((chapter, chapterIdx) => (
-                    <div key={chapter.id} className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
-                        {/* Chapter Header */}
-                        <div className="p-4 bg-gray-50 border-b border-gray-100">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center text-sm font-black">
-                                    {chapterIdx + 1}
-                                </div>
-                                <div>
-                                    <h3 className="font-bold text-primary text-sm">{chapter.title}</h3>
-                                    <span className="text-xs text-gray-400">{chapter.lessons.length} lessons</span>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        {/* Lessons List */}
-                        <div className="divide-y divide-gray-50">
-                            {chapter.lessons.map((lesson, idx) => (
-                                <div 
-                                    key={lesson.id} 
-                                    onClick={() => !lesson.isLocked && setViewingLesson(lesson)}
-                                    className={`p-4 flex items-center gap-4 transition-all
-                                        ${lesson.isLocked 
-                                            ? 'opacity-50 cursor-not-allowed' 
-                                            : 'cursor-pointer hover:bg-gray-50 active:bg-gray-100'
-                                        }`}
-                                >
-                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold
-                                        ${lesson.isLocked 
-                                            ? 'bg-gray-100 text-gray-400' 
-                                            : 'bg-primary/10 text-primary'
-                                        }`}
-                                    >
-                                        {lesson.isLocked ? <Icons.Lock className="w-3 h-3" /> : idx + 1}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <h4 className="font-medium text-primary text-sm truncate">{lesson.title}</h4>
-                                        <p className="text-xs text-gray-400 truncate">{lesson.description}</p>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">
-                                            {lesson.duration}
-                                        </span>
-                                        {!lesson.isLocked && (
-                                            <Icons.ChevronRight className="w-4 h-4 text-gray-300" />
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                <h3 className="text-3xl font-black text-primary uppercase tracking-tighter mb-4">Building Your Path</h3>
+                <div className="max-w-[280px] space-y-3">
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] leading-relaxed">
+                        Creating your personalized curriculum...
+                    </p>
+                    <div className="w-full bg-gray-100 h-1 rounded-full overflow-hidden">
+                         <div className="h-full bg-primary animate-[shimmer_1s_infinite] w-2/3 rounded-full"></div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
-                        {/* Quiz Section */}
-                        {chapter.quiz && chapter.quiz.length > 0 && (
-                            <div className="p-4 bg-gradient-to-r from-primary to-secondary">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3 text-white">
-                                        <Icons.Trophy className="w-5 h-5" />
+    return (
+        <div className="p-6 pb-28 space-y-12 animate-fade-in">
+            {lessons.length > 0 ? lessons.map((chapter, chapterIdx) => (
+                <div key={chapter.id} className="relative">
+                    {/* Chapter Header */}
+                    <div className="flex items-center gap-4 mb-8">
+                        <div className="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center text-lg font-black shadow-lg shadow-primary/20">
+                            {chapterIdx + 1}
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-black text-primary tracking-tighter uppercase leading-none">{chapter.title}</h3>
+                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.2em] mt-1 block">
+                                {chapter.lessons.length} Learning Modules
+                            </span>
+                        </div>
+                    </div>
+                    
+                    {/* Lessons List */}
+                    <div className="space-y-4 ml-6 border-l-2 border-gray-200 pl-8">
+                        {chapter.lessons.map((l, idx) => (
+                            <div 
+                                key={l.id} 
+                                className={`p-6 rounded-[2rem] border-2 transition-all group 
+                                    ${l.isLocked 
+                                        ? 'bg-gray-50 border-gray-100 opacity-60' 
+                                        : 'bg-white border-gray-200 shadow-sm hover:shadow-xl hover:border-primary/30'
+                                    }`}
+                            >
+                                <div className="flex justify-between items-start mb-4">
+                                    <div className="flex gap-4">
+                                        <div className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all group-hover:scale-105 
+                                            ${l.isLocked 
+                                                ? 'bg-gray-100' 
+                                                : 'bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white'
+                                            }`}
+                                        >
+                                            {l.isLocked 
+                                                ? <Icons.Lock className="w-4 h-4 text-gray-400"/> 
+                                                : <span className="font-black text-sm">{idx + 1}</span>
+                                            }
+                                        </div>
                                         <div>
-                                            <span className="font-bold text-sm">Phase Quiz</span>
-                                            <p className="text-xs text-white/70">{chapter.quiz.length} questions</p>
+                                            <h4 className="font-bold text-primary text-base leading-tight group-hover:text-secondary transition-colors">
+                                                {l.title}
+                                            </h4>
+                                            <div className="flex items-center gap-2 mt-1.5">
+                                                <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-3 py-1 rounded-full">
+                                                    {l.duration}
+                                                </span>
+                                                {l.isLocked && (
+                                                    <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-3 py-1 rounded-full">
+                                                        Locked
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
-                                    <button 
-                                        onClick={() => handleQuizStart(chapter)}
-                                        className="px-4 py-2 bg-white text-primary rounded-lg text-xs font-bold"
+                                </div>
+                                {!l.isLocked && (
+                                    <>
+                                        <p className="text-xs text-gray-500 mb-5 leading-relaxed line-clamp-2">{l.description}</p>
+                                        <Button 
+                                            onClick={() => setViewingLesson(l)} 
+                                            variant="secondary" 
+                                            className="py-2.5 text-[9px] h-10 w-auto px-6 font-bold uppercase tracking-widest rounded-xl"
+                                        >
+                                            Begin Module
+                                        </Button>
+                                    </>
+                                )}
+                            </div>
+                        ))}
+
+                        {/* Phase Quiz */}
+                        {chapter.quiz && chapter.quiz.length > 0 && !chapter.lessons.some(l => l.isLocked) && (
+                            <div className="p-6 rounded-[2rem] bg-gradient-to-r from-primary to-secondary text-white shadow-lg">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <div className="p-3 bg-white/10 rounded-xl">
+                                            <Icons.Trophy className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <h4 className="font-bold text-sm">Phase Quiz</h4>
+                                            <p className="text-[10px] text-white/60">Test your knowledge to continue</p>
+                                        </div>
+                                    </div>
+                                    <Button 
+                                        onClick={() => handleQuizStart(chapter)} 
+                                        className="bg-white text-primary py-2.5 px-5 text-[10px] uppercase font-bold tracking-widest rounded-xl shadow-none hover:bg-white/90"
                                     >
-                                        Start
-                                    </button>
+                                        Start Quiz
+                                    </Button>
                                 </div>
                             </div>
                         )}
                     </div>
-                ))
-            ) : (
+                </div>
+            )) : (
                 <div className="text-center py-20">
-                    <Icons.BookOpen className="w-16 h-16 text-gray-200 mx-auto mb-4" />
-                    <p className="text-gray-400 font-medium mb-2">No curriculum yet</p>
-                    <p className="text-gray-300 text-sm">Complete onboarding to generate your learning path</p>
+                    <div className="w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                        <Icons.BookOpen className="w-10 h-10 text-gray-300" />
+                    </div>
+                    <h3 className="text-xl font-bold text-primary mb-2">No Curriculum Yet</h3>
+                    <p className="text-gray-400 text-sm max-w-xs mx-auto">
+                        Complete your goal setup to generate a personalized learning path.
+                    </p>
                 </div>
             )}
         </div>
     );
+};
 
     const renderForYou = () => (
         <div className="h-full overflow-y-scroll snap-y snap-mandatory bg-black no-scrollbar">

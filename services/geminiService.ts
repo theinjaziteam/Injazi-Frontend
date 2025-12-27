@@ -54,7 +54,6 @@ function safeParseJSON(text: string, fallback: any = null): any {
     if (!text) return fallback;
     
     try {
-        // First, try direct parse
         return JSON.parse(text);
     } catch {
         // Try to find JSON array in response
@@ -98,32 +97,60 @@ export async function generateDailyTasks(
         const response = await callGroq([
             {
                 role: 'system',
-                content: 'You are a task generator. Return ONLY a valid JSON array with no additional text or explanation.'
+                content: `You are a task generator. You MUST respond with ONLY a JSON object containing a "tasks" array. No other text, no markdown, no explanation.
+
+Example response:
+{"tasks": [{"title": "Morning Review", "description": "Review your goals", "estimatedTimeMinutes": 15, "difficulty": "EASY"}]}`
             },
             {
                 role: 'user',
                 content: `Generate exactly 3 daily tasks for Day ${day} of achieving: "${goal.title}" (Category: ${goal.category}).
+${checkIn ? `\nUser's check-in: "${checkIn}"` : ''}
+${userProfile ? `\nUser profile: ${userProfile}` : ''}
 
-Tasks should be specific, actionable, and achievable in one day.
-
-Return ONLY this JSON format:
-[
+Respond with ONLY this JSON format, nothing else:
+{"tasks": [
   {"title": "Task 1 name", "description": "What to do in one sentence", "estimatedTimeMinutes": 15, "difficulty": "EASY"},
   {"title": "Task 2 name", "description": "What to do in one sentence", "estimatedTimeMinutes": 30, "difficulty": "MEDIUM"},
   {"title": "Task 3 name", "description": "What to do in one sentence", "estimatedTimeMinutes": 45, "difficulty": "HARD"}
-]`
+]}`
             }
         ], true);
 
-        const rawTasks = safeParseJSON(response, null);
+        console.log('🤖 Raw AI response:', response);
+
+        // Parse the response
+        let tasks: any[] = [];
         
-        // Validate we got an array
-        if (!Array.isArray(rawTasks) || rawTasks.length === 0) {
-            console.warn('⚠️ AI returned invalid format, using mock tasks');
+        try {
+            const parsed = JSON.parse(response);
+            // Handle both {tasks: [...]} and direct array [...]
+            if (Array.isArray(parsed)) {
+                tasks = parsed;
+            } else if (parsed.tasks && Array.isArray(parsed.tasks)) {
+                tasks = parsed.tasks;
+            }
+        } catch {
+            // Try to extract array from response text
+            const arrayMatch = response.match(/\[[\s\S]*?\]/);
+            if (arrayMatch) {
+                try {
+                    tasks = JSON.parse(arrayMatch[0]);
+                } catch {
+                    console.warn('Failed to parse array match');
+                }
+            }
+        }
+
+        // Validate we got an array with items
+        if (!Array.isArray(tasks) || tasks.length === 0) {
+            console.warn('⚠️ AI returned invalid format, response was:', response);
             return getMockTasks(goal, day);
         }
 
-        return rawTasks.map((t: any, i: number) => ({
+        console.log('✅ AI generated', tasks.length, 'tasks');
+
+        return tasks.map((t: any, i: number) => ({
             id: `task-${day}-${i}-${Date.now()}`,
             dayNumber: day,
             title: t.title || `Task ${i + 1}`,
@@ -330,14 +357,14 @@ export async function getGoalCurriculum(goal: Goal): Promise<Chapter[]> {
         const response = await callGroq([
             {
                 role: 'system',
-                content: 'You are a curriculum designer. Return ONLY a valid JSON array with no additional text.'
+                content: 'You are a curriculum designer. Return ONLY valid JSON, no other text.'
             },
             {
                 role: 'user',
                 content: `Create a 4-phase learning curriculum for "${goal.title}".
 
-Each phase should have 3 lessons. Return ONLY this JSON format:
-[
+Return ONLY this JSON format:
+{"chapters": [
   {
     "id": "ch-1",
     "title": "Phase 1: Foundation",
@@ -378,15 +405,33 @@ Each phase should have 3 lessons. Return ONLY this JSON format:
     ],
     "quiz": []
   }
-]`
+]}`
             }
         ], true);
 
-        const parsed = safeParseJSON(response, []);
+        console.log('🤖 Curriculum response:', response);
+
+        let chapters: any[] = [];
         
-        if (Array.isArray(parsed) && parsed.length > 0) {
-            console.log('✅ Curriculum generated:', parsed.length, 'phases');
-            return parsed;
+        try {
+            const parsed = JSON.parse(response);
+            if (Array.isArray(parsed)) {
+                chapters = parsed;
+            } else if (parsed.chapters && Array.isArray(parsed.chapters)) {
+                chapters = parsed.chapters;
+            }
+        } catch {
+            const arrayMatch = response.match(/\[[\s\S]*\]/);
+            if (arrayMatch) {
+                try {
+                    chapters = JSON.parse(arrayMatch[0]);
+                } catch {}
+            }
+        }
+        
+        if (Array.isArray(chapters) && chapters.length > 0) {
+            console.log('✅ Curriculum generated:', chapters.length, 'phases');
+            return chapters;
         }
         
         console.warn('⚠️ Invalid curriculum format');

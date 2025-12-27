@@ -480,7 +480,7 @@ Return ONLY this JSON:
 }
 
 // ============================================
-// LESSON CONTENT GENERATOR - NEW!
+// LESSON CONTENT GENERATOR - FIXED
 // ============================================
 
 export async function generateLessonContent(
@@ -503,7 +503,16 @@ export async function generateLessonContent(
 Your lessons should be practical, engaging, and directly applicable.
 Write in a conversational but professional tone.
 Include specific examples, tools, and techniques the learner can use immediately.
-Each subsection should have 2-3 substantial paragraphs with real, actionable information.`
+Each subsection should have 2-3 substantial paragraphs with real, actionable information.
+
+IMPORTANT: For the actionable_task field, format each step on a NEW LINE like this:
+"Step 1: Do this thing.
+
+Step 2: Do this next thing.
+
+Step 3: Finally do this."
+
+Use double line breaks between steps for readability.`
             },
             {
                 role: 'user',
@@ -536,7 +545,7 @@ Return ONLY valid JSON in this exact format:
     }
   ],
   "the_1_percent_secret": "A powerful insider tip or uncommon strategy that separates experts from beginners. Something that most people don't know but makes a huge difference.",
-  "actionable_task": "A specific, concrete task the learner should complete right now to apply what they learned. Include exact steps: Step 1: [action], Step 2: [action], Step 3: [action]. Make it achievable in 10-15 minutes."
+  "actionable_task": "Step 1: [First specific action to take].\\n\\nStep 2: [Second specific action].\\n\\nStep 3: [Third specific action to complete the task]."
 }`
             }
         ], true);
@@ -579,7 +588,7 @@ function getDefaultLessonContent(lesson: { id: string; title: string; descriptio
             }
         ],
         the_1_percent_secret: `The most successful people in ${goal.category} don't just learn—they teach. Try explaining what you've learned to someone else (or even to yourself out loud). This "teaching effect" dramatically improves retention and understanding.`,
-        actionable_task: `Right now, take 5 minutes to do this: Step 1: Open your notes app or grab a piece of paper. Step 2: Write down the 3 most important things you learned from this lesson. Step 3: For each point, write one specific action you can take this week to apply it. This simple exercise transforms passive learning into active progress.`
+        actionable_task: `Step 1: Open your notes app or grab a piece of paper.\n\nStep 2: Write down the 3 most important things you learned from this lesson.\n\nStep 3: For each point, write one specific action you can take this week to apply it.`
     };
 }
 

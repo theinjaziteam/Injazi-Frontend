@@ -1,110 +1,178 @@
 import React from 'react';
 import { useApp } from '../contexts/AppContext';
-import { AppView, TaskStatus } from '../types';
-import { Icons, Card } from '../components/UIComponents';
+import { AppView, TaskStatus, Difficulty } from '../types';
+import { Icons, Card, Badge, Button } from '../components/UIComponents';
 
-export default function TaskHistoryView() {
-    const { user, setView } = useApp();
+export default function TaskSelectionView() {
+    const { user, setUser, setView, lessons } = useApp();
 
-    const historyTasks = user.dailyTasks.filter(t => 
+    const handleTaskSelect = (taskId: string) => {
+        setUser(prev => {
+            const updatedTasks = prev.dailyTasks.map(t => ({ ...t, isSelected: t.id === taskId }));
+            return { ...prev, dailyTasks: updatedTasks, selectedTaskId: taskId };
+        });
+        setView(AppView.TASK_EXECUTION);
+    };
+
+    // Filter out completed/approved tasks from main list
+    const activeTasks = user.dailyTasks.filter(t => 
+        t.status !== TaskStatus.APPROVED && 
+        t.status !== TaskStatus.COMPLETED &&
+        t.status !== TaskStatus.REJECTED
+    );
+
+    // Count completed tasks
+    const completedCount = user.dailyTasks.filter(t => 
         t.status === TaskStatus.APPROVED || 
-        t.status === TaskStatus.COMPLETED ||
-        t.status === TaskStatus.REJECTED
-    ).sort((a, b) => b.dayNumber - a.dayNumber);
+        t.status === TaskStatus.COMPLETED
+    ).length;
 
     // Format status for display
     const formatStatus = (status: TaskStatus) => {
         switch(status) {
-            case TaskStatus.APPROVED: return 'Completed';
+            case TaskStatus.IN_PROGRESS: return 'In Progress';
+            case TaskStatus.PENDING: return 'Pending';
+            case TaskStatus.VERIFYING: return 'Verifying';
+            case TaskStatus.APPROVED: return 'Done';
             case TaskStatus.COMPLETED: return 'Done';
             case TaskStatus.REJECTED: return 'Failed';
+            case TaskStatus.FAILED: return 'Failed';
             default: return status;
         }
     };
 
+    // Get status badge color
+    const getStatusColor = (status: TaskStatus) => {
+        switch(status) {
+            case TaskStatus.IN_PROGRESS: return 'bg-amber-100 text-amber-700';
+            case TaskStatus.PENDING: return 'bg-gray-100 text-gray-600';
+            case TaskStatus.VERIFYING: return 'bg-blue-100 text-blue-700';
+            case TaskStatus.APPROVED: return 'bg-green-100 text-green-700';
+            case TaskStatus.COMPLETED: return 'bg-green-100 text-green-700';
+            case TaskStatus.REJECTED: return 'bg-red-100 text-red-700';
+            case TaskStatus.FAILED: return 'bg-red-100 text-red-700';
+            default: return 'bg-gray-100 text-gray-600';
+        }
+    };
+
+    // Flatten curriculum into supplementary tasks
+    const supplementaryTasks = lessons.flatMap(chapter => 
+        chapter.lessons.map(lesson => ({
+            id: lesson.id,
+            title: lesson.title,
+            description: lesson.description || `Module from ${chapter.title}`,
+            estimatedTimeMinutes: parseInt(lesson.duration) || 20,
+            difficulty: Difficulty.MEDIUM,
+            videoRequirements: 'Record your core insight from this module.',
+            creditsReward: 0, 
+            status: TaskStatus.PENDING,
+            isSupplementary: true
+        }))
+    );
+
     return (
         <div className="h-full overflow-y-auto pb-safe scroll-smooth">
-            <div className="min-h-full bg-white flex flex-col animate-fade-in">
+            <div className="min-h-full bg-white flex flex-col animate-fade-in pb-20">
                 {/* Header */}
                 <div className="p-6 pt-safe border-b border-gray-100 flex items-center gap-4 bg-white sticky top-0 z-10">
                     <button onClick={() => setView(AppView.DASHBOARD)} className="p-2 hover:bg-gray-100 rounded-full transition-colors mt-2">
                         <Icons.ChevronLeft className="w-6 h-6 text-primary"/>
                     </button>
-                    <div className="mt-2">
-                        <h1 className="text-2xl font-black text-primary uppercase tracking-tight">Completed Tasks</h1>
-                        <p className="text-xs text-gray-400">{historyTasks.length} tasks finished</p>
-                    </div>
+                    <h1 className="text-2xl font-black text-primary mt-2 uppercase tracking-tighter">Mission Catalog</h1>
                 </div>
 
-                <div className="flex-1 p-6">
-                    {historyTasks.length === 0 ? (
-                        <div className="text-center py-20 text-gray-400">
-                            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <Icons.Check className="w-10 h-10 text-gray-300" />
-                            </div>
-                            <p className="font-medium">No completed tasks yet</p>
-                            <p className="text-sm mt-1">Complete your first mission!</p>
-                            <button 
-                                onClick={() => setView(AppView.TASK_SELECTION)} 
-                                className="mt-4 px-6 py-2 bg-primary text-white rounded-full text-sm font-bold"
-                            >
-                                View Missions
-                            </button>
+                <div className="p-6 space-y-10">
+                    {/* Daily Missions */}
+                    <section>
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">Architecture Daily Load</h2>
+                            {completedCount > 0 && (
+                                <span className="text-xs font-bold text-green-600">{completedCount} done</span>
+                            )}
                         </div>
-                    ) : (
-                        <div className="space-y-3">
-                            {historyTasks.map((task, index) => (
-                                <Card 
-                                    key={task.id} 
-                                    className="p-4 border-none shadow-sm hover:shadow-md transition-shadow"
-                                    style={{ animationDelay: `${index * 50}ms` }}
-                                >
-                                    <div className="flex items-center gap-4">
-                                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${
-                                            task.status === TaskStatus.APPROVED || task.status === TaskStatus.COMPLETED 
-                                                ? 'bg-gradient-to-br from-green-400 to-emerald-500 text-white shadow-lg shadow-green-500/30' 
-                                                : 'bg-gradient-to-br from-red-400 to-red-500 text-white shadow-lg shadow-red-500/30'
-                                        }`}>
-                                            {task.status === TaskStatus.REJECTED 
-                                                ? <Icons.X className="w-6 h-6"/> 
-                                                : <Icons.Check className="w-6 h-6"/>
-                                            }
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                                                    Day {task.dayNumber}
-                                                </span>
-                                                <span className="text-[10px] text-gray-300">•</span>
-                                                <span className="text-[10px] text-gray-400">
-                                                    {task.estimatedTimeMinutes} min
-                                                </span>
+                        
+                        {activeTasks.length === 0 ? (
+                            <Card className="p-8 text-center border-dashed border-2 border-gray-200 bg-gray-50/50">
+                                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Icons.Check className="w-8 h-8 text-green-600" />
+                                </div>
+                                <h3 className="font-bold text-primary mb-1">All Missions Complete!</h3>
+                                <p className="text-sm text-gray-400">You've finished all your daily tasks</p>
+                            </Card>
+                        ) : (
+                            <div className="space-y-4">
+                                {activeTasks.map(task => (
+                                    <Card 
+                                        key={task.id} 
+                                        onClick={() => handleTaskSelect(task.id)} 
+                                        className="p-5 flex justify-between items-center hover:border-primary/20 hover:shadow-md transition-all active:scale-[0.99]"
+                                    >
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Badge>{task.difficulty}</Badge>
+                                                {task.status !== TaskStatus.PENDING && (
+                                                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wide ${getStatusColor(task.status)}`}>
+                                                        {formatStatus(task.status)}
+                                                    </span>
+                                                )}
                                             </div>
-                                            <h4 className="font-bold text-primary text-sm line-clamp-1">{task.title}</h4>
-                                            {task.verificationMessage && (
-                                                <p className="text-xs text-gray-400 mt-1 line-clamp-1">
-                                                    {task.verificationMessage}
-                                                </p>
+                                            <h4 className="font-black text-primary text-lg leading-tight uppercase">{task.title}</h4>
+                                            <p className="text-xs text-gray-400 font-medium mt-1 uppercase tracking-tighter">{task.estimatedTimeMinutes} Minutes</p>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            {task.status === TaskStatus.IN_PROGRESS && (
+                                                <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
                                             )}
+                                            <Icons.ChevronRight className="w-6 h-6 text-gray-300" />
                                         </div>
-                                        <div className="flex flex-col items-end gap-1">
-                                            <span className={`text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wide ${
-                                                task.status === TaskStatus.APPROVED 
-                                                    ? 'bg-green-100 text-green-700' 
-                                                    : task.status === TaskStatus.COMPLETED 
-                                                    ? 'bg-blue-100 text-blue-700' 
-                                                    : 'bg-red-100 text-red-700'
-                                            }`}>
-                                                {formatStatus(task.status)}
-                                            </span>
-                                            <span className="text-[10px] text-green-600 font-bold">
-                                                +{task.creditsReward} credits
-                                            </span>
-                                        </div>
+                                    </Card>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* View Completed Tasks Button */}
+                        {completedCount > 0 && (
+                            <button 
+                                onClick={() => setView(AppView.TASK_HISTORY)}
+                                className="w-full mt-4 py-4 px-6 bg-gray-50 hover:bg-gray-100 rounded-2xl border border-gray-200 flex items-center justify-between transition-colors group"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
+                                        <Icons.Check className="w-5 h-5 text-green-600" />
                                     </div>
-                                </Card>
-                            ))}
-                        </div>
+                                    <div className="text-left">
+                                        <p className="font-bold text-primary text-sm">View Completed Tasks</p>
+                                        <p className="text-xs text-gray-400">{completedCount} mission{completedCount !== 1 ? 's' : ''} finished</p>
+                                    </div>
+                                </div>
+                                <Icons.ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-gray-400 transition-colors" />
+                            </button>
+                        )}
+                    </section>
+
+                    {/* Supplementary Missions from Curriculum */}
+                    {supplementaryTasks.length > 0 && (
+                        <section>
+                            <h2 className="text-xs font-black text-secondary uppercase tracking-[0.2em] mb-4">Supplementary Modules</h2>
+                            <div className="space-y-4">
+                                {supplementaryTasks.map(task => (
+                                    <Card key={task.id} onClick={() => handleTaskSelect(task.id)} className="p-5 border-secondary/20 bg-secondary/5 group hover:shadow-md transition-all">
+                                        <div className="flex justify-between items-start">
+                                            <div className="flex-1 pr-4">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <Badge color="bg-secondary text-white">Curriculum</Badge>
+                                                </div>
+                                                <h4 className="font-black text-primary text-lg leading-tight uppercase group-hover:text-secondary transition-colors">{task.title}</h4>
+                                                <p className="text-xs text-secondary/60 font-medium mt-2 line-clamp-2">{task.description}</p>
+                                            </div>
+                                            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg text-secondary group-active:scale-95 transition-all">
+                                                <Icons.Plus className="w-5 h-5"/>
+                                            </div>
+                                        </div>
+                                    </Card>
+                                ))}
+                            </div>
+                        </section>
                     )}
                 </div>
             </div>

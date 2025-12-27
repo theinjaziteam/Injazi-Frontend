@@ -30,7 +30,7 @@ async function callGroq(messages: {role: string, content: string}[], jsonMode: b
                 model: MODEL,
                 messages: messages,
                 temperature: 0.7,
-                max_tokens: 1024,
+                max_tokens: 2048,
                 ...(jsonMode && { response_format: { type: "json_object" } })
             })
         });
@@ -38,6 +38,7 @@ async function callGroq(messages: {role: string, content: string}[], jsonMode: b
         const data = await response.json();
         
         if (data.error) {
+            console.error('Groq API error:', data.error);
             throw new Error(data.error.message);
         }
 
@@ -48,6 +49,35 @@ async function callGroq(messages: {role: string, content: string}[], jsonMode: b
     }
 }
 
+// Safe JSON parser - extracts JSON from text
+function safeParseJSON(text: string, fallback: any = null): any {
+    if (!text) return fallback;
+    
+    try {
+        // First, try direct parse
+        return JSON.parse(text);
+    } catch {
+        // Try to find JSON array in response
+        const arrayMatch = text.match(/\[[\s\S]*\]/);
+        if (arrayMatch) {
+            try {
+                return JSON.parse(arrayMatch[0]);
+            } catch {}
+        }
+        
+        // Try to find JSON object in response
+        const objectMatch = text.match(/\{[\s\S]*\}/);
+        if (objectMatch) {
+            try {
+                return JSON.parse(objectMatch[0]);
+            } catch {}
+        }
+        
+        console.warn('Failed to parse JSON:', text.substring(0, 100));
+        return fallback;
+    }
+}
+
 // ============================================
 // GENERATE DAILY TASKS
 // ============================================
@@ -55,11 +85,12 @@ async function callGroq(messages: {role: string, content: string}[], jsonMode: b
 export async function generateDailyTasks(
     goal: Goal, 
     day: number, 
-    userProfile: string, 
-    checkIn: string, 
-    pending: any[]
+    userProfile: string = '', 
+    checkIn: string = '', 
+    pending: any[] = []
 ): Promise<Task[]> {
     if (!GROQ_API_KEY) {
+        console.log('⚠️ No API key, using mock tasks');
         return getMockTasks(goal, day);
     }
 
@@ -67,28 +98,40 @@ export async function generateDailyTasks(
         const response = await callGroq([
             {
                 role: 'system',
-                content: 'You are a task generator. Return ONLY valid JSON array, no other text.'
+                content: 'You are a task generator. Return ONLY a valid JSON array with no additional text or explanation.'
             },
             {
                 role: 'user',
-                content: `Generate 3 specific tasks for Day ${day} of goal "${goal.title}" (${goal.category}).
+                content: `Generate exactly 3 daily tasks for Day ${day} of achieving: "${goal.title}" (Category: ${goal.category}).
 
-Return JSON array:
+Tasks should be specific, actionable, and achievable in one day.
+
+Return ONLY this JSON format:
 [
-  {"title": "Task name", "description": "One sentence", "estimatedTimeMinutes": 15, "difficulty": "Easy"},
-  {"title": "Task name", "description": "One sentence", "estimatedTimeMinutes": 30, "difficulty": "Medium"},
-  {"title": "Task name", "description": "One sentence", "estimatedTimeMinutes": 45, "difficulty": "Hard"}
+  {"title": "Task 1 name", "description": "What to do in one sentence", "estimatedTimeMinutes": 15, "difficulty": "EASY"},
+  {"title": "Task 2 name", "description": "What to do in one sentence", "estimatedTimeMinutes": 30, "difficulty": "MEDIUM"},
+  {"title": "Task 3 name", "description": "What to do in one sentence", "estimatedTimeMinutes": 45, "difficulty": "HARD"}
 ]`
             }
         ], true);
 
-        const rawTasks = JSON.parse(response);
+        const rawTasks = safeParseJSON(response, null);
         
+        // Validate we got an array
+        if (!Array.isArray(rawTasks) || rawTasks.length === 0) {
+            console.warn('⚠️ AI returned invalid format, using mock tasks');
+            return getMockTasks(goal, day);
+        }
+
         return rawTasks.map((t: any, i: number) => ({
-            ...t,
             id: `task-${day}-${i}-${Date.now()}`,
             dayNumber: day,
-            difficulty: t.difficulty === 'Easy' ? Difficulty.EASY : t.difficulty === 'Hard' ? Difficulty.HARD : Difficulty.MEDIUM,
+            title: t.title || `Task ${i + 1}`,
+            description: t.description || 'Complete this task',
+            estimatedTimeMinutes: parseInt(t.estimatedTimeMinutes) || 20,
+            difficulty: t.difficulty === 'EASY' || t.difficulty === 'Easy' ? Difficulty.EASY 
+                      : t.difficulty === 'HARD' || t.difficulty === 'Hard' ? Difficulty.HARD 
+                      : Difficulty.MEDIUM,
             videoRequirements: 'None',
             creditsReward: 0,
             status: TaskStatus.PENDING
@@ -101,10 +144,41 @@ Return JSON array:
 }
 
 function getMockTasks(goal: Goal, day: number): Task[] {
+    const ts = Date.now();
     return [
-        { id: `t1-${Date.now()}`, dayNumber: day, title: 'Morning Strategy', description: `Plan your ${goal.category} priorities.`, estimatedTimeMinutes: 15, difficulty: Difficulty.EASY, videoRequirements: 'None', creditsReward: 0, status: TaskStatus.PENDING },
-        { id: `t2-${Date.now()}`, dayNumber: day, title: 'Deep Work Session', description: `Focus on ${goal.title} for 45 minutes.`, estimatedTimeMinutes: 45, difficulty: Difficulty.HARD, videoRequirements: 'None', creditsReward: 0, status: TaskStatus.PENDING },
-        { id: `t3-${Date.now()}`, dayNumber: day, title: 'Daily Review', description: 'Review progress and plan tomorrow.', estimatedTimeMinutes: 10, difficulty: Difficulty.MEDIUM, videoRequirements: 'None', creditsReward: 0, status: TaskStatus.PENDING }
+        { 
+            id: `t1-${ts}`, 
+            dayNumber: day, 
+            title: 'Morning Strategy Session', 
+            description: `Plan your priorities for ${goal.title}.`, 
+            estimatedTimeMinutes: 15, 
+            difficulty: Difficulty.EASY, 
+            videoRequirements: 'None', 
+            creditsReward: 0, 
+            status: TaskStatus.PENDING 
+        },
+        { 
+            id: `t2-${ts}`, 
+            dayNumber: day, 
+            title: 'Deep Work Block', 
+            description: `Focus intensely on making progress toward ${goal.title}.`, 
+            estimatedTimeMinutes: 45, 
+            difficulty: Difficulty.HARD, 
+            videoRequirements: 'None', 
+            creditsReward: 0, 
+            status: TaskStatus.PENDING 
+        },
+        { 
+            id: `t3-${ts}`, 
+            dayNumber: day, 
+            title: 'Daily Review & Planning', 
+            description: 'Review today\'s progress and plan tomorrow\'s actions.', 
+            estimatedTimeMinutes: 10, 
+            difficulty: Difficulty.MEDIUM, 
+            videoRequirements: 'None', 
+            creditsReward: 0, 
+            status: TaskStatus.PENDING 
+        }
     ];
 }
 
@@ -133,7 +207,7 @@ export async function getChatResponse(
             {
                 role: 'system',
                 content: `You are "The Guide" - a motivating AI coach helping with "${goal.title}".
-Be concise (2-3 sentences). Be encouraging but practical. No markdown.
+Be concise (2-3 sentences). Be encouraging but practical. No markdown formatting.
 
 User's tasks today:
 ${taskList || 'No tasks yet'}`
@@ -200,7 +274,7 @@ export async function analyzeGoal(
         const response = await callGroq([
             {
                 role: 'system',
-                content: 'You are a goal strategist. Return ONLY valid JSON, no other text.'
+                content: 'You are a goal strategist. Return ONLY valid JSON with no additional text.'
             },
             {
                 role: 'user',
@@ -208,20 +282,21 @@ export async function analyzeGoal(
 
 ${historyStr}
 
-Return JSON:
+Return ONLY this JSON format:
 {
   "title": "Inspiring 3-5 word title",
   "summary": "One sentence mission statement",
   "explanation": "2-3 sentences on why this plan works",
-  "difficultyProfile": "Beginner" or "Intermediate" or "Advanced",
-  "durationDays": number between 14-90,
+  "difficultyProfile": "Beginner",
+  "durationDays": 30,
   "userProfile": "2-3 word user description",
   "dailyQuestions": ["Check-in question 1", "Check-in question 2"]
 }`
             }
         ], true);
 
-        return JSON.parse(response);
+        const parsed = safeParseJSON(response, null);
+        return parsed || getDefaultGoalAnalysis(history);
     } catch (e) {
         console.error("Goal analysis failed:", e);
         return getDefaultGoalAnalysis(history);
@@ -246,25 +321,60 @@ function getDefaultGoalAnalysis(history: {question: string, answer: string}[]): 
 // ============================================
 
 export async function getGoalCurriculum(goal: Goal): Promise<Chapter[]> { 
-    if (!GROQ_API_KEY) return [];
+    if (!GROQ_API_KEY) {
+        console.log('⚠️ No API key for curriculum');
+        return [];
+    }
     
     try {
         const response = await callGroq([
             {
                 role: 'system',
-                content: 'You are a curriculum designer. Return ONLY valid JSON array.'
+                content: 'You are a curriculum designer. Return ONLY a valid JSON array with no additional text.'
             },
             {
                 role: 'user',
-                content: `Create a 3-phase curriculum for "${goal.title}".
+                content: `Create a 4-phase learning curriculum for "${goal.title}".
 
-Return JSON array:
+Each phase should have 3 lessons. Return ONLY this JSON format:
 [
   {
-    "id": "ch1",
+    "id": "ch-1",
     "title": "Phase 1: Foundation",
     "lessons": [
-      {"id": "l1", "title": "Lesson title", "duration": "10 min", "isLocked": false, "description": "What you'll learn"}
+      {"id": "l1", "title": "Understanding the Basics", "duration": "10 min", "isLocked": false, "description": "Learn the fundamentals"},
+      {"id": "l2", "title": "Setting Up", "duration": "15 min", "isLocked": false, "description": "Prepare your environment"},
+      {"id": "l3", "title": "First Steps", "duration": "10 min", "isLocked": false, "description": "Take initial action"}
+    ],
+    "quiz": []
+  },
+  {
+    "id": "ch-2",
+    "title": "Phase 2: Building Skills",
+    "lessons": [
+      {"id": "l4", "title": "Core Techniques", "duration": "12 min", "isLocked": false, "description": "Master key skills"},
+      {"id": "l5", "title": "Practice Methods", "duration": "15 min", "isLocked": false, "description": "Effective practice"},
+      {"id": "l6", "title": "Common Mistakes", "duration": "10 min", "isLocked": false, "description": "Avoid pitfalls"}
+    ],
+    "quiz": []
+  },
+  {
+    "id": "ch-3",
+    "title": "Phase 3: Advanced Strategies",
+    "lessons": [
+      {"id": "l7", "title": "Level Up", "duration": "12 min", "isLocked": false, "description": "Advanced techniques"},
+      {"id": "l8", "title": "Optimization", "duration": "10 min", "isLocked": false, "description": "Fine-tune your approach"},
+      {"id": "l9", "title": "Overcoming Challenges", "duration": "15 min", "isLocked": false, "description": "Handle obstacles"}
+    ],
+    "quiz": []
+  },
+  {
+    "id": "ch-4",
+    "title": "Phase 4: Mastery",
+    "lessons": [
+      {"id": "l10", "title": "Long-term Success", "duration": "10 min", "isLocked": false, "description": "Maintain progress"},
+      {"id": "l11", "title": "Expert Tips", "duration": "12 min", "isLocked": false, "description": "Pro-level insights"},
+      {"id": "l12", "title": "Next Steps", "duration": "10 min", "isLocked": false, "description": "Plan your future"}
     ],
     "quiz": []
   }
@@ -272,9 +382,17 @@ Return JSON array:
             }
         ], true);
 
-        return JSON.parse(response);
+        const parsed = safeParseJSON(response, []);
+        
+        if (Array.isArray(parsed) && parsed.length > 0) {
+            console.log('✅ Curriculum generated:', parsed.length, 'phases');
+            return parsed;
+        }
+        
+        console.warn('⚠️ Invalid curriculum format');
+        return [];
     } catch (e) {
-        console.error("Curriculum failed:", e);
+        console.error("Curriculum generation failed:", e);
         return [];
     }
 }

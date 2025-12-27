@@ -4,7 +4,7 @@ import { AppView, TaskStatus, Difficulty } from '../types';
 import { Icons, Card, Badge, Button } from '../components/UIComponents';
 
 export default function TaskSelectionView() {
-    const { user, setUser, setView, lessons } = useApp();
+    const { user, setUser, setView } = useApp();
 
     const handleTaskSelect = (taskId: string) => {
         setUser(prev => {
@@ -14,17 +14,18 @@ export default function TaskSelectionView() {
         setView(AppView.TASK_EXECUTION);
     };
 
-    // Filter out completed/approved tasks from main list
+    // Filter out completed/approved tasks and supplementary tasks from main list
     const activeTasks = user.dailyTasks.filter(t => 
         t.status !== TaskStatus.APPROVED && 
         t.status !== TaskStatus.COMPLETED &&
-        t.status !== TaskStatus.REJECTED
+        t.status !== TaskStatus.REJECTED &&
+        !t.isSupplementary // Don't show curriculum tasks here
     );
 
-    // Count completed tasks
+    // Count completed tasks (excluding supplementary)
     const completedCount = user.dailyTasks.filter(t => 
-        t.status === TaskStatus.APPROVED || 
-        t.status === TaskStatus.COMPLETED
+        (t.status === TaskStatus.APPROVED || t.status === TaskStatus.COMPLETED) &&
+        !t.isSupplementary
     ).length;
 
     // Format status for display
@@ -55,21 +56,6 @@ export default function TaskSelectionView() {
         }
     };
 
-    // Flatten curriculum into supplementary tasks
-    const supplementaryTasks = lessons.flatMap(chapter => 
-        chapter.lessons.map(lesson => ({
-            id: lesson.id,
-            title: lesson.title,
-            description: lesson.description || `Module from ${chapter.title}`,
-            estimatedTimeMinutes: parseInt(lesson.duration) || 20,
-            difficulty: Difficulty.MEDIUM,
-            videoRequirements: 'Record your core insight from this module.',
-            creditsReward: 0, 
-            status: TaskStatus.PENDING,
-            isSupplementary: true
-        }))
-    );
-
     return (
         <div className="h-full overflow-y-auto pb-safe scroll-smooth">
             <div className="min-h-full bg-white flex flex-col animate-fade-in pb-20">
@@ -85,7 +71,7 @@ export default function TaskSelectionView() {
                     {/* Daily Missions */}
                     <section>
                         <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">Architecture Daily Load</h2>
+                            <h2 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">Daily Missions</h2>
                             {completedCount > 0 && (
                                 <span className="text-xs font-bold text-green-600">{completedCount} done</span>
                             )}
@@ -150,30 +136,29 @@ export default function TaskSelectionView() {
                         )}
                     </section>
 
-                    {/* Supplementary Missions from Curriculum */}
-                    {supplementaryTasks.length > 0 && (
-                        <section>
-                            <h2 className="text-xs font-black text-secondary uppercase tracking-[0.2em] mb-4">Supplementary Modules</h2>
-                            <div className="space-y-4">
-                                {supplementaryTasks.map(task => (
-                                    <Card key={task.id} onClick={() => handleTaskSelect(task.id)} className="p-5 border-secondary/20 bg-secondary/5 group hover:shadow-md transition-all">
-                                        <div className="flex justify-between items-start">
-                                            <div className="flex-1 pr-4">
-                                                <div className="flex items-center gap-2 mb-2">
-                                                    <Badge color="bg-secondary text-white">Curriculum</Badge>
-                                                </div>
-                                                <h4 className="font-black text-primary text-lg leading-tight uppercase group-hover:text-secondary transition-colors">{task.title}</h4>
-                                                <p className="text-xs text-secondary/60 font-medium mt-2 line-clamp-2">{task.description}</p>
-                                            </div>
-                                            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg text-secondary group-active:scale-95 transition-all">
-                                                <Icons.Plus className="w-5 h-5"/>
-                                            </div>
-                                        </div>
-                                    </Card>
-                                ))}
+                    {/* Info Card - Curriculum Pointer */}
+                    <section>
+                        <Card className="p-6 bg-secondary/5 border-secondary/20">
+                            <div className="flex items-start gap-4">
+                                <div className="w-12 h-12 bg-secondary/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                                    <Icons.BookOpen className="w-6 h-6 text-secondary" />
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-primary mb-1">Looking for more learning?</h3>
+                                    <p className="text-sm text-gray-500 mb-3">
+                                        Access your full curriculum with 12+ lessons in the Curriculum tab.
+                                    </p>
+                                    <Button 
+                                        onClick={() => setView(AppView.SOCIAL)} 
+                                        variant="outline" 
+                                        className="py-2 px-4 text-xs"
+                                    >
+                                        Go to Curriculum
+                                    </Button>
+                                </div>
                             </div>
-                        </section>
-                    )}
+                        </Card>
+                    </section>
                 </div>
             </div>
         </div>

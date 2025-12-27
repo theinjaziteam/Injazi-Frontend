@@ -75,7 +75,6 @@ export default function DashboardView() {
                 pendingDailyTasks
             );
             
-            // Keep existing lesson tasks, add new daily tasks
             const existingLessonTasks = dailyTasks.filter(t => t.isLessonTask);
             
             setUser(prev => ({ 
@@ -138,168 +137,241 @@ export default function DashboardView() {
     }
 
     const AgentAlertCard: React.FC<{ alert: AgentAlert; onClick?: () => void }> = ({ alert, onClick }) => (
-        <div onClick={onClick} className={`rounded-2xl mb-4 border-l-4 shadow-lg bg-white p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors ${alert.severity === 'high' ? 'border-red-500 shadow-red-500/10' : 'border-blue-500 shadow-blue-500/10'}`}>
+        <div onClick={onClick} className={`rounded-2xl mb-4 border-l-4 shadow-card bg-white p-4 flex items-center justify-between cursor-pointer hover:shadow-card-hover transition-all ${alert.severity === 'high' ? 'border-red-500' : 'border-secondary'}`}>
             <div className="flex items-center gap-3 overflow-hidden">
-                <Icons.AlertTriangle className={`w-5 h-5 flex-shrink-0 ${alert.severity === 'high' ? 'text-red-500' : 'text-blue-500'}`}/>
+                <Icons.AlertTriangle className={`w-5 h-5 flex-shrink-0 ${alert.severity === 'high' ? 'text-red-500' : 'text-secondary'}`}/>
                 <h3 className="font-bold text-primary text-sm truncate">{alert.title}</h3>
             </div>
-            <Icons.ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
+            <Icons.ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
         </div>
     );
 
+    // Get difficulty badge color
+    const getDifficultyColor = (difficulty?: string) => {
+        switch(difficulty?.toUpperCase()) {
+            case 'EASY': return 'bg-green-100 text-green-700';
+            case 'MEDIUM': return 'bg-blue-100 text-blue-700';
+            case 'HARD': return 'bg-orange-100 text-orange-700';
+            default: return 'bg-gray-100 text-gray-600';
+        }
+    };
+
+    const totalPendingTasks = pendingDailyTasks.length + pendingLessonTasks.length;
+
     return (
         <div className="h-full overflow-y-auto pb-safe scroll-smooth">
-            <div className="min-h-full bg-white pb-28 animate-fade-in">
-                 <div className="bg-primary text-white px-6 pt-safe pt-12 pb-16 rounded-b-[3rem] relative overflow-hidden shadow-2xl shadow-primary/20">
+            <div className="min-h-full bg-gray-50 pb-28 animate-fade-in">
+                {/* Header with Gradient */}
+                <div className="bg-gradient-to-br from-primary via-primary to-secondary text-white px-6 pt-safe pt-12 pb-16 rounded-b-[3rem] relative overflow-hidden shadow-xl">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-secondary/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+                    <div className="absolute bottom-0 left-0 w-48 h-48 bg-accent/10 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
+                    
                     <div className="flex justify-between items-center relative z-20 mb-6 mt-4">
                         <h2 className="text-xl font-black tracking-tighter">INJAZI</h2>
                         <div className="flex gap-2">
-                            <button onClick={() => setShowCheckIn(true)} className="p-2 bg-[#DFF3E4] text-primary rounded-full hover:bg-white transition-colors shadow-lg"><Icons.Check className="w-5 h-5" /></button>
-                            <button onClick={() => setView(AppView.SETTINGS)} className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors"><Icons.Settings className="w-5 h-5" /></button>
+                            <button onClick={() => setShowCheckIn(true)} className="p-2.5 bg-accent text-primary rounded-xl hover:bg-white transition-all shadow-lg">
+                                <Icons.Check className="w-5 h-5" />
+                            </button>
+                            <button onClick={() => setView(AppView.SETTINGS)} className="p-2.5 bg-white/10 rounded-xl hover:bg-white/20 transition-all backdrop-blur-sm">
+                                <Icons.Settings className="w-5 h-5" />
+                            </button>
                         </div>
                     </div>
                     
+                    {/* Goal Switcher */}
                     <div className="relative z-20 w-full mb-10">
-                         <div className="flex justify-center items-center flex-wrap gap-4 text-xs font-bold tracking-[0.2em] uppercase">
-                             {allGoals.map((g, idx) => (<React.Fragment key={g.id}><button onClick={() => switchGoal(g)} className={`transition-all hover:scale-105 ${g.id === currentGoal.id ? 'text-white border-b-2 border-accent pb-0.5' : 'text-white/40'}`}>Goal {idx + 1}</button><span className="text-white/10">|</span></React.Fragment>))}
-                             <button onClick={handleAddGoal} className="text-white/40 hover:text-white transition-colors flex items-center gap-1">+ New</button>
-                         </div>
+                        <div className="flex justify-center items-center flex-wrap gap-4 text-xs font-bold tracking-[0.2em] uppercase">
+                            {allGoals.map((g, idx) => (
+                                <React.Fragment key={g.id}>
+                                    <button 
+                                        onClick={() => switchGoal(g)} 
+                                        className={`transition-all hover:scale-105 px-3 py-1 rounded-lg ${g.id === currentGoal.id ? 'text-white bg-white/20 backdrop-blur-sm' : 'text-white/40 hover:text-white/70'}`}
+                                    >
+                                        Goal {idx + 1}
+                                    </button>
+                                    <span className="text-white/10">|</span>
+                                </React.Fragment>
+                            ))}
+                            <button onClick={handleAddGoal} className="text-white/40 hover:text-white transition-colors flex items-center gap-1 px-3 py-1 rounded-lg hover:bg-white/10">
+                                <Icons.Plus className="w-3 h-3" /> New
+                            </button>
+                        </div>
                     </div>
 
+                    {/* Progress Circle */}
                     <div className="flex flex-col items-center text-center relative z-10 animate-slide-up">
                         <div className="relative w-40 h-40 flex items-center justify-center mb-4">
                             <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                                <circle cx="50" cy="50" r="42" stroke="currentColor" strokeWidth="6" fill="none" className="text-white/5" />
-                                <circle cx="50" cy="50" r="42" stroke="currentColor" strokeWidth="6" fill="none" className="text-accent" strokeDasharray="263.8" strokeDashoffset={263.8 - (263.8 * (user.currentDay / (currentGoal.durationDays || 365)))} strokeLinecap="round" />
+                                <circle cx="50" cy="50" r="42" stroke="currentColor" strokeWidth="6" fill="none" className="text-white/10" />
+                                <circle 
+                                    cx="50" cy="50" r="42" 
+                                    stroke="url(#progressGradient)" 
+                                    strokeWidth="6" 
+                                    fill="none" 
+                                    strokeDasharray="263.8" 
+                                    strokeDashoffset={263.8 - (263.8 * (user.currentDay / (currentGoal.durationDays || 365)))} 
+                                    strokeLinecap="round" 
+                                />
+                                <defs>
+                                    <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" stopColor="#10B981" />
+                                        <stop offset="100%" stopColor="#6366F1" />
+                                    </linearGradient>
+                                </defs>
                             </svg>
                             <div className="absolute inset-0 flex items-center justify-center flex-col">
                                 <span className="text-4xl font-black text-white tracking-tighter">{Math.round((user.currentDay/(currentGoal.durationDays || 365))*100)}%</span>
                             </div>
                         </div>
                         <h3 className="font-bold text-2xl leading-tight mb-2 max-w-[80%] mx-auto">{currentGoal.title}</h3>
-                        <div className="flex items-center gap-3 mt-1"><span className="text-white/60 text-xs font-bold uppercase tracking-wide bg-white/5 px-3 py-1 rounded-lg">Day {user.currentDay} of {currentGoal.durationDays}</span></div>
+                        <div className="flex items-center gap-3 mt-1">
+                            <span className="text-white/80 text-xs font-semibold bg-white/10 px-4 py-2 rounded-xl backdrop-blur-sm">
+                                Day {user.currentDay} of {currentGoal.durationDays}
+                            </span>
+                        </div>
                     </div>
                 </div>
 
                 <div className="px-6 -mt-8 relative z-20 space-y-6">
-                    {agentAlerts.filter(a => !a.isRead).map(alert => (<AgentAlertCard key={alert.id} alert={alert} onClick={() => setView(AppView.STATS)} />))}
+                    {/* Agent Alerts */}
+                    {agentAlerts.filter(a => !a.isRead).map(alert => (
+                        <AgentAlertCard key={alert.id} alert={alert} onClick={() => setView(AppView.STATS)} />
+                    ))}
 
-                    {/* Active Daily Missions Card */}
-                    <Card className="p-0 overflow-hidden border-none shadow-xl shadow-primary/10">
-                        <div className="bg-white p-6">
-                            <div className="flex justify-between items-center mb-4">
-                                <h3 className="font-bold text-primary text-lg">Daily Missions</h3>
-                                <Badge color="bg-secondary text-white">{pendingDailyTasks.length} ACTIVE</Badge>
-                            </div>
-                            
-                            {pendingDailyTasks.length === 0 ? (
-                                <div className="text-center py-6">
-                                    <Icons.Check className="w-10 h-10 text-green-500 mx-auto mb-2" />
-                                    <p className="text-gray-500 text-sm">All daily tasks complete!</p>
+                    {/* ALL TASKS - Combined Card */}
+                    <Card className="p-0 overflow-hidden border-none shadow-lg bg-white">
+                        {/* Header */}
+                        <div className="p-5 border-b border-gray-100">
+                            <div className="flex justify-between items-center">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-secondary/10 rounded-xl flex items-center justify-center">
+                                        <Icons.Zap className="w-5 h-5 text-secondary" />
+                                    </div>
+                                    <h3 className="font-bold text-primary text-lg">All Tasks</h3>
                                 </div>
-                            ) : (
+                                <Badge color="bg-secondary/10 text-secondary">{totalPendingTasks} ACTIVE</Badge>
+                            </div>
+                        </div>
+                        
+                        <div className="p-5">
+                            {/* Daily Tasks */}
+                            {pendingDailyTasks.length > 0 && (
                                 <div className="space-y-3 mb-6">
-                                   {pendingDailyTasks.map(task => (
-                                       <div key={task.id} onClick={() => handleTaskSelect(task.id)} className="bg-gray-50 border border-gray-100 p-4 rounded-xl flex justify-between items-center cursor-pointer hover:shadow-md transition-all group">
-                                           <div>
-                                               <div className="text-[9px] font-black uppercase text-secondary tracking-widest mb-1">Daily Task</div>
-                                               <h4 className="font-bold text-primary text-sm group-hover:text-secondary transition-colors">{task.title}</h4>
-                                           </div>
-                                           <div className="flex items-center gap-3">
-                                               {(task.timeLeft !== undefined && task.timeLeft > 0 && task.timeLeft < ((task.estimatedTimeMinutes || 20) * 60)) && (
-                                                   <Badge color={task.isTimerActive ? "bg-green-100 text-green-700 animate-pulse" : "bg-yellow-100 text-yellow-700"}>
-                                                       {calculateRealTimeRemaining(task)}
-                                                   </Badge>
-                                               )}
-                                               <Icons.ChevronRight className="w-5 h-5 text-gray-300"/>
-                                           </div>
-                                       </div>
-                                   ))}
+                                    {pendingDailyTasks.map(task => (
+                                        <div 
+                                            key={task.id} 
+                                            onClick={() => handleTaskSelect(task.id)} 
+                                            className="bg-gray-50 border border-gray-100 p-4 rounded-xl flex justify-between items-center cursor-pointer hover:shadow-md hover:border-secondary/30 transition-all group"
+                                        >
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded ${getDifficultyColor(task.difficulty)}`}>
+                                                        {task.difficulty || 'TASK'}
+                                                    </span>
+                                                </div>
+                                                <h4 className="font-bold text-primary text-sm group-hover:text-secondary transition-colors uppercase">{task.title}</h4>
+                                                <p className="text-xs text-gray-400 mt-0.5">{task.estimatedTimeMinutes || 20} min</p>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                {(task.timeLeft !== undefined && task.timeLeft > 0 && task.timeLeft < ((task.estimatedTimeMinutes || 20) * 60)) && (
+                                                    <Badge color={task.isTimerActive ? "bg-green-100 text-green-700 animate-pulse" : "bg-yellow-100 text-yellow-700"}>
+                                                        {calculateRealTimeRemaining(task)}
+                                                    </Badge>
+                                                )}
+                                                <Icons.ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-secondary transition-colors"/>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             )}
+
+                            {/* LESSON TASKS Section */}
+                            {pendingLessonTasks.length > 0 && (
+                                <div className="mt-4">
+                                    <h4 className="text-xs font-black text-secondary uppercase tracking-widest mb-4">Lesson Tasks</h4>
+                                    <div className="space-y-3">
+                                        {pendingLessonTasks.map(task => {
+                                            const lessonName = getLessonNameForTask(task);
+                                            return (
+                                                <div 
+                                                    key={task.id} 
+                                                    onClick={() => handleTaskSelect(task.id)} 
+                                                    className="bg-blue-50/50 border border-blue-100 p-4 rounded-xl flex justify-between items-center cursor-pointer hover:shadow-md hover:border-secondary/40 transition-all group"
+                                                >
+                                                    <div>
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded ${getDifficultyColor(task.difficulty)}`}>
+                                                                {task.difficulty || 'TASK'}
+                                                            </span>
+                                                        </div>
+                                                        <h4 className="font-bold text-primary text-sm group-hover:text-secondary transition-colors uppercase">{task.title}</h4>
+                                                        <p className="text-xs text-secondary/70 mt-0.5">
+                                                            From: {lessonName || 'Curriculum'} • {task.estimatedTimeMinutes || 20} min
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex items-center gap-3">
+                                                        {(task.timeLeft !== undefined && task.timeLeft > 0 && task.timeLeft < ((task.estimatedTimeMinutes || 20) * 60)) && (
+                                                            <Badge color={task.isTimerActive ? "bg-blue-100 text-blue-700 animate-pulse" : "bg-blue-100 text-blue-600"}>
+                                                                {calculateRealTimeRemaining(task)}
+                                                            </Badge>
+                                                        )}
+                                                        <Icons.ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-secondary transition-colors"/>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Empty State */}
+                            {totalPendingTasks === 0 && (
+                                <div className="text-center py-8 bg-green-50 rounded-2xl">
+                                    <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                                        <Icons.Check className="w-7 h-7 text-green-600" />
+                                    </div>
+                                    <p className="text-primary font-semibold">All tasks complete!</p>
+                                    <p className="text-gray-500 text-sm mt-1">Great progress today</p>
+                                </div>
+                            )}
+
+                            {/* Want more tasks CTA */}
+                            <div className="mt-6 p-4 bg-gray-50 rounded-xl border border-gray-100">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-secondary/10 rounded-xl flex items-center justify-center">
+                                        <Icons.BookOpen className="w-5 h-5 text-secondary" />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-semibold text-primary text-sm">Want more tasks?</h4>
+                                        <p className="text-xs text-gray-500">Start lessons from your curriculum to unlock related tasks.</p>
+                                    </div>
+                                </div>
+                            </div>
                             
-                            <Button onClick={() => setView(AppView.TASK_SELECTION)} className="w-full group" variant="secondary">Browse All Tasks</Button>
+                            <Button onClick={() => setView(AppView.TASK_SELECTION)} className="w-full mt-4" variant="secondary">
+                                Browse All Tasks
+                            </Button>
                         </div>
                     </Card>
 
-                    {/* Lesson Tasks Card - UNIQUE DESIGN */}
-                    {pendingLessonTasks.length > 0 && (
-                        <div className="relative">
-                            {/* Decorative gradient border */}
-                            <div className="absolute inset-0 bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 rounded-[2rem] opacity-20 blur-sm"></div>
-                            <Card className="relative p-0 overflow-hidden border-2 border-purple-200 shadow-xl shadow-purple-500/10">
-                                {/* Header with gradient */}
-                                <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-4">
-                                    <div className="flex justify-between items-center">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                                                <Icons.BookOpen className="w-5 h-5 text-white" />
-                                            </div>
-                                            <div>
-                                                <h3 className="font-bold text-white text-lg">Lesson Tasks</h3>
-                                                <p className="text-white/70 text-[10px] uppercase tracking-widest">From your curriculum</p>
-                                            </div>
-                                        </div>
-                                        <div className="bg-white/20 px-3 py-1.5 rounded-full">
-                                            <span className="text-white text-xs font-black">{pendingLessonTasks.length} PENDING</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                {/* Task List */}
-                                <div className="bg-white p-4 space-y-3">
-                                   {pendingLessonTasks.map((task, idx) => {
-                                       const lessonName = getLessonNameForTask(task);
-                                       return (
-                                           <div 
-                                               key={task.id} 
-                                               onClick={() => handleTaskSelect(task.id)} 
-                                               className="relative overflow-hidden bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-100 p-4 rounded-2xl flex justify-between items-center cursor-pointer hover:shadow-lg hover:border-purple-300 transition-all group"
-                                           >
-                                               {/* Left accent bar */}
-                                               <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-purple-500 to-pink-500"></div>
-                                               
-                                               <div className="pl-3">
-                                                   <div className="flex items-center gap-2 mb-1">
-                                                       <span className="text-[9px] font-black uppercase text-purple-600 tracking-widest">
-                                                           📚 {lessonName || 'Lesson Task'}
-                                                       </span>
-                                                       <span className="text-[9px] font-bold text-gray-400">•</span>
-                                                       <span className="text-[9px] font-bold text-gray-400">{task.estimatedTimeMinutes} min</span>
-                                                   </div>
-                                                   <h4 className="font-bold text-primary text-sm group-hover:text-purple-700 transition-colors">{task.title}</h4>
-                                               </div>
-                                               <div className="flex items-center gap-3">
-                                                   {(task.timeLeft !== undefined && task.timeLeft > 0 && task.timeLeft < ((task.estimatedTimeMinutes || 20) * 60)) && (
-                                                       <Badge color={task.isTimerActive ? "bg-purple-100 text-purple-700 animate-pulse" : "bg-pink-100 text-pink-700"}>
-                                                           {calculateRealTimeRemaining(task)}
-                                                       </Badge>
-                                                   )}
-                                                   <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center group-hover:bg-purple-200 transition-colors">
-                                                       <Icons.ChevronRight className="w-4 h-4 text-purple-500"/>
-                                                   </div>
-                                               </div>
-                                           </div>
-                                       );
-                                   })}
-                                </div>
-                            </Card>
-                        </div>
-                    )}
-
                     {/* Earn Credits Section */}
-                    <div className="bg-white rounded-[2rem] border border-gray-100 shadow-md p-6 overflow-hidden transition-all duration-300">
+                    <div className="bg-white rounded-2xl border border-gray-100 shadow-md p-6 overflow-hidden transition-all duration-300">
                       <div className="flex items-center justify-between cursor-pointer" onClick={() => setIsEarnExpanded(!isEarnExpanded)}>
-                          <h3 className="text-xl font-black text-primary flex items-center gap-2"><Icons.Coins className="w-6 h-6 text-yellow-500" /> Earn Credits</h3>
-                          <Icons.ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${isEarnExpanded ? 'rotate-180' : ''}`} />
+                          <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-yellow-100 rounded-xl flex items-center justify-center">
+                                  <Icons.Coins className="w-5 h-5 text-yellow-600" />
+                              </div>
+                              <h3 className="text-lg font-bold text-primary">Earn Credits</h3>
+                          </div>
+                          <Icons.ChevronDown className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${isEarnExpanded ? 'rotate-180' : ''}`} />
                       </div>
                       {isEarnExpanded && (
                           <div className="space-y-3 mt-6 animate-slide-up">
                               {earnTasks.map(task => (
-                                  <div key={task.id} className={`w-full p-4 rounded-2xl border transition-all ${task.isCompleted ? 'bg-gray-50 border-gray-100' : 'bg-white border-gray-200'}`}>
-                                      <div className="flex items-center justify-between mb-2">
+                                  <div key={task.id} className={`w-full p-4 rounded-xl border transition-all ${task.isCompleted ? 'bg-gray-50 border-gray-100' : 'bg-white border-gray-200 hover:border-secondary/30'}`}>
+                                      <div className="flex items-center justify-between mb-3">
                                           <div className="flex items-center gap-3">
-                                              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${task.isCompleted ? 'bg-gray-200 text-gray-400' : 'bg-blue-50 text-blue-600'}`}>
+                                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${task.isCompleted ? 'bg-gray-100 text-gray-400' : 'bg-secondary/10 text-secondary'}`}>
                                                   <Icons.Zap className="w-5 h-5"/>
                                               </div>
                                               <div>
@@ -307,11 +379,19 @@ export default function DashboardView() {
                                                   <div className="text-xs text-gray-400">{task.subtitle}</div>
                                               </div>
                                           </div>
-                                          <div className="text-right"><div className="font-black text-sm text-primary">+{task.reward}</div></div>
+                                          <div className="text-right">
+                                              <div className="font-black text-sm text-yellow-600">+{task.reward}</div>
+                                          </div>
                                       </div>
                                       {!task.isCompleted ? (
-                                          <Button onClick={() => handleEarnCreditProgress(task.id)} variant="outline" className="py-2 text-xs h-8">Perform Action ({task.progress}/{task.maxProgress})</Button>
-                                      ) : <div className="mt-2 text-center text-xs font-bold text-green-600 bg-green-50 py-1 rounded-lg">Completed</div>}
+                                          <Button onClick={() => handleEarnCreditProgress(task.id)} variant="outline" className="w-full py-2 text-xs h-10">
+                                              Perform Action ({task.progress}/{task.maxProgress})
+                                          </Button>
+                                      ) : (
+                                          <div className="mt-2 text-center text-xs font-bold text-green-600 bg-green-50 py-2 rounded-lg">
+                                              Completed
+                                          </div>
+                                      )}
                                   </div>
                               ))}
                           </div>
@@ -319,14 +399,31 @@ export default function DashboardView() {
                     </div>
                 </div>
 
+                {/* Daily Check-in Modal */}
                 {showCheckIn && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-primary/80 backdrop-blur-sm p-6 animate-fade-in">
-                      <div className="bg-white rounded-[2rem] w-full max-w-md p-8 shadow-2xl animate-scale-in">
-                          <h2 className="text-2xl font-bold text-primary mb-2">Daily Check-in</h2>
-                          <p className="text-sm text-secondary mb-6">What did you accomplish today?</p>
-                          <textarea value={checkInText} onChange={(e) => setCheckInText(e.target.value)} className="w-full h-32 p-4 bg-accent/30 rounded-xl border border-accent mb-6 focus:outline-none" placeholder="I researched 3 competitors..." />
-                          <Button onClick={submitDailyCheckIn} isLoading={isProcessingCheckIn} disabled={!checkInText.trim()}>Submit Check-in</Button>
-                          <button onClick={() => setShowCheckIn(false)} className="w-full mt-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Cancel</button>
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-primary/90 backdrop-blur-md p-6 animate-fade-in">
+                      <div className="bg-white rounded-3xl w-full max-w-md p-8 shadow-2xl animate-scale-in">
+                          <div className="flex items-center gap-3 mb-6">
+                              <div className="w-12 h-12 bg-accent rounded-xl flex items-center justify-center">
+                                  <Icons.Check className="w-6 h-6 text-primary" />
+                              </div>
+                              <div>
+                                  <h2 className="text-xl font-bold text-primary">Daily Check-in</h2>
+                                  <p className="text-sm text-gray-500">What did you accomplish today?</p>
+                              </div>
+                          </div>
+                          <textarea 
+                              value={checkInText} 
+                              onChange={(e) => setCheckInText(e.target.value)} 
+                              className="w-full h-32 p-4 bg-gray-50 rounded-xl border-2 border-transparent focus:border-secondary/30 mb-6 focus:outline-none resize-none transition-colors" 
+                              placeholder="I researched 3 competitors, made 5 sales calls..." 
+                          />
+                          <Button onClick={submitDailyCheckIn} isLoading={isProcessingCheckIn} disabled={!checkInText.trim()} className="w-full">
+                              Submit Check-in
+                          </Button>
+                          <button onClick={() => setShowCheckIn(false)} className="w-full mt-4 text-sm font-semibold text-gray-400 hover:text-primary transition-colors py-2">
+                              Cancel
+                          </button>
                       </div>
                   </div>
                 )}

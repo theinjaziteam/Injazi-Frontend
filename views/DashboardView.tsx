@@ -21,23 +21,33 @@ export default function DashboardView() {
     const agentAlerts = user.agentAlerts || [];
     const currentGoal = user.goal || { title: "Loading...", category: "General", durationDays: 30, mode: "Standard" };
 
-    const pendingDaily = dailyTasks.filter(t => t.status !== TaskStatus.APPROVED && t.status !== TaskStatus.COMPLETED);
+    // Separate daily tasks from lesson tasks
+    const pendingDailyTasks = dailyTasks.filter(t => 
+        t.status !== TaskStatus.APPROVED && 
+        t.status !== TaskStatus.COMPLETED &&
+        !t.isLessonTask
+    );
     
-    // Safety check for lessons
-    const safeLessons = lessons || [];
-    const supplementaryTasks = safeLessons.flatMap(c => c.lessons || []).slice(0, 2).map(l => ({
-        id: l.id,
-        title: l.title,
-        status: TaskStatus.PENDING,
-        isSupplementary: true,
-        creditsReward: 0 
-    }));
+    const pendingLessonTasks = dailyTasks.filter(t => 
+        t.status !== TaskStatus.APPROVED && 
+        t.status !== TaskStatus.COMPLETED &&
+        t.isLessonTask === true
+    );
+
+    // Get lesson name for a task
+    const getLessonNameForTask = (task: Task): string | null => {
+        if (!task.sourceLessonId || !lessons) return null;
+        for (const chapter of lessons) {
+            const lesson = chapter.lessons.find(l => l.id === task.sourceLessonId);
+            if (lesson) return lesson.title;
+        }
+        return null;
+    };
 
     // --- HELPER TO CALCULATE REAL TIME REMAINING ---
     const calculateRealTimeRemaining = (task: Task) => {
         let currentSeconds = task.timeLeft || 0;
         
-        // If actively running, subtract elapsed time
         if (task.isTimerActive && task.lastUpdated) {
             const elapsed = Math.floor((Date.now() - task.lastUpdated) / 1000);
             currentSeconds = Math.max(0, currentSeconds - elapsed);
@@ -48,32 +58,7 @@ export default function DashboardView() {
     };
 
     const handleTaskSelect = (taskId: string) => {
-        const exists = dailyTasks.find(t => t.id === taskId);
-        if (!exists) {
-            const lesson = safeLessons.flatMap(c => c.lessons || []).find(l => l.id === taskId);
-            if (lesson) {
-                const newTask: Task = {
-                    id: lesson.id,
-                    dayNumber: user.currentDay,
-                    title: lesson.title,
-                    description: lesson.description || "Curriculum Session",
-                    estimatedTimeMinutes: 20,
-                    difficulty: Difficulty.MEDIUM,
-                    videoRequirements: "None",
-                    creditsReward: 0,
-                    status: TaskStatus.PENDING,
-                    isSelected: true,
-                    isSupplementary: true
-                };
-                setUser(prev => ({ 
-                    ...prev, 
-                    dailyTasks: [...(prev.dailyTasks || []), newTask], 
-                    selectedTaskId: taskId 
-                }));
-            }
-        } else {
-            setUser(prev => ({ ...prev, selectedTaskId: taskId }));
-        }
+        setUser(prev => ({ ...prev, selectedTaskId: taskId }));
         setView(AppView.TASK_EXECUTION);
     };
 
@@ -83,19 +68,21 @@ export default function DashboardView() {
         try {
             const updatedProfile = await updateUserProfile(user.userProfile, checkInText);
             
-            // --- FIXED: Passing checkInText correctly to AI ---
             const newTasks = await generateDailyTasks(
                 user.goal!, 
                 user.currentDay, 
                 updatedProfile, 
-                checkInText, // <--- Sent to AI
-                pendingDaily
+                checkInText,
+                pendingDailyTasks
             );
+            
+            // Keep existing lesson tasks, add new daily tasks
+            const existingLessonTasks = dailyTasks.filter(t => t.isLessonTask);
             
             setUser(prev => ({ 
                 ...prev, 
                 userProfile: updatedProfile, 
-                dailyTasks: [...pendingDaily, ...newTasks], 
+                dailyTasks: [...pendingDailyTasks, ...existingLessonTasks, ...newTasks], 
                 lastCheckInDate: Date.now() 
             }));
             setShowCheckIn(false);
@@ -198,44 +185,83 @@ export default function DashboardView() {
                 <div className="px-6 -mt-8 relative z-20 space-y-6">
                     {agentAlerts.filter(a => !a.isRead).map(alert => (<AgentAlertCard key={alert.id} alert={alert} onClick={() => setView(AppView.STATS)} />))}
 
+                    {/* Active Daily Missions Card */}
                     <Card className="p-0 overflow-hidden border-none shadow-xl shadow-primary/10">
                         <div className="bg-white p-6">
                             <div className="flex justify-between items-center mb-4">
-                                <h3 className="font-bold text-primary text-lg">Active Missions</h3>
-                                <Badge color="bg-secondary text-white">{pendingDaily.length + supplementaryTasks.length} LOADED</Badge>
+                                <h3 className="font-bold text-primary text-lg">Daily Missions</h3>
+                                <Badge color="bg-secondary text-white">{pendingDailyTasks.length} ACTIVE</Badge>
                             </div>
-                            <div className="space-y-3 mb-6">
-                               {pendingDaily.map(task => (
-                                   <div key={task.id} onClick={() => handleTaskSelect(task.id)} className="bg-gray-50 border border-gray-100 p-4 rounded-xl flex justify-between items-center cursor-pointer hover:shadow-md transition-all group">
-                                       <div>
-                                           <div className="text-[9px] font-black uppercase text-secondary tracking-widest mb-1">Architecture Task</div>
-                                           <h4 className="font-bold text-primary text-sm group-hover:text-secondary transition-colors">{task.title}</h4>
+                            
+                            {pendingDailyTasks.length === 0 ? (
+                                <div className="text-center py-6">
+                                    <Icons.Check className="w-10 h-10 text-green-500 mx-auto mb-2" />
+                                    <p className="text-gray-500 text-sm">All daily tasks complete!</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-3 mb-6">
+                                   {pendingDailyTasks.map(task => (
+                                       <div key={task.id} onClick={() => handleTaskSelect(task.id)} className="bg-gray-50 border border-gray-100 p-4 rounded-xl flex justify-between items-center cursor-pointer hover:shadow-md transition-all group">
+                                           <div>
+                                               <div className="text-[9px] font-black uppercase text-secondary tracking-widest mb-1">Daily Task</div>
+                                               <h4 className="font-bold text-primary text-sm group-hover:text-secondary transition-colors">{task.title}</h4>
+                                           </div>
+                                           <div className="flex items-center gap-3">
+                                               {(task.timeLeft !== undefined && task.timeLeft > 0 && task.timeLeft < ((task.estimatedTimeMinutes || 20) * 60)) && (
+                                                   <Badge color={task.isTimerActive ? "bg-green-100 text-green-700 animate-pulse" : "bg-yellow-100 text-yellow-700"}>
+                                                       {calculateRealTimeRemaining(task)}
+                                                   </Badge>
+                                               )}
+                                               <Icons.ChevronRight className="w-5 h-5 text-gray-300"/>
+                                           </div>
                                        </div>
-                                       {/* --- FIXED: Time Remaining Badge --- */}
-                                       <div className="flex items-center gap-3">
-                                           {(task.timeLeft !== undefined && task.timeLeft > 0 && task.timeLeft < ((task.estimatedTimeMinutes || 20) * 60)) && (
-                                               <Badge color={task.isTimerActive ? "bg-green-100 text-green-700 animate-pulse" : "bg-yellow-100 text-yellow-700"}>
-                                                   {calculateRealTimeRemaining(task)}
-                                               </Badge>
-                                           )}
-                                           <Icons.ChevronRight className="w-5 h-5 text-gray-300"/>
-                                       </div>
-                                   </div>
-                               ))}
-                               {supplementaryTasks.map(task => (
-                                   <div key={task.id} onClick={() => handleTaskSelect(task.id)} className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex justify-between items-center cursor-pointer hover:shadow-md transition-all group">
-                                       <div>
-                                           <div className="text-[9px] font-black uppercase text-blue-500 tracking-widest mb-1">Supplementary Module</div>
-                                           <h4 className="font-bold text-primary text-sm group-hover:text-secondary transition-colors">{task.title}</h4>
-                                       </div>
-                                       <Icons.Plus className="w-4 h-4 text-blue-400"/>
-                                   </div>
-                               ))}
-                            </div>
+                                   ))}
+                                </div>
+                            )}
+                            
                             <Button onClick={() => setView(AppView.TASK_SELECTION)} className="w-full group" variant="secondary">Browse All Tasks</Button>
                         </div>
                     </Card>
 
+                    {/* Lesson Tasks Card - Only shows if there are lesson tasks */}
+                    {pendingLessonTasks.length > 0 && (
+                        <Card className="p-0 overflow-hidden border-none shadow-xl shadow-secondary/10">
+                            <div className="bg-white p-6">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="font-bold text-primary text-lg flex items-center gap-2">
+                                        <Icons.BookOpen className="w-5 h-5 text-secondary" />
+                                        Lesson Tasks
+                                    </h3>
+                                    <Badge color="bg-blue-100 text-blue-700">{pendingLessonTasks.length} FROM LESSONS</Badge>
+                                </div>
+                                <div className="space-y-3">
+                                   {pendingLessonTasks.map(task => {
+                                       const lessonName = getLessonNameForTask(task);
+                                       return (
+                                           <div key={task.id} onClick={() => handleTaskSelect(task.id)} className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex justify-between items-center cursor-pointer hover:shadow-md transition-all group">
+                                               <div>
+                                                   <div className="text-[9px] font-black uppercase text-blue-500 tracking-widest mb-1">
+                                                       {lessonName ? `From: ${lessonName}` : 'Lesson Task'}
+                                                   </div>
+                                                   <h4 className="font-bold text-primary text-sm group-hover:text-secondary transition-colors">{task.title}</h4>
+                                               </div>
+                                               <div className="flex items-center gap-3">
+                                                   {(task.timeLeft !== undefined && task.timeLeft > 0 && task.timeLeft < ((task.estimatedTimeMinutes || 20) * 60)) && (
+                                                       <Badge color={task.isTimerActive ? "bg-green-100 text-green-700 animate-pulse" : "bg-yellow-100 text-yellow-700"}>
+                                                           {calculateRealTimeRemaining(task)}
+                                                       </Badge>
+                                                   )}
+                                                   <Icons.ChevronRight className="w-5 h-5 text-gray-300"/>
+                                               </div>
+                                           </div>
+                                       );
+                                   })}
+                                </div>
+                            </div>
+                        </Card>
+                    )}
+
+                    {/* Earn Credits Section */}
                     <div className="bg-white rounded-[2rem] border border-gray-100 shadow-md p-6 overflow-hidden transition-all duration-300">
                       <div className="flex items-center justify-between cursor-pointer" onClick={() => setIsEarnExpanded(!isEarnExpanded)}>
                           <h3 className="text-xl font-black text-primary flex items-center gap-2"><Icons.Coins className="w-6 h-6 text-yellow-500" /> Earn Credits</h3>
@@ -281,4 +307,4 @@ export default function DashboardView() {
             </div>
         </div>
     );
-} 
+}

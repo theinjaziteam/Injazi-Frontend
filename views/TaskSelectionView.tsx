@@ -119,11 +119,11 @@ export default function TaskSelectionView() {
                         )}
                     </section>
 
-                    {/* Lesson Tasks */}
+                    {/* Lesson Tasks - DARKER COLOR */}
                     {lessonTasks.length > 0 && (
                         <section>
                             <div className="flex items-center justify-between mb-4">
-                                <h2 className="text-xs font-black text-blue-600 uppercase tracking-[0.2em]">Lesson Tasks</h2>
+                                <h2 className="text-xs font-black text-indigo-700 uppercase tracking-[0.2em]">Lesson Tasks</h2>
                                 {completedLessonCount > 0 && (
                                     <span className="text-xs font-bold text-green-600">{completedLessonCount} done</span>
                                 )}
@@ -136,23 +136,23 @@ export default function TaskSelectionView() {
                                         <Card 
                                             key={task.id} 
                                             onClick={() => handleTaskSelect(task.id)} 
-                                            className="p-5 bg-blue-50 border-blue-100 flex justify-between items-center hover:border-blue-300 hover:shadow-md transition-all active:scale-[0.99]"
+                                            className="p-5 bg-indigo-100 border-indigo-200 flex justify-between items-center hover:border-indigo-400 hover:shadow-md transition-all active:scale-[0.99]"
                                         >
                                             <div className="flex-1">
                                                 <div className="flex items-center gap-2 mb-2">
-                                                    <Badge color="bg-blue-100 text-blue-700">{task.difficulty}</Badge>
+                                                    <Badge color="bg-indigo-600 text-white">{task.difficulty}</Badge>
                                                     {task.status !== TaskStatus.PENDING && (
                                                         <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wide ${getStatusColor(task.status)}`}>
                                                             {formatStatus(task.status)}
                                                         </span>
                                                     )}
                                                 </div>
-                                                <h4 className="font-black text-primary text-lg leading-tight uppercase">{task.title}</h4>
-                                                <p className="text-xs text-blue-500 font-medium mt-1">
+                                                <h4 className="font-black text-indigo-900 text-lg leading-tight uppercase">{task.title}</h4>
+                                                <p className="text-xs text-indigo-600 font-medium mt-1">
                                                     {lessonName ? `From: ${lessonName}` : 'Lesson Task'} • {task.estimatedTimeMinutes} min
                                                 </p>
                                             </div>
-                                            <Icons.ChevronRight className="w-6 h-6 text-blue-300" />
+                                            <Icons.ChevronRight className="w-6 h-6 text-indigo-400" />
                                         </Card>
                                     );
                                 })}

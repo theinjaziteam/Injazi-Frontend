@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useApp } from '../contexts/AppContext';
 import { AppView, TaskStatus } from '../types';
@@ -13,6 +12,16 @@ export default function TaskHistoryView() {
         t.status === TaskStatus.REJECTED
     ).sort((a, b) => b.dayNumber - a.dayNumber);
 
+    // Format status for display
+    const formatStatus = (status: TaskStatus) => {
+        switch(status) {
+            case TaskStatus.APPROVED: return 'Completed';
+            case TaskStatus.COMPLETED: return 'Done';
+            case TaskStatus.REJECTED: return 'Failed';
+            default: return status;
+        }
+    };
+
     return (
         <div className="h-full overflow-y-auto pb-safe scroll-smooth">
             <div className="min-h-full bg-white flex flex-col animate-fade-in">
@@ -21,44 +30,77 @@ export default function TaskHistoryView() {
                     <button onClick={() => setView(AppView.DASHBOARD)} className="p-2 hover:bg-gray-100 rounded-full transition-colors mt-2">
                         <Icons.ChevronLeft className="w-6 h-6 text-primary"/>
                     </button>
-                    <h1 className="text-2xl font-bold text-primary mt-2">Task History</h1>
+                    <div className="mt-2">
+                        <h1 className="text-2xl font-black text-primary uppercase tracking-tight">Completed Tasks</h1>
+                        <p className="text-xs text-gray-400">{historyTasks.length} tasks finished</p>
+                    </div>
                 </div>
 
                 <div className="flex-1 p-6">
                     {historyTasks.length === 0 ? (
                         <div className="text-center py-20 text-gray-400">
-                            <Icons.Clock className="w-16 h-16 mx-auto mb-4 opacity-20" />
-                            <p>No completed tasks yet.</p>
-                            <button onClick={() => setView(AppView.DASHBOARD)} className="text-primary font-bold mt-2 text-sm">Start a task</button>
+                            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Icons.Check className="w-10 h-10 text-gray-300" />
+                            </div>
+                            <p className="font-medium">No completed tasks yet</p>
+                            <p className="text-sm mt-1">Complete your first mission!</p>
+                            <button 
+                                onClick={() => setView(AppView.TASK_SELECTION)} 
+                                className="mt-4 px-6 py-2 bg-primary text-white rounded-full text-sm font-bold"
+                            >
+                                View Missions
+                            </button>
                         </div>
                     ) : (
-                        <div className="space-y-4">
-                            {historyTasks.map(task => (
-                                <Card key={task.id} className="p-4 flex items-center justify-between">
+                        <div className="space-y-3">
+                            {historyTasks.map((task, index) => (
+                                <Card 
+                                    key={task.id} 
+                                    className="p-4 border-none shadow-sm hover:shadow-md transition-shadow"
+                                    style={{ animationDelay: `${index * 50}ms` }}
+                                >
                                     <div className="flex items-center gap-4">
-                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${
                                             task.status === TaskStatus.APPROVED || task.status === TaskStatus.COMPLETED 
-                                                ? 'bg-green-100 text-green-600' 
-                                                : 'bg-red-100 text-red-600'
+                                                ? 'bg-gradient-to-br from-green-400 to-emerald-500 text-white shadow-lg shadow-green-500/30' 
+                                                : 'bg-gradient-to-br from-red-400 to-red-500 text-white shadow-lg shadow-red-500/30'
                                         }`}>
-                                            {task.status === TaskStatus.REJECTED ? <Icons.X className="w-5 h-5"/> : <Icons.Check className="w-5 h-5"/>}
+                                            {task.status === TaskStatus.REJECTED 
+                                                ? <Icons.X className="w-6 h-6"/> 
+                                                : <Icons.Check className="w-6 h-6"/>
+                                            }
                                         </div>
-                                        <div>
-                                            <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-0.5">Day {task.dayNumber}</div>
-                                            <h4 className="font-bold text-primary text-sm line-clamp-1">{task.title}</h4>
-                                            <div className="text-xs text-gray-500 mt-1">
-                                                {task.verificationMessage || (task.status === TaskStatus.REJECTED ? 'Verification Failed' : 'Verified')}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                                                    Day {task.dayNumber}
+                                                </span>
+                                                <span className="text-[10px] text-gray-300">•</span>
+                                                <span className="text-[10px] text-gray-400">
+                                                    {task.estimatedTimeMinutes} min
+                                                </span>
                                             </div>
+                                            <h4 className="font-bold text-primary text-sm line-clamp-1">{task.title}</h4>
+                                            {task.verificationMessage && (
+                                                <p className="text-xs text-gray-400 mt-1 line-clamp-1">
+                                                    {task.verificationMessage}
+                                                </p>
+                                            )}
                                         </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <span className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase ${
-                                            task.status === TaskStatus.APPROVED ? 'bg-green-50 text-green-700' :
-                                            task.status === TaskStatus.COMPLETED ? 'bg-blue-50 text-blue-700' :
-                                            'bg-red-50 text-red-700'
-                                        }`}>
-                                            {task.status}
-                                        </span>
+                                        <div className="flex flex-col items-end gap-1">
+                                            <span className={`text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wide ${
+                                                task.status === TaskStatus.APPROVED 
+                                                    ? 'bg-green-100 text-green-700' 
+                                                    : task.status === TaskStatus.COMPLETED 
+                                                    ? 'bg-blue-100 text-blue-700' 
+                                                    : 'bg-red-100 text-red-700'
+                                            }`}>
+                                                {formatStatus(task.status)}
+                                            </span>
+                                            <span className="text-[10px] text-green-600 font-bold">
+                                                +{task.creditsReward} credits
+                                            </span>
+                                        </div>
                                     </div>
                                 </Card>
                             ))}

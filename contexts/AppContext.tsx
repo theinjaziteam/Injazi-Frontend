@@ -1,77 +1,118 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { UserState, AppView, GoalCategory, ConnectedApp, FeedItem, Chapter, Course, Product, Friend, EarnTask, DAILY_EARN_TASKS, SocialSection, ExternalVideo, TaskStatus, Difficulty } from '../types';
+import { UserState, AppView, GoalCategory, ConnectedApp, FeedItem, Chapter, Course, Product, Friend, EarnTask, DAILY_EARN_TASKS, SocialSection, ExternalVideo, TaskStatus, Difficulty, Goal } from '../types';
 import { getGoalCurriculum, getSocialMarketplace, getSocialAds, getFeedRecommendations } from '../services/geminiService';
 import { api } from '../services/api';
 
-// --- YOUR DATA (KEPT INTACT) ---
+function getDefaultCurriculum(goal: Goal): Chapter[] {
+    return [
+        {
+            id: 'ch-1',
+            title: 'Phase 1: Foundation',
+            lessons: [
+                { id: 'l1', title: 'Understanding Your Goal', duration: '10 min', isLocked: false, description: `Learn the fundamentals of ${goal.title}` },
+                { id: 'l2', title: 'Setting Up For Success', duration: '15 min', isLocked: false, description: 'Prepare your environment and mindset' },
+                { id: 'l3', title: 'Your First Steps', duration: '10 min', isLocked: false, description: 'Take your first actionable steps' }
+            ],
+            quiz: []
+        },
+        {
+            id: 'ch-2',
+            title: 'Phase 2: Building Habits',
+            lessons: [
+                { id: 'l4', title: 'Daily Routines', duration: '12 min', isLocked: false, description: 'Establish consistent daily practices' },
+                { id: 'l5', title: 'Tracking Progress', duration: '10 min', isLocked: false, description: 'Monitor and measure your growth' },
+                { id: 'l6', title: 'Staying Motivated', duration: '10 min', isLocked: false, description: 'Keep your momentum going' }
+            ],
+            quiz: []
+        },
+        {
+            id: 'ch-3',
+            title: 'Phase 3: Advanced Strategies',
+            lessons: [
+                { id: 'l7', title: 'Overcoming Obstacles', duration: '15 min', isLocked: false, description: 'Handle challenges effectively' },
+                { id: 'l8', title: 'Accelerating Growth', duration: '12 min', isLocked: false, description: 'Level up your approach' },
+                { id: 'l9', title: 'Optimizing Results', duration: '10 min', isLocked: false, description: 'Fine-tune your methods' }
+            ],
+            quiz: []
+        },
+        {
+            id: 'ch-4',
+            title: 'Phase 4: Mastery',
+            lessons: [
+                { id: 'l10', title: 'Long-term Success', duration: '10 min', isLocked: false, description: 'Maintain your achievements' },
+                { id: 'l11', title: 'Teaching Others', duration: '10 min', isLocked: false, description: 'Share your knowledge' },
+                { id: 'l12', title: 'Next Level Goals', duration: '10 min', isLocked: false, description: 'Plan your next journey' }
+            ],
+            quiz: []
+        }
+    ];
+}
+
 const INITIAL_CONNECTED_APPS: ConnectedApp[] = [
-  {
-    id: 'app1',
-    name: 'Google Ads',
-    icon: 'Activity',
-    isConnected: false,
-    allowedCategories: [GoalCategory.MONEY, GoalCategory.PRODUCTIVITY],
-    metrics: [
-      { id: 'm1', name: 'ROAS', value: 3.2, unit: 'x', threshold: 2.0, condition: 'lt', status: 'good', history: [3.0, 3.1, 3.2, 3.1, 3.3, 3.2, 3.4, 3.1, 3.2, 3.2] },
-      { id: 'm2', name: 'Spend', value: 150, unit: '$', threshold: 500, condition: 'gt', status: 'good', history: [120, 130, 140, 145, 150, 155, 150, 148, 150, 150] }
-    ]
-  },
-  {
-    id: 'app2',
-    name: 'Meta Analytics',
-    icon: 'Users',
-    isConnected: false,
-    allowedCategories: [GoalCategory.SOCIAL, GoalCategory.MONEY],
-    metrics: []
-  }
+    {
+        id: 'app1',
+        name: 'Google Ads',
+        icon: 'Activity',
+        isConnected: false,
+        allowedCategories: [GoalCategory.MONEY, GoalCategory.PRODUCTIVITY],
+        metrics: [
+            { id: 'm1', name: 'ROAS', value: 3.2, unit: 'x', threshold: 2.0, condition: 'lt', status: 'good', history: [3.0, 3.1, 3.2, 3.1, 3.3, 3.2, 3.4, 3.1, 3.2, 3.2] },
+            { id: 'm2', name: 'Spend', value: 150, unit: '$', threshold: 500, condition: 'gt', status: 'good', history: [120, 130, 140, 145, 150, 155, 150, 148, 150, 150] }
+        ]
+    },
+    {
+        id: 'app2',
+        name: 'Meta Analytics',
+        icon: 'Users',
+        isConnected: false,
+        allowedCategories: [GoalCategory.SOCIAL, GoalCategory.MONEY],
+        metrics: []
+    }
 ];
 
 const INITIAL_STATE: UserState = {
-  email: "",
-  password: "",
-  createdAt: Date.now(),
-  name: "",
-  country: "",
-  privacyAccepted: false,
-  goal: null,
-  allGoals: [],
-  currentDay: 1,
-  credits: 0,
-  streak: 0,
-  isPremium: false,
-  activePlanId: 'free',
-  realMoneyBalance: 0,
-  earnings: [],
-  // --- YOUR TASKS (KEPT INTACT) ---
-  dailyTasks: [
-    { id: 'dt-1', dayNumber: 1, title: 'Strategic Planning Block', description: 'Dedicate time to structure your goals and identify high-impact actions.', estimatedTimeMinutes: 15, difficulty: Difficulty.EASY, videoRequirements: 'None', creditsReward: 50, status: TaskStatus.PENDING },
-    { id: 'dt-2', dayNumber: 1, title: 'Core Execution Phase', description: 'Engage in a focused block of activity directly related to your primary goal.', estimatedTimeMinutes: 45, difficulty: Difficulty.MEDIUM, videoRequirements: 'None', creditsReward: 100, status: TaskStatus.PENDING },
-    { id: 'dt-3', dayNumber: 1, title: 'Daily Review & Feedback', description: 'Log your progress and identify areas for optimization for tomorrow.', estimatedTimeMinutes: 10, difficulty: Difficulty.EASY, videoRequirements: 'None', creditsReward: 30, status: TaskStatus.PENDING }
-  ],
-  todoList: [],
-  extraLogs: [],
-  earnTasks: DAILY_EARN_TASKS,
-  selectedTaskId: null,
-  chatHistory: [],
-  connectedApps: INITIAL_CONNECTED_APPS, 
-  agentAlerts: [],
-  userProfile: "",
-  lastCheckInDate: 0,
-  completedLessonIds: [],
-  completedPhaseIds: [],
-  maxGoalSlots: 3,
-  history: [],
-  reminders: [],
-  myCourses: [],
-  myProducts: [],
-  myVideos: [],
-  
-  // --- FRIENDS MOVED HERE FOR PERSISTENCE ---
-  friends: [
-    { id: 'f1', name: 'Sarah', streak: 12, avatar: 'https://picsum.photos/110', lastActive: '2m ago', goalTitle: 'Run Marathon', progress: 45 },
-    { id: 'f2', name: 'Mike', streak: 5, avatar: 'https://picsum.photos/111', lastActive: '1h ago', goalTitle: 'Learn Python', progress: 20 },
-    { id: 'f3', name: 'Emma', streak: 30, avatar: 'https://picsum.photos/112', lastActive: '4h ago', goalTitle: 'Save $10k', progress: 75 }
-  ]
+    email: "",
+    password: "",
+    createdAt: Date.now(),
+    name: "",
+    country: "",
+    privacyAccepted: false,
+    goal: null,
+    allGoals: [],
+    currentDay: 1,
+    credits: 0,
+    streak: 0,
+    isPremium: false,
+    activePlanId: 'free',
+    realMoneyBalance: 0,
+    earnings: [],
+    dailyTasks: [
+        { id: 'dt-1', dayNumber: 1, title: 'Strategic Planning Block', description: 'Dedicate time to structure your goals and identify high-impact actions.', estimatedTimeMinutes: 15, difficulty: Difficulty.EASY, videoRequirements: 'None', creditsReward: 0, status: TaskStatus.PENDING },
+        { id: 'dt-2', dayNumber: 1, title: 'Core Execution Phase', description: 'Engage in a focused block of activity directly related to your primary goal.', estimatedTimeMinutes: 45, difficulty: Difficulty.MEDIUM, videoRequirements: 'None', creditsReward: 0, status: TaskStatus.PENDING },
+        { id: 'dt-3', dayNumber: 1, title: 'Daily Review & Feedback', description: 'Log your progress and identify areas for optimization for tomorrow.', estimatedTimeMinutes: 10, difficulty: Difficulty.EASY, videoRequirements: 'None', creditsReward: 0, status: TaskStatus.PENDING }
+    ],
+    todoList: [],
+    extraLogs: [],
+    earnTasks: DAILY_EARN_TASKS,
+    selectedTaskId: null,
+    chatHistory: [],
+    connectedApps: INITIAL_CONNECTED_APPS,
+    agentAlerts: [],
+    userProfile: "",
+    lastCheckInDate: 0,
+    completedLessonIds: [],
+    completedPhaseIds: [],
+    maxGoalSlots: 3,
+    history: [],
+    reminders: [],
+    myCourses: [],
+    myProducts: [],
+    myVideos: [],
+    friends: [
+        { id: 'f1', name: 'Sarah', streak: 12, avatar: 'https://picsum.photos/110', lastActive: '2m ago', goalTitle: 'Run Marathon', progress: 45 },
+        { id: 'f2', name: 'Mike', streak: 5, avatar: 'https://picsum.photos/111', lastActive: '1h ago', goalTitle: 'Learn Python', progress: 20 },
+        { id: 'f3', name: 'Emma', streak: 30, avatar: 'https://picsum.photos/112', lastActive: '4h ago', goalTitle: 'Save $10k', progress: 75 }
+    ]
 };
 
 interface AppContextType {
@@ -81,36 +122,45 @@ interface AppContextType {
     setView: (view: AppView) => void;
     isAuthenticated: boolean;
     setIsAuthenticated: (auth: boolean) => void;
-    feedItems: FeedItem[]; setFeedItems: React.Dispatch<React.SetStateAction<FeedItem[]>>;
-    lessons: Chapter[]; setLessons: React.Dispatch<React.SetStateAction<Chapter[]>>;
-    courses: Course[]; setCourses: React.Dispatch<React.SetStateAction<Course[]>>;
-    adsFeed: Product[]; setAdsFeed: React.Dispatch<React.SetStateAction<Product[]>>;
-    activeSocialSection: SocialSection; setActiveSocialSection: (section: SocialSection) => void;
-    isLoadingLessons: boolean; setIsLoadingLessons: (loading: boolean) => void;
-    recommendedVideos: ExternalVideo[]; setRecommendedVideos: React.Dispatch<React.SetStateAction<ExternalVideo[]>>;
-    showGoalManager: boolean; setShowGoalManager: (show: boolean) => void;
-    showCheckIn: boolean; setShowCheckIn: (show: boolean) => void;
-    showAdOverlay: boolean; setShowAdOverlay: (show: boolean) => void;
-    adCountdown: number; setAdCountdown: React.Dispatch<React.SetStateAction<number>>;
-    
-    // Kept friends setter for backward compatibility, but it updates user state now
-    friends: Friend[]; 
-    setFriends: (friends: Friend[]) => void; 
+    feedItems: FeedItem[];
+    setFeedItems: React.Dispatch<React.SetStateAction<FeedItem[]>>;
+    lessons: Chapter[];
+    setLessons: React.Dispatch<React.SetStateAction<Chapter[]>>;
+    courses: Course[];
+    setCourses: React.Dispatch<React.SetStateAction<Course[]>>;
+    adsFeed: Product[];
+    setAdsFeed: React.Dispatch<React.SetStateAction<Product[]>>;
+    activeSocialSection: SocialSection;
+    setActiveSocialSection: (section: SocialSection) => void;
+    isLoadingLessons: boolean;
+    setIsLoadingLessons: (loading: boolean) => void;
+    recommendedVideos: ExternalVideo[];
+    setRecommendedVideos: React.Dispatch<React.SetStateAction<ExternalVideo[]>>;
+    showGoalManager: boolean;
+    setShowGoalManager: (show: boolean) => void;
+    showCheckIn: boolean;
+    setShowCheckIn: (show: boolean) => void;
+    showAdOverlay: boolean;
+    setShowAdOverlay: (show: boolean) => void;
+    adCountdown: number;
+    setAdCountdown: React.Dispatch<React.SetStateAction<number>>;
+    friends: Friend[];
+    setFriends: (friends: Friend[]) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    // --- 1. LOAD FROM STORAGE ON BOOT (Fixes Logout Issue) ---
     const [user, setUser] = useState<UserState>(() => {
         const saved = localStorage.getItem('injazi_user');
         return saved ? JSON.parse(saved) : INITIAL_STATE;
     });
 
-    const [view, setView] = useState<AppView>(user.email ? (user.goal ? AppView.DASHBOARD : AppView.ONBOARDING) : AppView.LOGIN);
+    const [view, setView] = useState<AppView>(
+        user.email ? (user.goal ? AppView.DASHBOARD : AppView.ONBOARDING) : AppView.LOGIN
+    );
     const [isAuthenticated, setIsAuthenticated] = useState(!!user.email);
-    
-    // Content State (Fetched from AI/Cloud)
+
     const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
     const [lessons, setLessons] = useState<Chapter[]>([]);
     const [courses, setCourses] = useState<Course[]>([]);
@@ -118,19 +168,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [recommendedVideos, setRecommendedVideos] = useState<ExternalVideo[]>([]);
     const [activeSocialSection, setActiveSocialSection] = useState<SocialSection>(SocialSection.LESSONS);
     const [isLoadingLessons, setIsLoadingLessons] = useState(false);
-    
+
     const [showGoalManager, setShowGoalManager] = useState(false);
     const [showCheckIn, setShowCheckIn] = useState(false);
     const [showAdOverlay, setShowAdOverlay] = useState(false);
     const [adCountdown, setAdCountdown] = useState(0);
 
-    // Wrapper to keep existing code working while updating User state
     const setFriends = (newFriends: any) => {
         const updatedFriends = typeof newFriends === 'function' ? newFriends(user.friends || []) : newFriends;
         setUser(prev => ({ ...prev, friends: updatedFriends }));
     };
 
-    // --- 2. SAVE TO STORAGE ON CHANGE ---
     useEffect(() => {
         if (user.email) {
             localStorage.setItem('injazi_user', JSON.stringify(user));
@@ -139,7 +187,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     }, [user]);
 
-    // --- 3. AUTO-SYNC TO DB ---
     useEffect(() => {
         if (isAuthenticated && user.email) {
             const saveTimer = setTimeout(() => {
@@ -148,46 +195,83 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             }, 2000);
             return () => clearTimeout(saveTimer);
         }
-    }, [
-        user.credits,
-        user.dailyTasks,
-        user.goal,
-        user.realMoneyBalance,
-        user.friends,
-        user.isPremium,
-        user.activePlanId
-    ]);
+    }, [user.credits, user.dailyTasks, user.goal, user.realMoneyBalance, user.friends, user.isPremium, user.activePlanId]);
 
-    // --- ASSET LOADING LOGIC ---
     useEffect(() => {
         if (view === AppView.SOCIAL && user.goal) {
             const currentGoal = user.goal;
+
             const loadContent = async () => {
-                let updatedLessons = lessons;
-                let updatedCourses = courses;
-                let updatedFeed = feedItems;
-                let updatedAds = adsFeed;
-                let updatedVideos = recommendedVideos;
+                let updatedLessons: Chapter[] = [];
+                let updatedCourses: Course[] = [];
+                let updatedFeed: FeedItem[] = [];
+                let updatedAds: Product[] = [];
+                let updatedVideos: ExternalVideo[] = [];
                 let needsSync = false;
 
-                if (currentGoal.savedCurriculum?.length) updatedLessons = currentGoal.savedCurriculum;
-                else { setIsLoadingLessons(true); updatedLessons = await getGoalCurriculum(currentGoal); setIsLoadingLessons(false); needsSync = true; }
+                if (currentGoal.savedCurriculum && currentGoal.savedCurriculum.length > 0) {
+                    console.log("📚 Loading saved curriculum");
+                    updatedLessons = currentGoal.savedCurriculum;
+                } else {
+                    console.log("🤖 Generating new curriculum...");
+                    setIsLoadingLessons(true);
+                    try {
+                        const generated = await getGoalCurriculum(currentGoal);
+                        if (generated && generated.length > 0) {
+                            updatedLessons = generated;
+                            console.log("✅ Curriculum generated:", generated.length, "chapters");
+                        } else {
+                            console.log("⚠️ AI returned empty, using default");
+                            updatedLessons = getDefaultCurriculum(currentGoal);
+                        }
+                    } catch (e) {
+                        console.error("❌ Curriculum generation failed:", e);
+                        updatedLessons = getDefaultCurriculum(currentGoal);
+                    }
+                    setIsLoadingLessons(false);
+                    needsSync = true;
+                }
 
-                if (currentGoal.savedCourses?.length) updatedCourses = currentGoal.savedCourses;
-                else { updatedCourses = await getSocialMarketplace(); needsSync = true; }
+                if (currentGoal.savedCourses && currentGoal.savedCourses.length > 0) {
+                    updatedCourses = currentGoal.savedCourses;
+                } else {
+                    try {
+                        updatedCourses = await getSocialMarketplace();
+                    } catch (e) {
+                        updatedCourses = [];
+                    }
+                    needsSync = true;
+                }
 
-                if (currentGoal.savedFeed?.length) updatedFeed = currentGoal.savedFeed;
-                else { updatedFeed = await getFeedRecommendations(currentGoal); needsSync = true; }
+                if (currentGoal.savedFeed && currentGoal.savedFeed.length > 0) {
+                    updatedFeed = currentGoal.savedFeed;
+                } else {
+                    try {
+                        updatedFeed = await getFeedRecommendations(currentGoal);
+                    } catch (e) {
+                        updatedFeed = [];
+                    }
+                    needsSync = true;
+                }
 
-                if (currentGoal.savedProducts?.length) updatedAds = currentGoal.savedProducts;
-                else { updatedAds = await getSocialAds(currentGoal.category); needsSync = true; }
+                if (currentGoal.savedProducts && currentGoal.savedProducts.length > 0) {
+                    updatedAds = currentGoal.savedProducts;
+                } else {
+                    try {
+                        updatedAds = await getSocialAds(currentGoal.category);
+                    } catch (e) {
+                        updatedAds = [];
+                    }
+                    needsSync = true;
+                }
 
-                if (currentGoal.savedVideos?.length) {
+                if (currentGoal.savedVideos && currentGoal.savedVideos.length > 0) {
                     updatedVideos = currentGoal.savedVideos;
                 } else {
                     updatedVideos = [
-                        { id: 'v1', platform: 'YouTube', title: 'Goal Mastery', url: 'https://youtube.com', thumbnail: 'https://picsum.photos/400/225', description: 'Deep dive into your domain.' },
-                        { id: 'v2', platform: 'TikTok', title: 'Quick Strategy', url: 'https://tiktok.com', thumbnail: 'https://picsum.photos/400/226', description: 'Leapfrog milestones.' }
+                        { id: 'v1', platform: 'YouTube', title: 'Goal Mastery Techniques', url: 'https://youtube.com', thumbnail: 'https://picsum.photos/400/225', description: 'Deep dive into achieving your goals.' },
+                        { id: 'v2', platform: 'TikTok', title: 'Quick Wins Strategy', url: 'https://tiktok.com', thumbnail: 'https://picsum.photos/400/226', description: 'Fast tips for daily progress.' },
+                        { id: 'v3', platform: 'YouTube', title: 'Mindset for Success', url: 'https://youtube.com', thumbnail: 'https://picsum.photos/400/227', description: 'Build the right mental framework.' }
                     ] as ExternalVideo[];
                     needsSync = true;
                 }
@@ -199,26 +283,47 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 setRecommendedVideos(updatedVideos);
 
                 if (needsSync) {
-                    const updatedGoalData = { savedCurriculum: updatedLessons, savedCourses: updatedCourses, savedFeed: updatedFeed, savedProducts: updatedAds, savedVideos: updatedVideos };
+                    console.log("💾 Saving content to goal...");
+                    const updatedGoalData = {
+                        savedCurriculum: updatedLessons,
+                        savedCourses: updatedCourses,
+                        savedFeed: updatedFeed,
+                        savedProducts: updatedAds,
+                        savedVideos: updatedVideos
+                    };
+
                     setUser(prev => ({
                         ...prev,
                         goal: { ...prev.goal!, ...updatedGoalData },
-                        allGoals: prev.allGoals.map(g => g.id === currentGoal.id ? { ...g, ...updatedGoalData } : g)
+                        allGoals: prev.allGoals.map(g =>
+                            g.id === currentGoal.id ? { ...g, ...updatedGoalData } : g
+                        )
                     }));
                 }
             };
+
             loadContent();
         }
     }, [view, user.goal?.id]);
 
     return (
         <AppContext.Provider value={{
-            user, setUser, view, setView, isAuthenticated, setIsAuthenticated,
-            feedItems, setFeedItems, lessons, setLessons, courses, setCourses, adsFeed, setAdsFeed,
-            activeSocialSection, setActiveSocialSection, isLoadingLessons, setIsLoadingLessons,
+            user, setUser,
+            view, setView,
+            isAuthenticated, setIsAuthenticated,
+            feedItems, setFeedItems,
+            lessons, setLessons,
+            courses, setCourses,
+            adsFeed, setAdsFeed,
+            activeSocialSection, setActiveSocialSection,
+            isLoadingLessons, setIsLoadingLessons,
             recommendedVideos, setRecommendedVideos,
-            showGoalManager, setShowGoalManager, showCheckIn, setShowCheckIn, showAdOverlay, setShowAdOverlay, adCountdown, setAdCountdown,
-            friends: user.friends || [], setFriends // Expose friends from user
+            showGoalManager, setShowGoalManager,
+            showCheckIn, setShowCheckIn,
+            showAdOverlay, setShowAdOverlay,
+            adCountdown, setAdCountdown,
+            friends: user.friends || [],
+            setFriends
         }}>
             {children}
         </AppContext.Provider>

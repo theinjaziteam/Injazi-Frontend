@@ -1,7 +1,7 @@
 import { 
     Goal, Task, Difficulty, ChatMessage, ChatAttachment, GoalCategory, 
     FeedItem, Chapter, Course, GoalMode, ConnectedApp, TaskStatus, 
-    BudgetSplit, DeepInsight, UserState, ExtraLog, Product 
+    BudgetSplit, DeepInsight, UserState, ExtraLog, Product, LessonContent, Lesson
 } from "../types";
 
 // Groq API Configuration
@@ -30,7 +30,7 @@ async function callGroq(messages: {role: string, content: string}[], jsonMode: b
                 model: MODEL,
                 messages: messages,
                 temperature: 0.7,
-                max_tokens: 2048,
+                max_tokens: 4096,
                 ...(jsonMode && { response_format: { type: "json_object" } })
             })
         });
@@ -477,6 +477,110 @@ Return ONLY this JSON:
         console.error("Curriculum generation failed:", e);
         return [];
     }
+}
+
+// ============================================
+// LESSON CONTENT GENERATOR - NEW!
+// ============================================
+
+export async function generateLessonContent(
+    lesson: { id: string; title: string; description: string; duration: string },
+    goal: Goal,
+    chapterTitle: string
+): Promise<LessonContent | null> {
+    if (!GROQ_API_KEY) {
+        console.log('⚠️ No API key for lesson content');
+        return getDefaultLessonContent(lesson, goal);
+    }
+
+    try {
+        console.log('📚 Generating lesson content for:', lesson.title);
+        
+        const response = await callGroq([
+            {
+                role: 'system',
+                content: `You are an expert educator creating detailed, actionable lesson content. 
+Your lessons should be practical, engaging, and directly applicable.
+Write in a conversational but professional tone.
+Include specific examples, tools, and techniques the learner can use immediately.
+Each subsection should have 2-3 substantial paragraphs with real, actionable information.`
+            },
+            {
+                role: 'user',
+                content: `Create detailed lesson content for:
+
+GOAL: "${goal.title}" (${goal.category})
+CHAPTER: "${chapterTitle}"
+LESSON: "${lesson.title}"
+DESCRIPTION: "${lesson.description}"
+DURATION: ${lesson.duration}
+
+Return ONLY valid JSON in this exact format:
+{
+  "lesson_title": "${lesson.title}",
+  "difficulty_level": "Beginner" or "Intermediate" or "Advanced",
+  "estimated_read_time": "${lesson.duration}",
+  "core_concept": "One powerful sentence summarizing the key insight of this lesson (make it memorable and impactful)",
+  "subsections": [
+    {
+      "title": "Understanding the Fundamentals",
+      "content": "Write 2-3 detailed paragraphs explaining the core concepts. Include specific examples, real-world applications, and clear explanations. Make it educational but engaging."
+    },
+    {
+      "title": "Practical Application",
+      "content": "Write 2-3 detailed paragraphs on how to actually apply this knowledge. Include step-by-step guidance, specific tools or methods to use, and common mistakes to avoid."
+    },
+    {
+      "title": "Taking It Further",
+      "content": "Write 2-3 detailed paragraphs on advanced tips, optimization strategies, and how to build on this foundation. Include resources for deeper learning."
+    }
+  ],
+  "the_1_percent_secret": "A powerful insider tip or uncommon strategy that separates experts from beginners. Something that most people don't know but makes a huge difference.",
+  "actionable_task": "A specific, concrete task the learner should complete right now to apply what they learned. Include exact steps: Step 1: [action], Step 2: [action], Step 3: [action]. Make it achievable in 10-15 minutes."
+}`
+            }
+        ], true);
+
+        console.log('🤖 Lesson content response received');
+        
+        const parsed = safeParseJSON(response, null);
+        
+        if (parsed && parsed.core_concept && parsed.subsections && Array.isArray(parsed.subsections)) {
+            console.log('✅ Lesson content generated successfully');
+            return parsed as LessonContent;
+        }
+        
+        console.warn('⚠️ Invalid lesson content format, using default');
+        return getDefaultLessonContent(lesson, goal);
+    } catch (e) {
+        console.error("Lesson content generation failed:", e);
+        return getDefaultLessonContent(lesson, goal);
+    }
+}
+
+function getDefaultLessonContent(lesson: { id: string; title: string; description: string; duration: string }, goal: Goal): LessonContent {
+    return {
+        lesson_title: lesson.title,
+        difficulty_level: "Intermediate",
+        estimated_read_time: lesson.duration,
+        core_concept: `Master the fundamentals of ${lesson.title.toLowerCase()} to accelerate your progress toward ${goal.title}.`,
+        subsections: [
+            {
+                title: "Understanding the Basics",
+                content: `${lesson.description}\n\nThis foundational knowledge is essential for your journey toward ${goal.title}. Take time to understand these concepts deeply, as they will serve as building blocks for everything that follows.\n\nThe key is to start with clarity. Before diving into action, make sure you understand the "why" behind each step. This understanding will help you adapt and problem-solve when challenges arise.`
+            },
+            {
+                title: "Putting It Into Practice",
+                content: `Now that you understand the theory, it's time to apply it. The best learning happens through doing, so don't just read—take action.\n\nStart small and build momentum. Even 10 minutes of focused practice is better than hours of passive consumption. Track your progress and celebrate small wins along the way.\n\nRemember: consistency beats intensity. It's better to practice a little bit every day than to burn out with marathon sessions.`
+            },
+            {
+                title: "Building Momentum",
+                content: `As you continue practicing, you'll start to see patterns and develop intuition. This is when real mastery begins to emerge.\n\nLook for opportunities to apply what you've learned in different contexts. The more you practice, the more natural these skills will become.\n\nDon't be afraid to make mistakes—they're essential for learning. Each error is feedback that helps you improve.`
+            }
+        ],
+        the_1_percent_secret: `The most successful people in ${goal.category} don't just learn—they teach. Try explaining what you've learned to someone else (or even to yourself out loud). This "teaching effect" dramatically improves retention and understanding.`,
+        actionable_task: `Right now, take 5 minutes to do this: Step 1: Open your notes app or grab a piece of paper. Step 2: Write down the 3 most important things you learned from this lesson. Step 3: For each point, write one specific action you can take this week to apply it. This simple exercise transforms passive learning into active progress.`
+    };
 }
 
 // ============================================

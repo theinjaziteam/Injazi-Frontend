@@ -175,23 +175,23 @@ export default function SocialView() {
     // ==================== RENDER FUNCTIONS ====================
 
     const renderHeader = () => (
-        <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 pt-safe">
-            <div className="flex overflow-x-auto no-scrollbar p-3 gap-2">
+        <div className="sticky top-0 z-40 bg-white border-b border-gray-100 pt-safe">
+            <div className="flex overflow-x-auto no-scrollbar p-4 gap-3">
                 {[
-                  { id: SocialSection.LESSONS, label: 'Curriculum', icon: Icons.BookOpen },
-                  { id: SocialSection.FOR_YOU, label: 'Feed', icon: Icons.Play },
-                  { id: SocialSection.RECOMMENDED, label: 'Resources', icon: Icons.Star },
-                  { id: SocialSection.FRIENDS, label: 'Community', icon: Icons.Users },
-                  { id: SocialSection.PRODUCTS, label: 'Assets', icon: Icons.Shop },
-                  { id: SocialSection.COURSES, label: 'Courses', icon: Icons.Award }
+                  { id: SocialSection.LESSONS, label: 'Curriculum' },
+                  { id: SocialSection.FOR_YOU, label: 'Feed' },
+                  { id: SocialSection.RECOMMENDED, label: 'Resources' },
+                  { id: SocialSection.FRIENDS, label: 'Community' },
+                  { id: SocialSection.PRODUCTS, label: 'Assets' },
+                  { id: SocialSection.COURSES, label: 'User Courses' }
                 ].map(section => (
                     <button 
                         key={section.id}
                         onClick={() => setActiveSocialSection(section.id)}
-                        className={`whitespace-nowrap px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-2
+                        className={`whitespace-nowrap px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all 
                             ${activeSocialSection === section.id 
-                                ? 'bg-primary text-white shadow-lg' 
-                                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                ? 'bg-primary text-white shadow-lg shadow-primary/20' 
+                                : 'bg-gray-100 text-gray-400 hover:text-primary'
                             }`}
                     >
                         {section.label}
@@ -201,184 +201,172 @@ export default function SocialView() {
         </div>
     );
 
-const renderLessons = () => {
-    if (isLoadingLessons) {
-        return (
-            <div className="h-full flex flex-col items-center justify-center p-10 text-center animate-fade-in bg-white/50 backdrop-blur-sm">
-                <div className="relative mb-10 scale-125">
-                    <div className="w-24 h-24 rounded-full border-4 border-gray-100"></div>
-                    <div className="absolute top-0 left-0 w-24 h-24 rounded-full border-4 border-primary border-t-transparent animate-[spin_0.6s_linear_infinite]"></div>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                        <Icons.BookOpen className="w-10 h-10 text-primary animate-pulse" />
+    const renderLessons = () => {
+        if (isLoadingLessons) {
+            return (
+                <div className="h-full flex flex-col items-center justify-center p-10 text-center animate-fade-in bg-white/50 backdrop-blur-sm">
+                    <div className="relative mb-10 scale-125">
+                        <div className="w-24 h-24 rounded-full border-4 border-gray-100"></div>
+                        <div className="absolute top-0 left-0 w-24 h-24 rounded-full border-4 border-primary border-t-transparent animate-[spin_0.6s_linear_infinite]"></div>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                            <Icons.BookOpen className="w-10 h-10 text-primary animate-pulse" />
+                        </div>
+                        <div className="absolute -bottom-2 -right-2 bg-primary/10 p-2 rounded-xl shadow-lg animate-bounce">
+                            <Icons.Zap className="w-4 h-4 text-primary"/>
+                        </div>
                     </div>
-                    <div className="absolute -bottom-2 -right-2 bg-primary/10 p-2 rounded-xl shadow-lg animate-bounce">
-                        <Icons.Zap className="w-4 h-4 text-primary"/>
+                    <h3 className="text-2xl font-black text-primary uppercase tracking-tighter mb-4">Building Your Path</h3>
+                    <div className="max-w-[280px] space-y-3">
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] leading-relaxed">
+                            Creating your personalized curriculum...
+                        </p>
+                        <div className="w-full bg-gray-100 h-1 rounded-full overflow-hidden">
+                             <div className="h-full bg-primary animate-[shimmer_1s_infinite] w-2/3 rounded-full"></div>
+                        </div>
                     </div>
                 </div>
-                <h3 className="text-3xl font-black text-primary uppercase tracking-tighter mb-4">Building Your Path</h3>
-                <div className="max-w-[280px] space-y-3">
-                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] leading-relaxed">
-                        Creating your personalized curriculum...
-                    </p>
-                    <div className="w-full bg-gray-100 h-1 rounded-full overflow-hidden">
-                         <div className="h-full bg-primary animate-[shimmer_1s_infinite] w-2/3 rounded-full"></div>
-                    </div>
-                </div>
-            </div>
-        );
-    }
+            );
+        }
 
-    return (
-        <div className="p-6 pb-28 space-y-12 animate-fade-in">
-            {lessons.length > 0 ? lessons.map((chapter, chapterIdx) => (
-                <div key={chapter.id} className="relative">
-                    {/* Chapter Header */}
-                    <div className="flex items-center gap-4 mb-8">
-                        <div className="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center text-lg font-black shadow-lg shadow-primary/20">
-                            {chapterIdx + 1}
+        return (
+            <div className="p-6 pb-28 space-y-10 animate-fade-in">
+                {lessons.length > 0 ? lessons.map((chapter, chapterIdx) => (
+                    <div key={chapter.id} className="relative">
+                        {/* Chapter Header */}
+                        <div className="flex items-center gap-4 mb-6">
+                            <div className="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center text-lg font-black shadow-lg shadow-primary/20">
+                                {chapterIdx + 1}
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-black text-primary tracking-tighter uppercase leading-none">{chapter.title}</h3>
+                                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em] mt-1 block">
+                                    {chapter.lessons.length} Learning Modules
+                                </span>
+                            </div>
                         </div>
-                        <div>
-                            <h3 className="text-xl font-black text-primary tracking-tighter uppercase leading-none">{chapter.title}</h3>
-                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.2em] mt-1 block">
-                                {chapter.lessons.length} Learning Modules
-                            </span>
-                        </div>
-                    </div>
-                    
-                    {/* Lessons List */}
-                    <div className="space-y-4 ml-6 border-l-2 border-gray-200 pl-8">
-                        {chapter.lessons.map((l, idx) => (
-                            <div 
-                                key={l.id} 
-                                className={`p-6 rounded-[2rem] border-2 transition-all group 
-                                    ${l.isLocked 
-                                        ? 'bg-gray-50 border-gray-100 opacity-60' 
-                                        : 'bg-white border-gray-200 shadow-sm hover:shadow-xl hover:border-primary/30'
-                                    }`}
-                            >
-                                <div className="flex justify-between items-start mb-4">
-                                    <div className="flex gap-4">
-                                        <div className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all group-hover:scale-105 
-                                            ${l.isLocked 
-                                                ? 'bg-gray-100' 
-                                                : 'bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white'
-                                            }`}
-                                        >
-                                            {l.isLocked 
-                                                ? <Icons.Lock className="w-4 h-4 text-gray-400"/> 
-                                                : <span className="font-black text-sm">{idx + 1}</span>
-                                            }
-                                        </div>
-                                        <div>
-                                            <h4 className="font-bold text-primary text-base leading-tight group-hover:text-secondary transition-colors">
-                                                {l.title}
-                                            </h4>
-                                            <div className="flex items-center gap-2 mt-1.5">
-                                                <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-3 py-1 rounded-full">
-                                                    {l.duration}
-                                                </span>
-                                                {l.isLocked && (
-                                                    <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-3 py-1 rounded-full">
-                                                        Locked
-                                                    </span>
-                                                )}
+                        
+                        {/* Lessons List */}
+                        <div className="space-y-3 ml-6 border-l-2 border-gray-200 pl-6">
+                            {chapter.lessons.map((l, idx) => (
+                                <div 
+                                    key={l.id} 
+                                    className={`p-5 rounded-2xl border-2 transition-all group cursor-pointer
+                                        ${l.isLocked 
+                                            ? 'bg-gray-50 border-gray-100 opacity-50 cursor-not-allowed' 
+                                            : 'bg-white border-gray-200 hover:border-primary/30 hover:shadow-lg'
+                                        }`}
+                                    onClick={() => !l.isLocked && setViewingLesson(l)}
+                                >
+                                    <div className="flex justify-between items-center">
+                                        <div className="flex gap-4 items-center">
+                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all
+                                                ${l.isLocked 
+                                                    ? 'bg-gray-100' 
+                                                    : 'bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white'
+                                                }`}
+                                            >
+                                                {l.isLocked 
+                                                    ? <Icons.Lock className="w-4 h-4 text-gray-400"/> 
+                                                    : <span className="font-black text-sm">{idx + 1}</span>
+                                                }
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="font-bold text-primary text-sm leading-tight group-hover:text-secondary transition-colors">
+                                                    {l.title}
+                                                </h4>
+                                                <p className="text-xs text-gray-400 mt-1 line-clamp-1">{l.description}</p>
                                             </div>
                                         </div>
+                                        <div className="flex items-center gap-3 ml-4">
+                                            <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-3 py-1.5 rounded-full whitespace-nowrap">
+                                                {l.duration}
+                                            </span>
+                                            {!l.isLocked && (
+                                                <Icons.ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-primary transition-colors" />
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-                                {!l.isLocked && (
-                                    <>
-                                        <p className="text-xs text-gray-500 mb-5 leading-relaxed line-clamp-2">{l.description}</p>
-                                        <Button 
-                                            onClick={() => setViewingLesson(l)} 
-                                            variant="secondary" 
-                                            className="py-2.5 text-[9px] h-10 w-auto px-6 font-bold uppercase tracking-widest rounded-xl"
-                                        >
-                                            Begin Module
-                                        </Button>
-                                    </>
-                                )}
-                            </div>
-                        ))}
+                            ))}
 
-                        {/* Phase Quiz */}
-                        {chapter.quiz && chapter.quiz.length > 0 && !chapter.lessons.some(l => l.isLocked) && (
-                            <div className="p-6 rounded-[2rem] bg-gradient-to-r from-primary to-secondary text-white shadow-lg">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-4">
-                                        <div className="p-3 bg-white/10 rounded-xl">
-                                            <Icons.Trophy className="w-5 h-5" />
+                            {/* Phase Quiz */}
+                            {chapter.quiz && chapter.quiz.length > 0 && !chapter.lessons.some(l => l.isLocked) && (
+                                <div className="p-5 rounded-2xl bg-gradient-to-r from-primary to-secondary text-white shadow-lg shadow-primary/20">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-4">
+                                            <div className="p-2.5 bg-white/10 rounded-xl">
+                                                <Icons.Trophy className="w-5 h-5" />
+                                            </div>
+                                            <div>
+                                                <h4 className="font-bold text-sm">Phase Validation</h4>
+                                                <p className="text-[10px] text-white/60">Pass the quiz to complete this phase</p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <h4 className="font-bold text-sm">Phase Quiz</h4>
-                                            <p className="text-[10px] text-white/60">Test your knowledge to continue</p>
-                                        </div>
+                                        <button 
+                                            onClick={() => handleQuizStart(chapter)}
+                                            className="px-5 py-2.5 bg-white text-primary rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-white/90 transition-colors"
+                                        >
+                                            Start Quiz
+                                        </button>
                                     </div>
-                                    <Button 
-                                        onClick={() => handleQuizStart(chapter)} 
-                                        className="bg-white text-primary py-2.5 px-5 text-[10px] uppercase font-bold tracking-widest rounded-xl shadow-none hover:bg-white/90"
-                                    >
-                                        Start Quiz
-                                    </Button>
                                 </div>
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
-                </div>
-            )) : (
-                <div className="text-center py-20">
-                    <div className="w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                        <Icons.BookOpen className="w-10 h-10 text-gray-300" />
+                )) : (
+                    <div className="text-center py-20">
+                        <div className="w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                            <Icons.BookOpen className="w-10 h-10 text-gray-300" />
+                        </div>
+                        <h3 className="text-xl font-bold text-primary mb-2">No Curriculum Yet</h3>
+                        <p className="text-gray-400 text-sm max-w-xs mx-auto">
+                            Complete your goal setup to generate a personalized learning path.
+                        </p>
                     </div>
-                    <h3 className="text-xl font-bold text-primary mb-2">No Curriculum Yet</h3>
-                    <p className="text-gray-400 text-sm max-w-xs mx-auto">
-                        Complete your goal setup to generate a personalized learning path.
-                    </p>
-                </div>
-            )}
-        </div>
-    );
-};
+                )}
+            </div>
+        );
+    };
 
     const renderForYou = () => (
         <div className="h-full overflow-y-scroll snap-y snap-mandatory bg-black no-scrollbar">
             {feedItems.length > 0 ? feedItems.map((item) => (
                 <div key={item.id} className="h-full w-full snap-start relative flex items-center justify-center bg-gray-900">
                     <img src={item.thumbnailUrl} className="absolute inset-0 w-full h-full object-cover opacity-70" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                    <div className="absolute left-4 bottom-24 right-20 text-white">
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+                    
+                    <div className="absolute left-4 bottom-24 right-20 text-white animate-fade-in">
                         <div className="flex items-center gap-2 mb-3">
                             <img src={item.creatorAvatar} className="w-8 h-8 rounded-full border border-white/20" />
-                            <h3 className="font-bold">@{item.creatorName}</h3>
+                            <h3 className="font-bold text-lg">@{item.creatorName}</h3>
                         </div>
-                        <p className="text-sm font-bold mb-2">{item.title}</p>
-                        <p className="text-xs opacity-70 line-clamp-2">{item.description}</p>
+                        <p className="text-sm font-bold opacity-100 leading-tight mb-2">{item.title}</p>
+                        {item.description && <p className="text-[10px] opacity-70 leading-relaxed max-w-[80%] line-clamp-2">{item.description}</p>}
                     </div>
+
                     <div className="absolute right-4 bottom-28 flex flex-col gap-6 items-center">
-                        <div className="flex flex-col items-center">
-                            <div className="p-3 bg-white/10 rounded-full backdrop-blur-md">
-                                <Icons.Heart className={`w-6 h-6 ${item.isLiked ? 'text-red-500 fill-red-500' : 'text-white'}`}/>
+                        <div className="flex flex-col items-center group cursor-pointer">
+                            <div className="p-3 bg-white/10 rounded-full backdrop-blur-md group-active:scale-90 transition-transform">
+                                <Icons.Heart className={`w-7 h-7 ${item.isLiked ? 'text-red-500 fill-red-500' : 'text-white'}`}/>
                             </div>
-                            <span className="text-xs text-white font-bold mt-1">{item.likes}</span>
+                            <span className="text-[10px] text-white font-black mt-1 tracking-tighter">{item.likes}</span>
                         </div>
-                        <div className="flex flex-col items-center">
-                            <div className="p-3 bg-white/10 rounded-full backdrop-blur-md">
-                                <Icons.MessageCircle className="w-6 h-6 text-white"/>
+                        <div className="flex flex-col items-center group cursor-pointer">
+                            <div className="p-3 bg-white/10 rounded-full backdrop-blur-md group-active:scale-90 transition-transform">
+                                <Icons.MessageCircle className="w-7 h-7 text-white"/>
                             </div>
-                            <span className="text-xs text-white font-bold mt-1">{item.comments.length}</span>
+                            <span className="text-[10px] text-white font-black mt-1 tracking-tighter">{item.comments.length}</span>
                         </div>
-                        <div className="flex flex-col items-center">
-                            <div className="p-3 bg-white/10 rounded-full backdrop-blur-md">
-                                <Icons.Share2 className="w-6 h-6 text-white"/>
+                        <div className="flex flex-col items-center group cursor-pointer">
+                            <div className="p-3 bg-white/10 rounded-full backdrop-blur-md group-active:scale-90 transition-transform">
+                                <Icons.Share2 className="w-7 h-7 text-white"/>
                             </div>
-                            <span className="text-xs text-white font-bold mt-1">{item.shares}</span>
+                            <span className="text-[10px] text-white font-black mt-1 tracking-tighter">{item.shares}</span>
                         </div>
                     </div>
                 </div>
             )) : (
-                <div className="h-full flex items-center justify-center text-white/50 font-medium">
-                    No feed items yet
-                </div>
+                <div className="h-full flex items-center justify-center text-white/50 font-black uppercase tracking-widest text-xs">No Feed Items Found</div>
             )}
         </div>
     );
@@ -386,71 +374,68 @@ const renderLessons = () => {
     const renderMarketplace = (type: 'products' | 'courses') => {
         const items = type === 'courses' ? courses : adsFeed;
         return (
-            <div className="p-4 pb-28 space-y-4 animate-fade-in">
+            <div className="p-6 pb-28 grid grid-cols-1 gap-6 animate-fade-in">
                 {items.length > 0 ? items.map(item => (
-                    <Card key={item.id} className="overflow-hidden border border-gray-100">
-                        <div className="h-40 relative bg-gray-100">
-                            <img src={(item as any).thumbnail || (item as any).mediaUrls?.[0]} className="w-full h-full object-cover" />
-                            <div className="absolute top-3 right-3 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-xs font-bold text-primary">
-                                {type === 'courses' ? 'Course' : 'Asset'}
-                            </div>
+                    <Card key={item.id} className="overflow-hidden group border border-gray-100 shadow-lg shadow-gray-100/50">
+                        <div className="h-48 relative bg-gray-100">
+                             <img src={(item as any).thumbnail || (item as any).mediaUrls?.[0]} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                             <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-xl text-[9px] font-black uppercase text-primary shadow-lg">
+                                 {type === 'courses' ? 'Masterclass' : 'Asset'}
+                             </div>
                         </div>
-                        <div className="p-4">
-                            <h4 className="font-bold text-primary mb-1">{item.title}</h4>
-                            <p className="text-xs text-gray-500 mb-4 line-clamp-2">{item.description}</p>
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <span className="text-xs text-gray-400">By {(item as any).creator || (item as any).creatorName}</span>
+                        <div className="p-5">
+                            <h4 className="font-black text-primary text-lg leading-tight mb-2 tracking-tight group-hover:text-secondary transition-colors">{item.title}</h4>
+                            <p className="text-xs text-gray-500 mb-5 leading-relaxed line-clamp-2">{item.description}</p>
+                            <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-6 h-6 rounded-full bg-gray-200" />
+                                    <span className="text-[10px] font-bold text-gray-400">By {(item as any).creator || (item as any).creatorName}</span>
                                 </div>
                                 <div className="text-right">
-                                    <div className="font-bold text-primary">
-                                        {((item as any).priceCredits || Math.round(((item as any).priceUsd || 10) * 4000)).toLocaleString()} CR
+                                    <div className="text-base font-black text-primary mb-2">
+                                        {(item as any).priceCredits?.toLocaleString() || (Math.round(((item as any).priceUsd || 10) * 4000)).toLocaleString()} CR
                                     </div>
-                                    <Button onClick={() => handleBuyItem(item)} className="mt-2 py-1.5 px-4 text-xs">
-                                        Get
-                                    </Button>
+                                    <Button onClick={() => handleBuyItem(item)} className="py-2 h-9 text-[10px] uppercase tracking-widest px-4 rounded-xl">Acquire</Button>
                                 </div>
                             </div>
                         </div>
                     </Card>
                 )) : (
-                    <div className="py-20 text-center text-gray-400 font-medium">
-                        No items yet
-                    </div>
+                    <div className="py-20 text-center text-gray-300 font-bold">No Items Listed Yet</div>
                 )}
             </div>
         );
     };
 
     const renderFriends = () => (
-        <div className="p-4 pb-28 space-y-4">
-            <div className="relative">
-                <Icons.Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"/>
+        <div className="p-6 pb-28 space-y-6">
+            <div className="relative mb-6">
+                <Icons.Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300"/>
                 <input 
                     type="text" 
                     placeholder="Search community..." 
-                    className="w-full pl-10 pr-4 py-3 bg-gray-100 rounded-xl border-none focus:ring-2 focus:ring-primary outline-none text-sm" 
+                    className="w-full pl-12 p-4 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-primary/20 transition-all outline-none text-sm font-medium" 
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                 />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
                 {communityList.length > 0 ? communityList.map(f => {
                     const isFriend = friends.some(existing => existing.id === f.id);
                     return (
                         <Card 
                             key={f.id} 
                             onClick={() => setViewingProfile(f)}
-                            className={`p-4 text-center cursor-pointer transition-all border
-                                ${!isFriend ? 'bg-gray-50 border-dashed border-gray-200' : 'bg-white border-gray-100'}`}
+                            className={`p-5 text-center group cursor-pointer transition-all border-2
+                                ${!isFriend ? 'bg-gray-50 border-dashed border-gray-200' : 'bg-white border-gray-100 hover:border-primary/20'}`}
                         >
-                            <div className="w-16 h-16 rounded-full mx-auto bg-gray-200 mb-3 overflow-hidden">
+                            <div className="w-16 h-16 rounded-full mx-auto bg-gray-200 border-4 border-white shadow-lg mb-3 overflow-hidden group-hover:scale-105 transition-transform">
                                 <img src={f.avatar} className="w-full h-full object-cover" />
                             </div>
-                            <h4 className="font-bold text-sm text-primary truncate">{f.name}</h4>
-                            <span className="text-xs text-gray-400">{f.streak} day streak</span>
+                            <h4 className="font-bold text-sm text-primary truncate mb-1">{f.name}</h4>
+                            <span className="text-[10px] font-bold text-gray-400">{f.streak} day streak</span>
                             {!isFriend && (
-                                <span className="block mt-2 text-xs bg-gray-200 text-gray-500 px-2 py-0.5 rounded-full">
+                                <span className="block mt-2 text-[9px] bg-gray-200 text-gray-500 px-2 py-1 rounded-full font-bold">
                                     Suggested
                                 </span>
                             )}
@@ -466,31 +451,28 @@ const renderLessons = () => {
     );
 
     const renderRecommended = () => (
-        <div className="p-4 pb-28 space-y-4 animate-fade-in">
-            <h3 className="font-bold text-primary mb-4">Recommended Resources</h3>
-            {recommendedVideos.map(v => (
-                <Card key={v.id} className="overflow-hidden border border-gray-100" onClick={() => window.open(v.url)}>
-                    <div className="h-36 relative">
-                        <img src={v.thumbnail} className="w-full h-full object-cover" />
-                        <div className="absolute top-3 left-3">
-                            <Badge color="bg-primary/90 text-white">{v.platform}</Badge>
+        <div className="p-6 pb-28 space-y-6 animate-fade-in">
+            <h3 className="font-black text-primary text-lg uppercase tracking-tight mb-4">Recommended Resources</h3>
+            {recommendedVideos.length > 0 ? recommendedVideos.map(v => (
+                <Card key={v.id} className="overflow-hidden border border-gray-100 shadow-lg shadow-gray-100/50 group cursor-pointer" onClick={() => window.open(v.url)}>
+                    <div className="h-44 relative">
+                        <img src={v.thumbnail} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                        <div className="absolute top-4 left-4">
+                            <Badge color="bg-primary/90 text-white backdrop-blur-md">{v.platform}</Badge>
                         </div>
                         <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center">
-                                <Icons.Play className="w-5 h-5 text-primary ml-1" />
+                            <div className="w-14 h-14 bg-white/90 rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                                <Icons.Play className="w-6 h-6 text-primary ml-1" />
                             </div>
                         </div>
                     </div>
-                    <div className="p-4">
-                        <h3 className="font-bold text-primary text-sm mb-1">{v.title}</h3>
+                    <div className="p-5">
+                        <h3 className="font-bold text-primary text-base leading-tight mb-2">{v.title}</h3>
                         <p className="text-xs text-gray-500 line-clamp-2">{v.description}</p>
                     </div>
                 </Card>
-            ))}
-            {recommendedVideos.length === 0 && (
-                <div className="py-20 text-center text-gray-400 font-medium">
-                    No resources yet
-                </div>
+            )) : (
+                <div className="py-20 text-center text-gray-300 font-bold">No Resources Yet</div>
             )}
         </div>
     );
@@ -498,10 +480,10 @@ const renderLessons = () => {
     // ==================== MAIN RENDER ====================
 
     return (
-        <div className="h-full flex flex-col bg-gray-50 overflow-hidden relative">
+        <div className="h-full flex flex-col bg-white overflow-hidden relative">
             {renderHeader()}
             
-            <div className="flex-1 relative overflow-y-auto no-scrollbar scroll-smooth bg-white">
+            <div className="flex-1 relative overflow-y-auto no-scrollbar scroll-smooth">
                 {activeSocialSection === SocialSection.LESSONS && renderLessons()}
                 {activeSocialSection === SocialSection.FOR_YOU && renderForYou()}
                 {activeSocialSection === SocialSection.RECOMMENDED && renderRecommended()}
@@ -514,9 +496,9 @@ const renderLessons = () => {
             {(activeSocialSection === SocialSection.PRODUCTS || activeSocialSection === SocialSection.COURSES) && (
                 <button 
                     onClick={handleAddItem} 
-                    className="absolute bottom-24 right-4 w-14 h-14 bg-primary text-white rounded-full shadow-lg flex items-center justify-center z-50 active:scale-95 transition-transform"
+                    className="absolute bottom-28 right-6 w-14 h-14 bg-primary text-white rounded-full shadow-2xl flex items-center justify-center z-50 hover:scale-110 active:scale-90 transition-all"
                 >
-                    <Icons.Plus className="w-6 h-6" />
+                    <Icons.Plus className="w-7 h-7" />
                 </button>
             )}
 
@@ -524,71 +506,86 @@ const renderLessons = () => {
 
             {/* Profile Modal */}
             {viewingProfile && (
-                <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-                    <Card className="p-6 w-full max-w-sm bg-white rounded-2xl relative">
-                        <button onClick={() => setViewingProfile(null)} className="absolute top-4 right-4 p-2 bg-gray-100 rounded-full">
+                <div className="fixed inset-0 z-[100] bg-primary/80 backdrop-blur-md flex items-center justify-center p-6 animate-fade-in">
+                    <Card className="p-8 w-full max-w-sm bg-white border-none shadow-2xl rounded-[2rem] relative flex flex-col items-center text-center overflow-visible">
+                        <button onClick={() => setViewingProfile(null)} className="absolute top-5 right-5 p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
                             <Icons.X className="w-4 h-4"/>
                         </button>
                         
-                        <div className="text-center">
-                            <div className="w-20 h-20 rounded-full mx-auto mb-4 overflow-hidden">
-                                <img src={viewingProfile.avatar} className="w-full h-full object-cover" />
-                            </div>
-                            <h2 className="text-xl font-bold text-primary mb-1">{viewingProfile.name}</h2>
-                            <p className="text-xs text-gray-400 mb-4">{viewingProfile.lastActive}</p>
-
-                            <div className="grid grid-cols-2 gap-3 mb-6">
-                                <div className="bg-gray-50 p-3 rounded-xl">
-                                    <span className="block text-xs text-gray-400 mb-1">Streak</span>
-                                    <span className="block text-xl font-bold text-primary">{viewingProfile.streak}</span>
-                                </div>
-                                <div className="bg-gray-50 p-3 rounded-xl">
-                                    <span className="block text-xs text-gray-400 mb-1">Goal</span>
-                                    <span className="block text-sm font-bold text-primary truncate">{viewingProfile.goalTitle}</span>
-                                </div>
-                            </div>
-
-                            <Button 
-                                onClick={() => handleToggleFriendship(viewingProfile)} 
-                                variant={friends.some(f => f.id === viewingProfile.id) ? 'outline' : 'primary'}
-                                className="w-full"
-                            >
-                                {friends.some(f => f.id === viewingProfile.id) ? 'Remove Friend' : 'Add Friend'}
-                            </Button>
+                        <div className="w-24 h-24 rounded-full border-4 border-white shadow-xl -mt-16 mb-4 overflow-hidden">
+                            <img src={viewingProfile.avatar} className="w-full h-full object-cover" />
                         </div>
+                        
+                        <h2 className="text-xl font-black text-primary uppercase tracking-tight mb-1">{viewingProfile.name}</h2>
+                        <p className="text-xs text-gray-400 font-medium mb-6">{viewingProfile.lastActive}</p>
+
+                        <div className="grid grid-cols-2 gap-4 w-full mb-6">
+                            <div className="bg-gray-50 p-4 rounded-xl">
+                                <span className="block text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">Streak</span>
+                                <span className="block text-2xl font-black text-primary">{viewingProfile.streak}</span>
+                            </div>
+                            <div className="bg-gray-50 p-4 rounded-xl">
+                                <span className="block text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">Goal</span>
+                                <span className="block text-sm font-bold text-primary leading-tight truncate">{viewingProfile.goalTitle}</span>
+                            </div>
+                        </div>
+
+                        <Button 
+                            onClick={() => handleToggleFriendship(viewingProfile)} 
+                            variant={friends.some(f => f.id === viewingProfile.id) ? 'outline' : 'primary'}
+                            className="w-full py-4 text-xs font-black uppercase tracking-widest rounded-xl"
+                        >
+                            {friends.some(f => f.id === viewingProfile.id) ? 'Remove Friend' : 'Add Friend'}
+                        </Button>
                     </Card>
                 </div>
             )}
 
             {/* Add Item Modal */}
             {isAddingItem && (
-                <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-                    <Card className="p-6 w-full max-w-sm bg-white rounded-2xl relative">
-                        <button onClick={() => setIsAddingItem(false)} className="absolute top-4 right-4 p-2 bg-gray-100 rounded-full">
+                <div className="fixed inset-0 z-[100] bg-primary/80 backdrop-blur-md flex items-center justify-center p-6 animate-fade-in">
+                    <Card className="p-8 w-full max-w-sm bg-white border-none shadow-2xl rounded-[2rem] relative">
+                        <button onClick={() => setIsAddingItem(false)} className="absolute top-5 right-5 p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
                             <Icons.X className="w-4 h-4"/>
                         </button>
-                        <h3 className="text-xl font-bold text-primary mb-4">Add New Item</h3>
-                        <div className="space-y-3">
+                        <h3 className="text-xl font-black text-primary uppercase tracking-tight mb-6">List Asset</h3>
+                        <div className="space-y-4">
                             <input 
                                 value={newItemTitle} 
                                 onChange={e => setNewItemTitle(e.target.value)} 
-                                className="w-full p-3 bg-gray-100 rounded-xl border-none focus:ring-2 focus:ring-primary outline-none text-sm" 
+                                className="w-full p-4 bg-gray-50 rounded-xl border-2 border-transparent focus:border-primary/20 outline-none font-bold text-sm" 
                                 placeholder="Title" 
                             />
                             <textarea 
                                 value={newItemDesc} 
                                 onChange={e => setNewItemDesc(e.target.value)} 
-                                className="w-full p-3 bg-gray-100 rounded-xl border-none focus:ring-2 focus:ring-primary outline-none text-sm h-24 resize-none" 
+                                className="w-full p-4 bg-gray-50 rounded-xl border-2 border-transparent focus:border-primary/20 outline-none font-medium text-sm h-24 resize-none" 
                                 placeholder="Description" 
                             />
                             <input 
                                 type="number" 
                                 value={newItemPriceUsd} 
                                 onChange={e => setNewItemPriceUsd(e.target.value)} 
-                                className="w-full p-3 bg-gray-100 rounded-xl border-none focus:ring-2 focus:ring-primary outline-none text-sm" 
+                                className="w-full p-4 bg-gray-50 rounded-xl border-2 border-transparent focus:border-primary/20 outline-none font-black text-lg" 
                                 placeholder="Price (USD)" 
                             />
-                            <Button onClick={confirmAddItem} className="w-full mt-4">Publish</Button>
+                            {newItemPriceUsd && (
+                                <div className="p-4 bg-gray-50 rounded-xl space-y-2">
+                                    <div className="flex justify-between text-xs font-medium text-gray-500">
+                                        <span>Base Price</span>
+                                        <span>${parseFloat(newItemPriceUsd).toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between text-xs font-medium text-gray-500">
+                                        <span>Platform Fee (5%)</span>
+                                        <span>+${(parseFloat(newItemPriceUsd) * 0.05).toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm font-black text-primary pt-2 border-t border-gray-200">
+                                        <span>Buyer Pays</span>
+                                        <span>${(parseFloat(newItemPriceUsd) * 1.05).toFixed(2)}</span>
+                                    </div>
+                                </div>
+                            )}
+                            <Button onClick={confirmAddItem} className="w-full py-4 text-xs font-black uppercase tracking-widest mt-4">Publish</Button>
                         </div>
                     </Card>
                 </div>
@@ -596,18 +593,18 @@ const renderLessons = () => {
 
             {/* Quiz Modal */}
             {activeQuiz && (
-                <div className="fixed inset-0 z-[100] bg-white flex flex-col pt-safe">
+                <div className="fixed inset-0 z-[100] bg-white flex flex-col pt-safe animate-slide-up">
                     {!quizFinished ? (
-                        <div className="flex-1 p-6 flex flex-col">
-                            <div className="flex justify-between items-center mb-8">
-                                <span className="text-xs font-bold text-gray-400">
+                        <div className="flex-1 p-8 flex flex-col">
+                            <div className="flex justify-between items-center mb-10">
+                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
                                     Question {quizIndex + 1} of {activeQuiz.questions.length}
                                 </span>
-                                <button onClick={() => setActiveQuiz(null)} className="p-2 bg-gray-100 rounded-full">
-                                    <Icons.X className="w-4 h-4"/>
+                                <button onClick={() => setActiveQuiz(null)} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
+                                    <Icons.X className="w-5 h-5"/>
                                 </button>
                             </div>
-                            <h2 className="text-2xl font-bold text-primary mb-8">
+                            <h2 className="text-2xl font-black text-primary tracking-tight mb-10">
                                 {activeQuiz.questions[quizIndex].question}
                             </h2>
                             <div className="space-y-3 flex-1">
@@ -615,7 +612,7 @@ const renderLessons = () => {
                                     <button 
                                         key={i} 
                                         onClick={() => handleAnswerSelect(i)} 
-                                        className="w-full p-4 text-left bg-gray-100 hover:bg-primary hover:text-white rounded-xl transition-all font-medium"
+                                        className="w-full p-5 text-left bg-gray-50 hover:bg-primary hover:text-white rounded-2xl border-2 border-transparent hover:border-primary transition-all font-medium"
                                     >
                                         {opt}
                                     </button>
@@ -623,13 +620,13 @@ const renderLessons = () => {
                             </div>
                         </div>
                     ) : (
-                        <div className="flex-1 p-6 flex flex-col items-center justify-center text-center">
-                            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6">
+                        <div className="flex-1 p-10 flex flex-col items-center justify-center text-center">
+                            <div className="w-20 h-20 bg-green-100 rounded-2xl flex items-center justify-center mb-6 shadow-lg">
                                 <Icons.Check className="w-10 h-10 text-green-600"/>
                             </div>
-                            <h2 className="text-2xl font-bold text-primary mb-2">Quiz Complete!</h2>
-                            <p className="text-gray-500 mb-8">Great job finishing this phase.</p>
-                            <Button onClick={() => setActiveQuiz(null)} className="px-8">Continue</Button>
+                            <h2 className="text-2xl font-black text-primary uppercase tracking-tight mb-2">Phase Complete!</h2>
+                            <p className="text-gray-500 mb-8">Great job finishing this section.</p>
+                            <Button onClick={() => setActiveQuiz(null)} className="px-10 py-4 text-sm font-black uppercase tracking-widest">Continue</Button>
                         </div>
                     )}
                 </div>
@@ -637,30 +634,30 @@ const renderLessons = () => {
 
             {/* Lesson Viewer Modal */}
             {viewingLesson && (
-                <div className="fixed inset-0 z-[80] bg-white pt-safe flex flex-col overflow-hidden">
-                    <div className="p-4 border-b flex justify-between items-center bg-white">
+                <div className="fixed inset-0 z-[80] bg-white pt-safe flex flex-col animate-slide-up overflow-hidden">
+                    <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-white">
                         <div>
-                            <span className="text-xs font-bold text-primary/60 uppercase tracking-wide">Lesson</span>
-                            <h2 className="font-bold text-primary">{viewingLesson.title}</h2>
+                            <span className="text-[10px] font-bold text-primary/50 uppercase tracking-widest block mb-1">Lesson</span>
+                            <h2 className="font-black text-primary text-lg tracking-tight">{viewingLesson.title}</h2>
                         </div>
-                        <button onClick={() => setViewingLesson(null)} className="p-2 bg-gray-100 rounded-full">
+                        <button onClick={() => setViewingLesson(null)} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
                             <Icons.X className="w-5 h-5"/>
                         </button>
                     </div>
-                    <div className="flex-1 overflow-y-auto p-6 pb-32 space-y-8">
+                    <div className="flex-1 overflow-y-auto p-6 pb-32 space-y-8 no-scrollbar">
                         {viewingLesson.content ? (
                             <>
                                 {/* Core Concept */}
                                 <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10">
-                                    <h4 className="text-xs font-bold text-primary/60 uppercase tracking-wide mb-2">Key Concept</h4>
-                                    <p className="text-lg font-medium text-primary">{viewingLesson.content.core_concept}</p>
+                                    <h4 className="text-[10px] font-black text-primary/50 uppercase tracking-widest mb-3">Key Concept</h4>
+                                    <p className="text-lg font-bold text-primary leading-relaxed">{viewingLesson.content.core_concept}</p>
                                 </div>
 
                                 {/* Subsections */}
                                 {viewingLesson.content.subsections.map((sub, i) => (
                                     <div key={i}>
-                                        <h3 className="text-lg font-bold text-primary mb-3 flex items-center gap-3">
-                                            <span className="text-3xl text-primary/20">{i + 1}</span>
+                                        <h3 className="text-lg font-black text-primary mb-3 flex items-center gap-3">
+                                            <span className="text-4xl text-primary/10 font-black">{i + 1}</span>
                                             {sub.title}
                                         </h3>
                                         <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">{sub.content}</p>
@@ -668,28 +665,33 @@ const renderLessons = () => {
                                 ))}
 
                                 {/* Pro Tip */}
-                                <div className="p-6 bg-primary text-white rounded-2xl">
-                                    <div className="flex items-center gap-2 mb-3">
-                                        <Icons.Zap className="w-5 h-5" />
-                                        <h4 className="font-bold">Pro Tip</h4>
+                                <div className="p-6 bg-primary text-white rounded-2xl shadow-lg">
+                                    <div className="flex items-center gap-3 mb-3">
+                                        <div className="p-2 bg-white/10 rounded-lg">
+                                            <Icons.Zap className="w-5 h-5" />
+                                        </div>
+                                        <h4 className="font-black text-sm uppercase tracking-wide">Pro Tip</h4>
                                     </div>
-                                    <p className="text-white/90">{viewingLesson.content.the_1_percent_secret}</p>
+                                    <p className="text-white/90 leading-relaxed">{viewingLesson.content.the_1_percent_secret}</p>
                                 </div>
 
                                 {/* Action Item */}
-                                <div className="p-6 bg-gray-100 rounded-2xl text-center">
-                                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">Your Action Item</h4>
+                                <div className="p-6 bg-gray-50 rounded-2xl text-center border border-gray-100">
+                                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Your Action Item</h4>
                                     <p className="text-lg font-bold text-primary mb-6">{viewingLesson.content.actionable_task}</p>
-                                    <Button onClick={() => setViewingLesson(null)} className="w-full">
+                                    <Button onClick={() => setViewingLesson(null)} className="w-full py-4 text-sm font-black uppercase tracking-widest">
                                         Complete Lesson
                                     </Button>
                                 </div>
                             </>
                         ) : (
                             <div className="text-center py-20">
-                                <p className="text-gray-400 mb-4">Lesson content is being prepared...</p>
-                                <p className="text-gray-300 text-sm">{viewingLesson.description}</p>
-                                <Button onClick={() => setViewingLesson(null)} className="mt-8">
+                                <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                    <Icons.BookOpen className="w-8 h-8 text-gray-300" />
+                                </div>
+                                <p className="text-gray-400 font-medium mb-2">Lesson content coming soon</p>
+                                <p className="text-gray-300 text-sm mb-6">{viewingLesson.description}</p>
+                                <Button onClick={() => setViewingLesson(null)} variant="outline">
                                     Close
                                 </Button>
                             </div>

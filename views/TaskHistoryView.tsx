@@ -27,12 +27,12 @@ export default function TaskHistoryView() {
             <div className="min-h-full bg-white flex flex-col animate-fade-in">
                 {/* Header */}
                 <div className="p-6 pt-safe border-b border-gray-100 flex items-center gap-4 bg-white sticky top-0 z-10">
-                    <button onClick={() => setView(AppView.DASHBOARD)} className="p-2 hover:bg-gray-100 rounded-full transition-colors mt-2">
+                    <button onClick={() => setView(AppView.TASK_SELECTION)} className="p-2 hover:bg-gray-100 rounded-full transition-colors mt-2">
                         <Icons.ChevronLeft className="w-6 h-6 text-primary"/>
                     </button>
                     <div className="mt-2">
                         <h1 className="text-2xl font-black text-primary uppercase tracking-tight">Completed Tasks</h1>
-                        <p className="text-xs text-gray-400">{historyTasks.length} tasks finished</p>
+                        <p className="text-xs text-gray-400">{historyTasks.length} task{historyTasks.length !== 1 ? 's' : ''} finished</p>
                     </div>
                 </div>
 
@@ -56,7 +56,7 @@ export default function TaskHistoryView() {
                             {historyTasks.map((task, index) => (
                                 <Card 
                                     key={task.id} 
-                                    className="p-4 border-none shadow-sm hover:shadow-md transition-shadow"
+                                    className="p-4 border-none shadow-sm"
                                     style={{ animationDelay: `${index * 50}ms` }}
                                 >
                                     <div className="flex items-center gap-4">
@@ -87,7 +87,7 @@ export default function TaskHistoryView() {
                                                 </p>
                                             )}
                                         </div>
-                                        <div className="flex flex-col items-end gap-1">
+                                        <div>
                                             <span className={`text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wide ${
                                                 task.status === TaskStatus.APPROVED 
                                                     ? 'bg-green-100 text-green-700' 
@@ -96,9 +96,6 @@ export default function TaskHistoryView() {
                                                     : 'bg-red-100 text-red-700'
                                             }`}>
                                                 {formatStatus(task.status)}
-                                            </span>
-                                            <span className="text-[10px] text-green-600 font-bold">
-                                                +{task.creditsReward} credits
                                             </span>
                                         </div>
                                     </div>

@@ -3,6 +3,7 @@ import { useApp } from '../contexts/AppContext';
 import { SocialSection, GoalCategory, Lesson, Course, Product, QuizQuestion, Chapter, Friend } from '../types';
 import { Icons, Button, Badge, Card } from '../components/UIComponents';
 import { api } from '../services/api';
+import { generateLessonContent } from '../services/geminiService';
 
 const MOCK_GLOBAL_USERS: Friend[] = [
     { id: 'g1', name: 'Alex Builder', streak: 45, avatar: 'https://picsum.photos/seed/alex/200', lastActive: '5m ago', goalTitle: 'Launch Startup', progress: 60 },
@@ -16,7 +17,7 @@ export default function SocialView() {
     const { 
         user, setUser, 
         feedItems, 
-        lessons, activeSocialSection, setActiveSocialSection,
+        lessons, setLessons, activeSocialSection, setActiveSocialSection,
         courses, setCourses, recommendedVideos, adsFeed, setAdsFeed,
         isLoadingLessons
     } = useApp();
@@ -26,6 +27,8 @@ export default function SocialView() {
     const [viewingLesson, setViewingLesson] = useState<Lesson | null>(null);
     const [viewingProfile, setViewingProfile] = useState<Friend | null>(null);
     const [activeQuiz, setActiveQuiz] = useState<{ chapter: Chapter, questions: QuizQuestion[] } | null>(null);
+    const [isLoadingLessonContent, setIsLoadingLessonContent] = useState(false);
+    const [currentChapter, setCurrentChapter] = useState<Chapter | null>(null);
     
     const [quizIndex, setQuizIndex] = useState(0);
     const [quizAnswers, setQuizAnswers] = useState<number[]>([]);
@@ -48,6 +51,77 @@ export default function SocialView() {
     };
 
     const communityList = getCommunityList();
+
+    // Handle lesson click - generates content on demand
+    const handleLessonClick = async (lesson: Lesson, chapter: Chapter) => {
+        if (lesson.isLocked) return;
+        
+        setCurrentChapter(chapter);
+        
+        // If content already exists, just show it
+        if (lesson.content) {
+            setViewingLesson(lesson);
+            return;
+        }
+        
+        // Otherwise, show modal with loading state and generate content
+        setViewingLesson(lesson);
+        setIsLoadingLessonContent(true);
+        
+        try {
+            const content = await generateLessonContent(
+                { 
+                    id: lesson.id, 
+                    title: lesson.title, 
+                    description: lesson.description || '', 
+                    duration: lesson.duration 
+                },
+                user.goal!,
+                chapter.title
+            );
+            
+            if (content) {
+                // Update the lesson with content
+                const updatedLesson = { ...lesson, content };
+                setViewingLesson(updatedLesson);
+                
+                // Save to lessons state so it persists in memory
+                const updatedLessons = lessons.map(ch => {
+                    if (ch.id === chapter.id) {
+                        return {
+                            ...ch,
+                            lessons: ch.lessons.map(l => 
+                                l.id === lesson.id ? { ...l, content } : l
+                            )
+                        };
+                    }
+                    return ch;
+                });
+                
+                setLessons(updatedLessons);
+                
+                // Save to goal for persistence to database
+                if (user.goal) {
+                    setUser(prev => ({
+                        ...prev,
+                        goal: {
+                            ...prev.goal!,
+                            savedCurriculum: updatedLessons
+                        },
+                        allGoals: prev.allGoals.map(g =>
+                            g.id === prev.goal?.id 
+                                ? { ...g, savedCurriculum: updatedLessons }
+                                : g
+                        )
+                    }));
+                }
+            }
+        } catch (error) {
+            console.error('Failed to generate lesson content:', error);
+        } finally {
+            setIsLoadingLessonContent(false);
+        }
+    };
 
     const handleToggleFriendship = async (targetUser: Friend) => {
         const isAlreadyFriend = friends.some(f => f.id === targetUser.id);
@@ -172,6 +246,18 @@ export default function SocialView() {
         }
     };
 
+    const handleRetryLessonContent = () => {
+        if (viewingLesson && currentChapter) {
+            handleLessonClick(viewingLesson, currentChapter);
+        }
+    };
+
+    const closeLessonModal = () => {
+        setViewingLesson(null);
+        setIsLoadingLessonContent(false);
+        setCurrentChapter(null);
+    };
+
     // ==================== RENDER FUNCTIONS ====================
 
     const renderHeader = () => (
@@ -255,19 +341,23 @@ export default function SocialView() {
                                             ? 'bg-gray-50 border-gray-100 opacity-50 cursor-not-allowed' 
                                             : 'bg-white border-gray-200 hover:border-primary/30 hover:shadow-lg'
                                         }`}
-                                    onClick={() => !l.isLocked && setViewingLesson(l)}
+                                    onClick={() => handleLessonClick(l, chapter)}
                                 >
                                     <div className="flex justify-between items-center">
                                         <div className="flex gap-4 items-center">
                                             <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all
                                                 ${l.isLocked 
                                                     ? 'bg-gray-100' 
-                                                    : 'bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white'
+                                                    : l.content 
+                                                        ? 'bg-green-100 text-green-600'
+                                                        : 'bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white'
                                                 }`}
                                             >
                                                 {l.isLocked 
                                                     ? <Icons.Lock className="w-4 h-4 text-gray-400"/> 
-                                                    : <span className="font-black text-sm">{idx + 1}</span>
+                                                    : l.content
+                                                        ? <Icons.Check className="w-5 h-5"/>
+                                                        : <span className="font-black text-sm">{idx + 1}</span>
                                                 }
                                             </div>
                                             <div className="flex-1 min-w-0">
@@ -632,7 +722,7 @@ export default function SocialView() {
                 </div>
             )}
 
-            {/* Lesson Viewer Modal */}
+            {/* Lesson Viewer Modal - UPDATED WITH LOADING STATE */}
             {viewingLesson && (
                 <div className="fixed inset-0 z-[80] bg-white pt-safe flex flex-col animate-slide-up overflow-hidden">
                     <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-white">
@@ -640,12 +730,27 @@ export default function SocialView() {
                             <span className="text-[10px] font-bold text-primary/50 uppercase tracking-widest block mb-1">Lesson</span>
                             <h2 className="font-black text-primary text-lg tracking-tight">{viewingLesson.title}</h2>
                         </div>
-                        <button onClick={() => setViewingLesson(null)} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
+                        <button onClick={closeLessonModal} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
                             <Icons.X className="w-5 h-5"/>
                         </button>
                     </div>
                     <div className="flex-1 overflow-y-auto p-6 pb-32 space-y-8 no-scrollbar">
-                        {viewingLesson.content ? (
+                        {isLoadingLessonContent ? (
+                            // Loading state while generating content
+                            <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
+                                <div className="relative mb-8">
+                                    <div className="w-20 h-20 rounded-full border-4 border-gray-100"></div>
+                                    <div className="absolute top-0 left-0 w-20 h-20 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
+                                    <Icons.BookOpen className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 text-primary" />
+                                </div>
+                                <h3 className="text-lg font-bold text-primary mb-2">Generating Lesson...</h3>
+                                <p className="text-sm text-gray-400 text-center max-w-xs">Creating personalized content tailored to your goal</p>
+                                <div className="mt-6 w-48 bg-gray-100 h-1 rounded-full overflow-hidden">
+                                    <div className="h-full bg-primary rounded-full animate-pulse" style={{ width: '60%' }}></div>
+                                </div>
+                            </div>
+                        ) : viewingLesson.content ? (
+                            // Full lesson content
                             <>
                                 {/* Core Concept */}
                                 <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10">
@@ -670,7 +775,7 @@ export default function SocialView() {
                                         <div className="p-2 bg-white/10 rounded-lg">
                                             <Icons.Zap className="w-5 h-5" />
                                         </div>
-                                        <h4 className="font-black text-sm uppercase tracking-wide">Pro Tip</h4>
+                                        <h4 className="font-black text-sm uppercase tracking-wide">The 1% Secret</h4>
                                     </div>
                                     <p className="text-white/90 leading-relaxed">{viewingLesson.content.the_1_percent_secret}</p>
                                 </div>
@@ -678,22 +783,28 @@ export default function SocialView() {
                                 {/* Action Item */}
                                 <div className="p-6 bg-gray-50 rounded-2xl text-center border border-gray-100">
                                     <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Your Action Item</h4>
-                                    <p className="text-lg font-bold text-primary mb-6">{viewingLesson.content.actionable_task}</p>
-                                    <Button onClick={() => setViewingLesson(null)} className="w-full py-4 text-sm font-black uppercase tracking-widest">
+                                    <p className="text-base font-bold text-primary mb-6 leading-relaxed">{viewingLesson.content.actionable_task}</p>
+                                    <Button onClick={closeLessonModal} className="w-full py-4 text-sm font-black uppercase tracking-widest">
                                         Complete Lesson
                                     </Button>
                                 </div>
                             </>
                         ) : (
+                            // Fallback if content generation failed
                             <div className="text-center py-20">
-                                <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                                    <Icons.BookOpen className="w-8 h-8 text-gray-300" />
+                                <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                    <Icons.AlertTriangle className="w-8 h-8 text-red-400" />
                                 </div>
-                                <p className="text-gray-400 font-medium mb-2">Lesson content coming soon</p>
-                                <p className="text-gray-300 text-sm mb-6">{viewingLesson.description}</p>
-                                <Button onClick={() => setViewingLesson(null)} variant="outline">
-                                    Close
-                                </Button>
+                                <p className="text-gray-600 font-medium mb-2">Could not load lesson content</p>
+                                <p className="text-gray-400 text-sm mb-6 max-w-xs mx-auto">{viewingLesson.description}</p>
+                                <div className="flex flex-col gap-3 max-w-xs mx-auto">
+                                    <Button onClick={handleRetryLessonContent}>
+                                        Try Again
+                                    </Button>
+                                    <Button onClick={closeLessonModal} variant="outline">
+                                        Close
+                                    </Button>
+                                </div>
                             </div>
                         )}
                     </div>

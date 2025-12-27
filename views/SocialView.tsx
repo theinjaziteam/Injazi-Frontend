@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useApp } from '../contexts/AppContext';
-import { SocialSection, GoalCategory, Lesson, Course, Product, QuizQuestion, Chapter, Friend } from '../types';
+import { SocialSection, GoalCategory, Lesson, Course, Product, QuizQuestion, Chapter, Friend, TaskStatus } from '../types';
 import { Icons, Button, Badge, Card } from '../components/UIComponents';
 import { api } from '../services/api';
-import { generateLessonContent } from '../services/geminiService';
+import { generateLessonContent, generateLessonTasks } from '../services/geminiService';
 
 const MOCK_GLOBAL_USERS: Friend[] = [
     { id: 'g1', name: 'Alex Builder', streak: 45, avatar: 'https://picsum.photos/seed/alex/200', lastActive: '5m ago', goalTitle: 'Launch Startup', progress: 60 },
@@ -19,16 +19,17 @@ export default function SocialView() {
         feedItems, 
         lessons, setLessons, activeSocialSection, setActiveSocialSection,
         courses, setCourses, recommendedVideos, adsFeed, setAdsFeed,
-        isLoadingLessons
+        isLoadingLessons, setView
     } = useApp();
 
     const friends = user.friends || [];
-    const completedLessonIds = user.completedLessonIds || [];
+    const dailyTasks = user.dailyTasks || [];
 
     const [viewingLesson, setViewingLesson] = useState<Lesson | null>(null);
     const [viewingProfile, setViewingProfile] = useState<Friend | null>(null);
     const [activeQuiz, setActiveQuiz] = useState<{ chapter: Chapter, questions: QuizQuestion[] } | null>(null);
     const [isLoadingLessonContent, setIsLoadingLessonContent] = useState(false);
+    const [isStartingLesson, setIsStartingLesson] = useState(false);
     const [currentChapter, setCurrentChapter] = useState<Chapter | null>(null);
     
     const [quizIndex, setQuizIndex] = useState(0);
@@ -53,9 +54,33 @@ export default function SocialView() {
 
     const communityList = getCommunityList();
 
-    // Check if lesson is completed
-    const isLessonCompleted = (lessonId: string) => {
-        return completedLessonIds.includes(lessonId);
+    // Check lesson status
+    const getLessonStatus = (lessonId: string): 'not_started' | 'in_progress' | 'completed' => {
+        const lessonTasks = dailyTasks.filter(t => t.sourceLessonId === lessonId && t.isLessonTask);
+        
+        if (lessonTasks.length === 0) {
+            return 'not_started';
+        }
+        
+        const allCompleted = lessonTasks.every(t => 
+            t.status === TaskStatus.APPROVED || t.status === TaskStatus.COMPLETED
+        );
+        
+        if (allCompleted) {
+            return 'completed';
+        }
+        
+        return 'in_progress';
+    };
+
+    // Get pending task count for a lesson
+    const getPendingTaskCount = (lessonId: string): number => {
+        return dailyTasks.filter(t => 
+            t.sourceLessonId === lessonId && 
+            t.isLessonTask &&
+            t.status !== TaskStatus.APPROVED && 
+            t.status !== TaskStatus.COMPLETED
+        ).length;
     };
 
     // Handle lesson click - generates content on demand
@@ -87,11 +112,9 @@ export default function SocialView() {
             );
             
             if (content) {
-                // Update the lesson with content
                 const updatedLesson = { ...lesson, content };
                 setViewingLesson(updatedLesson);
                 
-                // Save to lessons state so it persists in memory
                 const updatedLessons = lessons.map(ch => {
                     if (ch.id === chapter.id) {
                         return {
@@ -106,7 +129,6 @@ export default function SocialView() {
                 
                 setLessons(updatedLessons);
                 
-                // Save to goal for persistence to database
                 if (user.goal) {
                     setUser(prev => ({
                         ...prev,
@@ -129,20 +151,46 @@ export default function SocialView() {
         }
     };
 
-    // Handle completing a lesson - ONLY when user clicks the button
-    const handleCompleteLesson = () => {
-        if (!viewingLesson) return;
+    // Handle Start Lesson - generates tasks and adds to dashboard
+    const handleStartLesson = async () => {
+        if (!viewingLesson || !viewingLesson.content || !user.goal) return;
         
-        // Add to completed lessons if not already there
-        if (!completedLessonIds.includes(viewingLesson.id)) {
+        setIsStartingLesson(true);
+        
+        try {
+            // Generate tasks for this lesson
+            const lessonTasks = await generateLessonTasks(
+                {
+                    id: viewingLesson.id,
+                    title: viewingLesson.title,
+                    description: viewingLesson.description || ''
+                },
+                user.goal,
+                viewingLesson.content
+            );
+            
+            // Add tasks to dailyTasks
             setUser(prev => ({
                 ...prev,
-                completedLessonIds: [...(prev.completedLessonIds || []), viewingLesson.id]
+                dailyTasks: [...(prev.dailyTasks || []), ...lessonTasks]
             }));
+            
+            // Close modal and go to dashboard
+            closeLessonModal();
+            setView(AppView.DASHBOARD);
+            
+        } catch (error) {
+            console.error('Failed to start lesson:', error);
+            alert('Failed to generate lesson tasks. Please try again.');
+        } finally {
+            setIsStartingLesson(false);
         }
-        
-        // Close modal
+    };
+
+    // Handle "Continue" for in-progress lessons
+    const handleContinueLesson = () => {
         closeLessonModal();
+        setView(AppView.DASHBOARD);
     };
 
     const handleToggleFriendship = async (targetUser: Friend) => {
@@ -270,7 +318,6 @@ export default function SocialView() {
 
     const handleRetryLessonContent = () => {
         if (viewingLesson && currentChapter) {
-            // Reset the lesson content before retrying
             const lessonWithoutContent = { ...viewingLesson, content: undefined };
             setViewingLesson(lessonWithoutContent);
             handleLessonClick(lessonWithoutContent, currentChapter);
@@ -280,15 +327,15 @@ export default function SocialView() {
     const closeLessonModal = () => {
         setViewingLesson(null);
         setIsLoadingLessonContent(false);
+        setIsStartingLesson(false);
         setCurrentChapter(null);
     };
 
     // Format action task with proper line breaks
     const formatActionTask = (task: string) => {
-        // Split by various step patterns and rejoin with proper formatting
         return task
             .replace(/Step\s*(\d+):/gi, '\n\nStep $1:')
-            .replace(/^\n+/, '') // Remove leading newlines
+            .replace(/^\n+/, '')
             .trim();
     };
 
@@ -331,124 +378,131 @@ export default function SocialView() {
                         <div className="absolute inset-0 flex items-center justify-center">
                             <Icons.BookOpen className="w-10 h-10 text-primary animate-pulse" />
                         </div>
-                        <div className="absolute -bottom-2 -right-2 bg-primary/10 p-2 rounded-xl shadow-lg animate-bounce">
-                            <Icons.Zap className="w-4 h-4 text-primary"/>
-                        </div>
                     </div>
                     <h3 className="text-2xl font-black text-primary uppercase tracking-tighter mb-4">Building Your Path</h3>
-                    <div className="max-w-[280px] space-y-3">
-                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] leading-relaxed">
-                            Creating your personalized curriculum...
-                        </p>
-                        <div className="w-full bg-gray-100 h-1 rounded-full overflow-hidden">
-                             <div className="h-full bg-primary animate-[shimmer_1s_infinite] w-2/3 rounded-full"></div>
-                        </div>
-                    </div>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em]">Creating your personalized curriculum...</p>
                 </div>
             );
         }
 
         return (
             <div className="p-6 pb-28 space-y-10 animate-fade-in">
-                {lessons.length > 0 ? lessons.map((chapter, chapterIdx) => (
-                    <div key={chapter.id} className="relative">
-                        {/* Chapter Header */}
-                        <div className="flex items-center gap-4 mb-6">
-                            <div className="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center text-lg font-black shadow-lg shadow-primary/20">
-                                {chapterIdx + 1}
-                            </div>
-                            <div>
-                                <h3 className="text-xl font-black text-primary tracking-tighter uppercase leading-none">{chapter.title}</h3>
-                                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em] mt-1 block">
-                                    {chapter.lessons.length} Learning Modules • {chapter.lessons.filter(l => isLessonCompleted(l.id)).length} Completed
-                                </span>
-                            </div>
-                        </div>
-                        
-                        {/* Lessons List */}
-                        <div className="space-y-3 ml-6 border-l-2 border-gray-200 pl-6">
-                            {chapter.lessons.map((l, idx) => {
-                                const completed = isLessonCompleted(l.id);
-                                return (
-                                    <div 
-                                        key={l.id} 
-                                        className={`p-5 rounded-2xl border-2 transition-all group cursor-pointer
-                                            ${l.isLocked 
-                                                ? 'bg-gray-50 border-gray-100 opacity-50 cursor-not-allowed' 
-                                                : completed
-                                                    ? 'bg-green-50 border-green-200 hover:border-green-300'
-                                                    : 'bg-white border-gray-200 hover:border-primary/30 hover:shadow-lg'
-                                            }`}
-                                        onClick={() => handleLessonClick(l, chapter)}
-                                    >
-                                        <div className="flex justify-between items-center">
-                                            <div className="flex gap-4 items-center">
-                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all
-                                                    ${l.isLocked 
-                                                        ? 'bg-gray-100' 
-                                                        : completed
-                                                            ? 'bg-green-500 text-white'
-                                                            : 'bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white'
-                                                    }`}
-                                                >
-                                                    {l.isLocked 
-                                                        ? <Icons.Lock className="w-4 h-4 text-gray-400"/> 
-                                                        : completed
-                                                            ? <Icons.Check className="w-5 h-5"/>
-                                                            : <span className="font-black text-sm">{idx + 1}</span>
-                                                    }
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <h4 className={`font-bold text-sm leading-tight transition-colors
-                                                        ${completed ? 'text-green-700' : 'text-primary group-hover:text-secondary'}`}>
-                                                        {l.title}
-                                                    </h4>
-                                                    <p className="text-xs text-gray-400 mt-1 line-clamp-1">{l.description}</p>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-3 ml-4">
-                                                {completed && (
-                                                    <span className="text-[9px] font-bold text-green-600 bg-green-100 px-2 py-1 rounded-full">
-                                                        DONE
-                                                    </span>
-                                                )}
-                                                <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-3 py-1.5 rounded-full whitespace-nowrap">
-                                                    {l.duration}
-                                                </span>
-                                                {!l.isLocked && (
-                                                    <Icons.ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-primary transition-colors" />
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-
-                            {/* Phase Quiz */}
-                            {chapter.quiz && chapter.quiz.length > 0 && !chapter.lessons.some(l => l.isLocked) && (
-                                <div className="p-5 rounded-2xl bg-gradient-to-r from-primary to-secondary text-white shadow-lg shadow-primary/20">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-4">
-                                            <div className="p-2.5 bg-white/10 rounded-xl">
-                                                <Icons.Trophy className="w-5 h-5" />
-                                            </div>
-                                            <div>
-                                                <h4 className="font-bold text-sm">Phase Validation</h4>
-                                                <p className="text-[10px] text-white/60">Pass the quiz to complete this phase</p>
-                                            </div>
-                                        </div>
-                                        <button 
-                                            onClick={() => handleQuizStart(chapter)}
-                                            className="px-5 py-2.5 bg-white text-primary rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-white/90 transition-colors"
-                                        >
-                                            Start Quiz
-                                        </button>
-                                    </div>
+                {lessons.length > 0 ? lessons.map((chapter, chapterIdx) => {
+                    const completedInChapter = chapter.lessons.filter(l => getLessonStatus(l.id) === 'completed').length;
+                    
+                    return (
+                        <div key={chapter.id} className="relative">
+                            {/* Chapter Header */}
+                            <div className="flex items-center gap-4 mb-6">
+                                <div className="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center text-lg font-black shadow-lg shadow-primary/20">
+                                    {chapterIdx + 1}
                                 </div>
-                            )}
+                                <div>
+                                    <h3 className="text-xl font-black text-primary tracking-tighter uppercase leading-none">{chapter.title}</h3>
+                                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em] mt-1 block">
+                                        {chapter.lessons.length} Modules • {completedInChapter} Completed
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            {/* Lessons List */}
+                            <div className="space-y-3 ml-6 border-l-2 border-gray-200 pl-6">
+                                {chapter.lessons.map((l, idx) => {
+                                    const status = getLessonStatus(l.id);
+                                    const pendingCount = getPendingTaskCount(l.id);
+                                    
+                                    return (
+                                        <div 
+                                            key={l.id} 
+                                            className={`p-5 rounded-2xl border-2 transition-all group cursor-pointer
+                                                ${l.isLocked 
+                                                    ? 'bg-gray-50 border-gray-100 opacity-50 cursor-not-allowed' 
+                                                    : status === 'completed'
+                                                        ? 'bg-green-50 border-green-200 hover:border-green-300'
+                                                        : status === 'in_progress'
+                                                            ? 'bg-amber-50 border-amber-200 hover:border-amber-300'
+                                                            : 'bg-white border-gray-200 hover:border-primary/30 hover:shadow-lg'
+                                                }`}
+                                            onClick={() => handleLessonClick(l, chapter)}
+                                        >
+                                            <div className="flex justify-between items-center">
+                                                <div className="flex gap-4 items-center">
+                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all
+                                                        ${l.isLocked 
+                                                            ? 'bg-gray-100' 
+                                                            : status === 'completed'
+                                                                ? 'bg-green-500 text-white'
+                                                                : status === 'in_progress'
+                                                                    ? 'bg-amber-500 text-white'
+                                                                    : 'bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white'
+                                                        }`}
+                                                    >
+                                                        {l.isLocked 
+                                                            ? <Icons.Lock className="w-4 h-4 text-gray-400"/> 
+                                                            : status === 'completed'
+                                                                ? <Icons.Check className="w-5 h-5"/>
+                                                                : status === 'in_progress'
+                                                                    ? <Icons.Clock className="w-5 h-5"/>
+                                                                    : <span className="font-black text-sm">{idx + 1}</span>
+                                                        }
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <h4 className={`font-bold text-sm leading-tight transition-colors
+                                                            ${status === 'completed' ? 'text-green-700' : status === 'in_progress' ? 'text-amber-700' : 'text-primary group-hover:text-secondary'}`}>
+                                                            {l.title}
+                                                        </h4>
+                                                        <p className="text-xs text-gray-400 mt-1 line-clamp-1">{l.description}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2 ml-4">
+                                                    {status === 'completed' && (
+                                                        <span className="text-[9px] font-bold text-green-600 bg-green-100 px-2 py-1 rounded-full">
+                                                            DONE
+                                                        </span>
+                                                    )}
+                                                    {status === 'in_progress' && (
+                                                        <span className="text-[9px] font-bold text-amber-600 bg-amber-100 px-2 py-1 rounded-full">
+                                                            {pendingCount} TASK{pendingCount !== 1 ? 'S' : ''} LEFT
+                                                        </span>
+                                                    )}
+                                                    <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-3 py-1.5 rounded-full whitespace-nowrap">
+                                                        {l.duration}
+                                                    </span>
+                                                    {!l.isLocked && (
+                                                        <Icons.ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-primary transition-colors" />
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+
+                                {/* Phase Quiz */}
+                                {chapter.quiz && chapter.quiz.length > 0 && !chapter.lessons.some(l => l.isLocked) && (
+                                    <div className="p-5 rounded-2xl bg-gradient-to-r from-primary to-secondary text-white shadow-lg shadow-primary/20">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-4">
+                                                <div className="p-2.5 bg-white/10 rounded-xl">
+                                                    <Icons.Trophy className="w-5 h-5" />
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-bold text-sm">Phase Validation</h4>
+                                                    <p className="text-[10px] text-white/60">Pass the quiz to complete this phase</p>
+                                                </div>
+                                            </div>
+                                            <button 
+                                                onClick={() => handleQuizStart(chapter)}
+                                                className="px-5 py-2.5 bg-white text-primary rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-white/90 transition-colors"
+                                            >
+                                                Start Quiz
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                )) : (
+                    );
+                }) : (
                     <div className="text-center py-20">
                         <div className="w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
                             <Icons.BookOpen className="w-10 h-10 text-gray-300" />
@@ -767,7 +821,7 @@ export default function SocialView() {
                 </div>
             )}
 
-            {/* Lesson Viewer Modal - FIXED */}
+            {/* Lesson Viewer Modal - WITH START LESSON FLOW */}
             {viewingLesson && (
                 <div className="fixed inset-0 z-[80] bg-white pt-safe flex flex-col animate-slide-up overflow-hidden">
                     <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-white">
@@ -781,7 +835,6 @@ export default function SocialView() {
                     </div>
                     <div className="flex-1 overflow-y-auto p-6 pb-32 space-y-8 no-scrollbar">
                         {isLoadingLessonContent ? (
-                            // Loading state while generating content
                             <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
                                 <div className="relative mb-8">
                                     <div className="w-20 h-20 rounded-full border-4 border-gray-100"></div>
@@ -790,12 +843,8 @@ export default function SocialView() {
                                 </div>
                                 <h3 className="text-lg font-bold text-primary mb-2">Generating Lesson...</h3>
                                 <p className="text-sm text-gray-400 text-center max-w-xs">Creating personalized content tailored to your goal</p>
-                                <div className="mt-6 w-48 bg-gray-100 h-1 rounded-full overflow-hidden">
-                                    <div className="h-full bg-primary rounded-full animate-pulse" style={{ width: '60%' }}></div>
-                                </div>
                             </div>
                         ) : viewingLesson.content ? (
-                            // Full lesson content
                             <>
                                 {/* Core Concept */}
                                 <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10">
@@ -825,19 +874,65 @@ export default function SocialView() {
                                     <p className="text-white/90 leading-relaxed">{viewingLesson.content.the_1_percent_secret}</p>
                                 </div>
 
-                                {/* Action Item - FIXED FORMATTING */}
+                                {/* Action Section - Dynamic based on lesson status */}
                                 <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100">
-                                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 text-center">Your Action Item</h4>
-                                    <div className="text-base font-medium text-primary mb-6 leading-relaxed whitespace-pre-wrap">
-                                        {formatActionTask(viewingLesson.content.actionable_task)}
-                                    </div>
-                                    <Button onClick={handleCompleteLesson} className="w-full py-4 text-sm font-black uppercase tracking-widest">
-                                        Complete Lesson
-                                    </Button>
+                                    {(() => {
+                                        const status = getLessonStatus(viewingLesson.id);
+                                        const pendingCount = getPendingTaskCount(viewingLesson.id);
+                                        
+                                        if (status === 'completed') {
+                                            return (
+                                                <div className="text-center">
+                                                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                                        <Icons.Check className="w-8 h-8 text-green-600" />
+                                                    </div>
+                                                    <h4 className="text-lg font-bold text-green-700 mb-2">Lesson Complete!</h4>
+                                                    <p className="text-sm text-gray-500 mb-4">You've finished all tasks for this lesson.</p>
+                                                    <Button onClick={closeLessonModal} variant="outline" className="w-full py-4">
+                                                        Close
+                                                    </Button>
+                                                </div>
+                                            );
+                                        }
+                                        
+                                        if (status === 'in_progress') {
+                                            return (
+                                                <div className="text-center">
+                                                    <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                                        <Icons.Clock className="w-8 h-8 text-amber-600" />
+                                                    </div>
+                                                    <h4 className="text-lg font-bold text-amber-700 mb-2">Lesson In Progress</h4>
+                                                    <p className="text-sm text-gray-500 mb-4">
+                                                        You have {pendingCount} task{pendingCount !== 1 ? 's' : ''} remaining.
+                                                    </p>
+                                                    <Button onClick={handleContinueLesson} className="w-full py-4 text-sm font-black uppercase tracking-widest">
+                                                        Go to Dashboard
+                                                    </Button>
+                                                </div>
+                                            );
+                                        }
+                                        
+                                        // Not started
+                                        return (
+                                            <>
+                                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 text-center">Ready to Apply?</h4>
+                                                <p className="text-sm text-gray-600 mb-6 text-center leading-relaxed">
+                                                    Start this lesson to receive practical tasks in your dashboard. Complete all tasks to mark this lesson as done.
+                                                </p>
+                                                <Button 
+                                                    onClick={handleStartLesson} 
+                                                    isLoading={isStartingLesson}
+                                                    disabled={isStartingLesson}
+                                                    className="w-full py-4 text-sm font-black uppercase tracking-widest"
+                                                >
+                                                    {isStartingLesson ? 'Creating Tasks...' : 'Start Lesson'}
+                                                </Button>
+                                            </>
+                                        );
+                                    })()}
                                 </div>
                             </>
                         ) : (
-                            // Fallback if content generation failed
                             <div className="text-center py-20">
                                 <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
                                     <Icons.AlertTriangle className="w-8 h-8 text-red-400" />
@@ -845,12 +940,8 @@ export default function SocialView() {
                                 <p className="text-gray-600 font-medium mb-2">Could not load lesson content</p>
                                 <p className="text-gray-400 text-sm mb-6 max-w-xs mx-auto">{viewingLesson.description}</p>
                                 <div className="flex flex-col gap-3 max-w-xs mx-auto">
-                                    <Button onClick={handleRetryLessonContent}>
-                                        Try Again
-                                    </Button>
-                                    <Button onClick={closeLessonModal} variant="outline">
-                                        Close
-                                    </Button>
+                                    <Button onClick={handleRetryLessonContent}>Try Again</Button>
+                                    <Button onClick={closeLessonModal} variant="outline">Close</Button>
                                 </div>
                             </div>
                         )}

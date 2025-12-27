@@ -24,8 +24,8 @@ const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
 const getClient = () => new GoogleGenAI({ apiKey });
 
 // Model constants - using latest Gemini 2.5
-const FAST_MODEL = 'gemini-2.5-flash';
-const SMART_MODEL = 'gemini-2.5-pro';
+const FAST_MODEL = 'gemini-2.0-flash';
+const SMART_MODEL = 'gemini-2.0-flash';
 
 // ============================================
 // GENERATE DAILY TASKS

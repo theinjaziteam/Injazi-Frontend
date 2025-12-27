@@ -7,8 +7,7 @@ import { updateUserProfile, generateDailyTasks } from '../services/geminiService
 export default function DashboardView() {
     const { 
         user, setUser, setView, setShowCheckIn, showCheckIn,
-        lessons, courses, feedItems, adsFeed, recommendedVideos,
-        setLessons, setCourses, setFeedItems, setAdsFeed, setRecommendedVideos
+        lessons
     } = useApp();
     const [isEarnExpanded, setIsEarnExpanded] = useState(false);
     const [checkInText, setCheckInText] = useState('');
@@ -223,42 +222,69 @@ export default function DashboardView() {
                         </div>
                     </Card>
 
-                    {/* Lesson Tasks Card - Only shows if there are lesson tasks */}
+                    {/* Lesson Tasks Card - UNIQUE DESIGN */}
                     {pendingLessonTasks.length > 0 && (
-                        <Card className="p-0 overflow-hidden border-none shadow-xl shadow-secondary/10">
-                            <div className="bg-white p-6">
-                                <div className="flex justify-between items-center mb-4">
-                                    <h3 className="font-bold text-primary text-lg flex items-center gap-2">
-                                        <Icons.BookOpen className="w-5 h-5 text-secondary" />
-                                        Lesson Tasks
-                                    </h3>
-                                    <Badge color="bg-blue-100 text-blue-700">{pendingLessonTasks.length} FROM LESSONS</Badge>
+                        <div className="relative">
+                            {/* Decorative gradient border */}
+                            <div className="absolute inset-0 bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 rounded-[2rem] opacity-20 blur-sm"></div>
+                            <Card className="relative p-0 overflow-hidden border-2 border-purple-200 shadow-xl shadow-purple-500/10">
+                                {/* Header with gradient */}
+                                <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-4">
+                                    <div className="flex justify-between items-center">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                                                <Icons.BookOpen className="w-5 h-5 text-white" />
+                                            </div>
+                                            <div>
+                                                <h3 className="font-bold text-white text-lg">Lesson Tasks</h3>
+                                                <p className="text-white/70 text-[10px] uppercase tracking-widest">From your curriculum</p>
+                                            </div>
+                                        </div>
+                                        <div className="bg-white/20 px-3 py-1.5 rounded-full">
+                                            <span className="text-white text-xs font-black">{pendingLessonTasks.length} PENDING</span>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="space-y-3">
-                                   {pendingLessonTasks.map(task => {
+                                
+                                {/* Task List */}
+                                <div className="bg-white p-4 space-y-3">
+                                   {pendingLessonTasks.map((task, idx) => {
                                        const lessonName = getLessonNameForTask(task);
                                        return (
-                                           <div key={task.id} onClick={() => handleTaskSelect(task.id)} className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex justify-between items-center cursor-pointer hover:shadow-md transition-all group">
-                                               <div>
-                                                   <div className="text-[9px] font-black uppercase text-blue-500 tracking-widest mb-1">
-                                                       {lessonName ? `From: ${lessonName}` : 'Lesson Task'}
+                                           <div 
+                                               key={task.id} 
+                                               onClick={() => handleTaskSelect(task.id)} 
+                                               className="relative overflow-hidden bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-100 p-4 rounded-2xl flex justify-between items-center cursor-pointer hover:shadow-lg hover:border-purple-300 transition-all group"
+                                           >
+                                               {/* Left accent bar */}
+                                               <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-purple-500 to-pink-500"></div>
+                                               
+                                               <div className="pl-3">
+                                                   <div className="flex items-center gap-2 mb-1">
+                                                       <span className="text-[9px] font-black uppercase text-purple-600 tracking-widest">
+                                                           📚 {lessonName || 'Lesson Task'}
+                                                       </span>
+                                                       <span className="text-[9px] font-bold text-gray-400">•</span>
+                                                       <span className="text-[9px] font-bold text-gray-400">{task.estimatedTimeMinutes} min</span>
                                                    </div>
-                                                   <h4 className="font-bold text-primary text-sm group-hover:text-secondary transition-colors">{task.title}</h4>
+                                                   <h4 className="font-bold text-primary text-sm group-hover:text-purple-700 transition-colors">{task.title}</h4>
                                                </div>
                                                <div className="flex items-center gap-3">
                                                    {(task.timeLeft !== undefined && task.timeLeft > 0 && task.timeLeft < ((task.estimatedTimeMinutes || 20) * 60)) && (
-                                                       <Badge color={task.isTimerActive ? "bg-green-100 text-green-700 animate-pulse" : "bg-yellow-100 text-yellow-700"}>
+                                                       <Badge color={task.isTimerActive ? "bg-purple-100 text-purple-700 animate-pulse" : "bg-pink-100 text-pink-700"}>
                                                            {calculateRealTimeRemaining(task)}
                                                        </Badge>
                                                    )}
-                                                   <Icons.ChevronRight className="w-5 h-5 text-gray-300"/>
+                                                   <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                                                       <Icons.ChevronRight className="w-4 h-4 text-purple-500"/>
+                                                   </div>
                                                </div>
                                            </div>
                                        );
                                    })}
                                 </div>
-                            </div>
-                        </Card>
+                            </Card>
+                        </div>
                     )}
 
                     {/* Earn Credits Section */}

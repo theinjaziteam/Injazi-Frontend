@@ -675,3 +675,130 @@ export async function calculateBudgetSplit(amount: number, goal: any, profile: a
         highYield: { amount: amount * 0.2, percent: 20 }
     };
 }
+
+// ============================================
+// LESSON TASK GENERATOR - NEW!
+// ============================================
+
+export async function generateLessonTasks(
+    lesson: { id: string; title: string; description: string },
+    goal: Goal,
+    lessonContent: LessonContent
+): Promise<Task[]> {
+    if (!GROQ_API_KEY) {
+        console.log('⚠️ No API key for lesson tasks');
+        return getDefaultLessonTasks(lesson, goal);
+    }
+
+    try {
+        console.log('📝 Generating tasks for lesson:', lesson.title);
+        
+        const response = await callGroq([
+            {
+                role: 'system',
+                content: `You are a task coach creating practical tasks based on lesson content.
+Each task should directly apply what was taught in the lesson.
+Make tasks specific, actionable, and achievable in the given time.`
+            },
+            {
+                role: 'user',
+                content: `Create 2 practical tasks based on this lesson:
+
+LESSON: "${lesson.title}"
+KEY CONCEPT: "${lessonContent.core_concept}"
+ACTION ITEM FROM LESSON: "${lessonContent.actionable_task}"
+
+GOAL CONTEXT: "${goal.title}" (${goal.category})
+
+Create 2 tasks:
+- Task 1: A quick application task (10-15 min, EASY) - directly applies the lesson
+- Task 2: A deeper practice task (20-30 min, MEDIUM) - extends the learning
+
+Return ONLY valid JSON:
+{"tasks": [
+  {"title": "Quick task title", "description": "Detailed steps to complete this task based on the lesson...", "estimatedTimeMinutes": 12, "difficulty": "EASY"},
+  {"title": "Practice task title", "description": "Detailed steps for deeper practice...", "estimatedTimeMinutes": 25, "difficulty": "MEDIUM"}
+]}`
+            }
+        ], true);
+
+        let tasks: any[] = [];
+        
+        try {
+            const parsed = JSON.parse(response);
+            if (Array.isArray(parsed)) {
+                tasks = parsed;
+            } else if (parsed.tasks && Array.isArray(parsed.tasks)) {
+                tasks = parsed.tasks;
+            }
+        } catch {
+            const arrayMatch = response.match(/\[[\s\S]*?\]/);
+            if (arrayMatch) {
+                try {
+                    tasks = JSON.parse(arrayMatch[0]);
+                } catch {
+                    console.warn('Failed to parse lesson tasks');
+                }
+            }
+        }
+
+        if (!Array.isArray(tasks) || tasks.length === 0) {
+            return getDefaultLessonTasks(lesson, goal);
+        }
+
+        console.log('✅ Generated', tasks.length, 'lesson tasks');
+
+        return tasks.map((t: any, i: number) => ({
+            id: `lesson-task-${lesson.id}-${i}-${Date.now()}`,
+            dayNumber: 0, // Lesson tasks don't have a day number
+            title: t.title || `Lesson Task ${i + 1}`,
+            description: t.description || 'Complete this task',
+            estimatedTimeMinutes: parseInt(t.estimatedTimeMinutes) || 15,
+            difficulty: t.difficulty === 'EASY' || t.difficulty === 'Easy' ? Difficulty.EASY 
+                      : t.difficulty === 'HARD' || t.difficulty === 'Hard' ? Difficulty.HARD 
+                      : Difficulty.MEDIUM,
+            videoRequirements: 'None',
+            creditsReward: 0,
+            status: TaskStatus.PENDING,
+            sourceLessonId: lesson.id,
+            isLessonTask: true
+        }));
+
+    } catch (e) {
+        console.error("Lesson task generation failed:", e);
+        return getDefaultLessonTasks(lesson, goal);
+    }
+}
+
+function getDefaultLessonTasks(lesson: { id: string; title: string; description: string }, goal: Goal): Task[] {
+    const ts = Date.now();
+    return [
+        {
+            id: `lesson-task-${lesson.id}-0-${ts}`,
+            dayNumber: 0,
+            title: `Apply: ${lesson.title}`,
+            description: `Take 10 minutes to apply what you learned in "${lesson.title}". Write down 3 key insights and one immediate action you can take today.`,
+            estimatedTimeMinutes: 10,
+            difficulty: Difficulty.EASY,
+            videoRequirements: 'None',
+            creditsReward: 0,
+            status: TaskStatus.PENDING,
+            sourceLessonId: lesson.id,
+            isLessonTask: true
+        },
+        {
+            id: `lesson-task-${lesson.id}-1-${ts}`,
+            dayNumber: 0,
+            title: `Practice: ${lesson.title}`,
+            description: `Spend 20 minutes practicing the concepts from "${lesson.title}". Focus on one specific technique and try it in a real situation.`,
+            estimatedTimeMinutes: 20,
+            difficulty: Difficulty.MEDIUM,
+            videoRequirements: 'None',
+            creditsReward: 0,
+            status: TaskStatus.PENDING,
+            sourceLessonId: lesson.id,
+            isLessonTask: true
+        }
+    ];
+}
+

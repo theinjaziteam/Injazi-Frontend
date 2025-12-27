@@ -98,10 +98,10 @@ export interface Task {
   verificationMessage?: string;
   deadline?: number;
   isChallenge?: boolean;
-  sourceLessonId?: string;
+  sourceLessonId?: string;  // Links task to a specific lesson
   isSupplementary?: boolean;
+  isLessonTask?: boolean;   // NEW: Marks this as a lesson-generated task
   timeLeft?: number; 
-  // --- NEW FIELDS FOR BACKGROUND TIMER ---
   lastUpdated?: number; 
   isTimerActive?: boolean; 
 }

@@ -1,60 +1,117 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { AppView, TaskStatus } from '../types';
-import { Icons, Button, Card, Badge } from '../components/UIComponents';
+import { Icons, Button, Card } from '../components/UIComponents';
 
 export default function TaskExecutionView() {
     const { user, setUser, setView } = useApp();
     const task = user.dailyTasks.find(t => t.id === user.selectedTaskId);
+    const initRef = useRef(false);
 
-    // 1. Initialize Logic (Calculates elapsed time while you were away)
-    const [timeLeft, setTimeLeft] = useState(() => {
+    // Calculate initial time
+    const getInitialTime = useCallback(() => {
         if (!task) return 0;
         
-        // Safety: Default to 15m if estimate is missing
         const totalDuration = (task.estimatedTimeMinutes || 15) * 60;
-        let storedTime = task.timeLeft !== undefined ? task.timeLeft : totalDuration;
+        
+        // If timeLeft was never set, return total duration
+        if (task.timeLeft === undefined || task.timeLeft === null) {
+            console.log('Timer init: No timeLeft stored, using total:', totalDuration);
+            return totalDuration;
+        }
+        
+        let storedTime = task.timeLeft;
+        console.log('Timer init: Stored timeLeft:', storedTime);
 
-        // --- BACKGROUND TIMER FIX ---
-        // If the timer was active when we left, subtract the time that passed since then.
-        if (task.isTimerActive && task.lastUpdated) {
+        // If timer was active, calculate elapsed time while away
+        if (task.isTimerActive && task.lastUpdated && task.lastUpdated > 0) {
             const now = Date.now();
             const secondsPassed = Math.floor((now - task.lastUpdated) / 1000);
             storedTime = Math.max(0, storedTime - secondsPassed);
+            console.log('Timer init: Was active, seconds passed:', secondsPassed, 'new time:', storedTime);
         }
         
         return storedTime;
-    });
+    }, [task]);
+
+    const [timeLeft, setTimeLeft] = useState(getInitialTime);
     
-    // Auto-resume if it was active
-    const [isTimerRunning, setIsTimerRunning] = useState(task?.isTimerActive || false);
+    const [isTimerRunning, setIsTimerRunning] = useState(() => {
+        if (!task) return false;
+        // Only auto-resume if timer was active AND there's time left
+        const initialTime = getInitialTime();
+        return task.isTimerActive === true && initialTime > 0;
+    });
     
     const [showCompleteModal, setShowCompleteModal] = useState(false);
     const [isCompleted, setIsCompleted] = useState(false);
 
-    const playAlert = () => {
-        if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-    };
-
-    // 2. Timer Countdown Loop
+    // Initialize timer properties if they don't exist
     useEffect(() => {
-        let interval: any;
-        if (isTimerRunning && timeLeft > 0) {
-            interval = setInterval(() => {
-                setTimeLeft((prev) => prev - 1);
-            }, 1000);
-        } else if (timeLeft <= 0 && isTimerRunning) {
-            // Timer Finished
-            setIsTimerRunning(false);
-            playAlert();
-            setShowCompleteModal(true);
+        if (!task || initRef.current) return;
+        initRef.current = true;
+        
+        const totalDuration = (task.estimatedTimeMinutes || 15) * 60;
+        
+        // Only initialize if timeLeft is truly undefined
+        if (task.timeLeft === undefined) {
+            console.log('Initializing task with timer properties');
+            setUser(prev => ({
+                ...prev,
+                dailyTasks: prev.dailyTasks.map(t => 
+                    t.id === task.id 
+                        ? { 
+                            ...t, 
+                            timeLeft: totalDuration,
+                            isTimerActive: false,
+                            lastUpdated: 0
+                          } 
+                        : t
+                )
+            }));
+            setTimeLeft(totalDuration);
         }
-        return () => clearInterval(interval);
-    }, [isTimerRunning, timeLeft]);
+    }, [task, setUser]);
 
-    // 3. SAVE STATE ON BACK (Saves the Timestamp)
-    const handleBack = () => {
-        if (task) {
+    // Recalculate on task change (if navigating between tasks)
+    useEffect(() => {
+        if (task && initRef.current) {
+            const newTime = getInitialTime();
+            if (newTime !== timeLeft) {
+                setTimeLeft(newTime);
+            }
+        }
+    }, [task?.id]);
+
+    const playAlert = useCallback(() => {
+        if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    }, []);
+
+    // Timer countdown
+    useEffect(() => {
+        if (!isTimerRunning || timeLeft <= 0) return;
+        
+        const interval = setInterval(() => {
+            setTimeLeft(prev => {
+                if (prev <= 1) {
+                    setIsTimerRunning(false);
+                    playAlert();
+                    setShowCompleteModal(true);
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+        
+        return () => clearInterval(interval);
+    }, [isTimerRunning, playAlert]);
+
+    // Auto-save while running (every 10 seconds)
+    useEffect(() => {
+        if (!task || !isTimerRunning) return;
+        
+        const saveInterval = setInterval(() => {
+            console.log('Auto-saving timer state:', timeLeft);
             setUser(prev => ({
                 ...prev,
                 dailyTasks: prev.dailyTasks.map(t => 
@@ -62,9 +119,69 @@ export default function TaskExecutionView() {
                         ? { 
                             ...t, 
                             timeLeft: timeLeft, 
-                            lastUpdated: Date.now(), // Save WHEN we left
-                            isTimerActive: isTimerRunning, // Save if it was running
-                            status: timeLeft < ((task.estimatedTimeMinutes || 15) * 60) && timeLeft > 0 ? TaskStatus.IN_PROGRESS : t.status 
+                            lastUpdated: Date.now(),
+                            isTimerActive: true,
+                            status: TaskStatus.IN_PROGRESS
+                          } 
+                        : t
+                )
+            }));
+        }, 10000);
+        
+        return () => clearInterval(saveInterval);
+    }, [task, isTimerRunning, timeLeft, setUser]);
+
+    // Save on unmount or visibility change
+    useEffect(() => {
+        const saveState = () => {
+            if (!task) return;
+            console.log('Saving on visibility/unmount:', timeLeft, isTimerRunning);
+            setUser(prev => ({
+                ...prev,
+                dailyTasks: prev.dailyTasks.map(t => 
+                    t.id === task.id 
+                        ? { 
+                            ...t, 
+                            timeLeft: timeLeft, 
+                            lastUpdated: isTimerRunning ? Date.now() : 0,
+                            isTimerActive: isTimerRunning
+                          } 
+                        : t
+                )
+            }));
+        };
+
+        const handleVisibilityChange = () => {
+            if (document.hidden) saveState();
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('beforeunload', saveState);
+        
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('beforeunload', saveState);
+            saveState(); // Save on unmount
+        };
+    }, [task, timeLeft, isTimerRunning, setUser]);
+
+    const handleBack = () => {
+        if (task) {
+            const totalDuration = (task.estimatedTimeMinutes || 15) * 60;
+            const newStatus = timeLeft < totalDuration && timeLeft > 0 
+                ? TaskStatus.IN_PROGRESS 
+                : task.status;
+            
+            setUser(prev => ({
+                ...prev,
+                dailyTasks: prev.dailyTasks.map(t => 
+                    t.id === task.id 
+                        ? { 
+                            ...t, 
+                            timeLeft: timeLeft, 
+                            lastUpdated: isTimerRunning ? Date.now() : 0,
+                            isTimerActive: isTimerRunning,
+                            status: newStatus
                           } 
                         : t
                 )
@@ -74,15 +191,55 @@ export default function TaskExecutionView() {
     };
 
     const formatTime = (seconds: number) => {
-        const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
+        const s = Math.max(0, seconds);
+        const mins = Math.floor(s / 60);
+        const secs = s % 60;
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
+    const handleStartPause = () => {
+        const newState = !isTimerRunning;
+        setIsTimerRunning(newState);
+        
+        if (task) {
+            setUser(prev => ({
+                ...prev,
+                dailyTasks: prev.dailyTasks.map(t => 
+                    t.id === task.id 
+                        ? { 
+                            ...t, 
+                            timeLeft: timeLeft, 
+                            lastUpdated: newState ? Date.now() : 0,
+                            isTimerActive: newState,
+                            status: TaskStatus.IN_PROGRESS
+                          } 
+                        : t
+                )
+            }));
+        }
+    };
+
     const handleAddTime = (minutes: number) => {
-        setTimeLeft(minutes * 60);
+        const newTime = timeLeft + (minutes * 60);
+        setTimeLeft(newTime);
         setIsTimerRunning(true);
         setShowCompleteModal(false);
+        
+        if (task) {
+            setUser(prev => ({
+                ...prev,
+                dailyTasks: prev.dailyTasks.map(t => 
+                    t.id === task.id 
+                        ? { 
+                            ...t, 
+                            timeLeft: newTime, 
+                            lastUpdated: Date.now(),
+                            isTimerActive: true
+                          } 
+                        : t
+                )
+            }));
+        }
     };
 
     const handleCompleteTask = () => {
@@ -94,13 +251,15 @@ export default function TaskExecutionView() {
             setUser(prev => ({
                 ...prev,
                 dailyTasks: prev.dailyTasks.map(t => 
-                    t.id === task.id ? { 
-                        ...t, 
-                        status: TaskStatus.APPROVED, 
-                        timeLeft: 0,
-                        isTimerActive: false,
-                        lastUpdated: 0
-                    } : t
+                    t.id === task.id 
+                        ? { 
+                            ...t, 
+                            status: TaskStatus.APPROVED, 
+                            timeLeft: 0,
+                            isTimerActive: false,
+                            lastUpdated: 0
+                          } 
+                        : t
                 ),
                 selectedTaskId: null
             }));
@@ -108,7 +267,16 @@ export default function TaskExecutionView() {
         }, 1500);
     };
 
-    if (!task) return <div className="p-10 text-center">Task Not Found</div>;
+    if (!task) {
+        return (
+            <div className="h-full bg-primary text-white flex items-center justify-center">
+                <div className="text-center">
+                    <p className="text-xl mb-4">Task Not Found</p>
+                    <Button onClick={() => setView(AppView.DASHBOARD)}>Go Back</Button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="h-full bg-primary text-white flex flex-col relative overflow-hidden">
@@ -133,17 +301,17 @@ export default function TaskExecutionView() {
 
                 <div className="relative mb-12">
                     <div className="text-8xl font-black tracking-tighter tabular-nums">
-                        {formatTime(Math.max(0, timeLeft))}
+                        {formatTime(timeLeft)}
                     </div>
                     <div className="text-center text-[10px] font-bold uppercase tracking-[0.3em] text-white/40 mt-2">
-                        {isTimerRunning ? 'Focus Mode Active' : 'Timer Paused'}
+                        {isTimerRunning ? 'Focus Mode Active' : (timeLeft > 0 ? 'Tap to Start' : 'Timer Finished')}
                     </div>
                 </div>
 
                 {!isCompleted ? (
                     <div className="flex gap-4">
                         <button 
-                            onClick={() => setIsTimerRunning(!isTimerRunning)} 
+                            onClick={handleStartPause} 
                             className={`w-20 h-20 rounded-full flex items-center justify-center shadow-2xl transition-all active:scale-95 ${isTimerRunning ? 'bg-white text-primary' : 'bg-secondary text-white'}`}
                         >
                             {isTimerRunning ? <Icons.Pause className="w-8 h-8" /> : <Icons.PlayCircle className="w-8 h-8" />}
@@ -170,16 +338,25 @@ export default function TaskExecutionView() {
             {showCompleteModal && (
                 <div className="fixed inset-0 z-50 bg-primary/90 backdrop-blur-xl flex items-center justify-center p-6 animate-fade-in">
                     <Card className="w-full max-w-sm bg-white p-8 text-center rounded-[3rem]">
-                        <h3 className="text-2xl font-black text-primary uppercase tracking-tighter mb-2">Timer Finished</h3>
+                        <h3 className="text-2xl font-black text-primary uppercase tracking-tighter mb-2">
+                            {timeLeft <= 0 ? 'Timer Finished!' : 'Finish Task?'}
+                        </h3>
                         <p className="text-gray-500 text-sm mb-8">Did you complete the objective?</p>
                         
                         <div className="space-y-3">
-                            <Button onClick={handleCompleteTask} className="py-5 text-sm font-black uppercase tracking-widest">Yes, Task Complete</Button>
+                            <Button onClick={handleCompleteTask} className="py-5 text-sm font-black uppercase tracking-widest">
+                                Yes, Task Complete
+                            </Button>
                             <div className="grid grid-cols-2 gap-3">
                                 <Button variant="outline" onClick={() => handleAddTime(5)}>+5 Mins</Button>
                                 <Button variant="outline" onClick={() => handleAddTime(15)}>+15 Mins</Button>
                             </div>
-                            <button onClick={() => setShowCompleteModal(false)} className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-4">Cancel</button>
+                            <button 
+                                onClick={() => setShowCompleteModal(false)} 
+                                className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-4"
+                            >
+                                Cancel
+                            </button>
                         </div>
                     </Card>
                 </div>

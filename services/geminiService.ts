@@ -49,14 +49,13 @@ async function callGroq(messages: {role: string, content: string}[], jsonMode: b
     }
 }
 
-// Safe JSON parser - extracts JSON from text
+// Safe JSON parser
 function safeParseJSON(text: string, fallback: any = null): any {
     if (!text) return fallback;
     
     try {
         return JSON.parse(text);
     } catch {
-        // Try to find JSON array in response
         const arrayMatch = text.match(/\[[\s\S]*\]/);
         if (arrayMatch) {
             try {
@@ -64,7 +63,6 @@ function safeParseJSON(text: string, fallback: any = null): any {
             } catch {}
         }
         
-        // Try to find JSON object in response
         const objectMatch = text.match(/\{[\s\S]*\}/);
         if (objectMatch) {
             try {
@@ -78,7 +76,7 @@ function safeParseJSON(text: string, fallback: any = null): any {
 }
 
 // ============================================
-// GENERATE DAILY TASKS
+// GENERATE DAILY TASKS - IMPROVED PROMPTS
 // ============================================
 
 export async function generateDailyTasks(
@@ -97,41 +95,68 @@ export async function generateDailyTasks(
         const response = await callGroq([
             {
                 role: 'system',
-                content: `You are a task generator. You MUST respond with ONLY a JSON object containing a "tasks" array. No other text, no markdown, no explanation.
+                content: `You are an expert task coach creating highly actionable daily tasks. 
 
-Example response:
-{"tasks": [{"title": "Morning Review", "description": "Review your goals", "estimatedTimeMinutes": 15, "difficulty": "EASY"}]}`
+RULES FOR GOOD TASKS:
+1. Title: Clear, specific action (e.g., "Create Emergency Fund Spreadsheet" not "Check finances")
+2. Description: MUST include:
+   - Exact steps to complete the task
+   - Specific tools, apps, websites, or resources to use
+   - What "done" looks like (success criteria)
+   - Pro tips if relevant
+
+EXAMPLE OF EXCELLENT TASK:
+{
+  "title": "Build Your Emergency Fund Tracker",
+  "description": "Open Google Sheets or Excel. Create columns: Date, Income, Expenses, Savings, Emergency Fund Total. List your last 3 months of expenses to find your monthly average. Your target is 3-6 months of expenses saved. Add a progress bar using conditional formatting to visualize your goal.",
+  "estimatedTimeMinutes": 25,
+  "difficulty": "MEDIUM"
+}
+
+EXAMPLE OF BAD TASK (never do this):
+{
+  "title": "Work on savings",
+  "description": "Think about your savings goals",
+  "estimatedTimeMinutes": 10,
+  "difficulty": "EASY"
+}
+
+Be specific. Be actionable. Include real tools and steps.`
             },
             {
                 role: 'user',
-                content: `Generate exactly 3 daily tasks for Day ${day} of achieving: "${goal.title}" (Category: ${goal.category}).
-${checkIn ? `\nUser's check-in: "${checkIn}"` : ''}
-${userProfile ? `\nUser profile: ${userProfile}` : ''}
+                content: `Create 3 highly detailed tasks for Day ${day} of: "${goal.title}" (${goal.category}).
+${checkIn ? `\nUser's update: "${checkIn}"` : ''}
+${userProfile ? `\nAbout user: ${userProfile}` : ''}
 
-Respond with ONLY this JSON format, nothing else:
+Requirements:
+- Task 1: Quick win (15-20 min, EASY) - Something they can start immediately
+- Task 2: Core work (30-45 min, MEDIUM) - Main progress task for the day  
+- Task 3: Deep work (45-60 min, HARD) - Challenging task that moves the needle
+
+Each description must have specific steps and tools/resources.
+
+Return ONLY valid JSON:
 {"tasks": [
-  {"title": "Task 1 name", "description": "What to do in one sentence", "estimatedTimeMinutes": 15, "difficulty": "EASY"},
-  {"title": "Task 2 name", "description": "What to do in one sentence", "estimatedTimeMinutes": 30, "difficulty": "MEDIUM"},
-  {"title": "Task 3 name", "description": "What to do in one sentence", "estimatedTimeMinutes": 45, "difficulty": "HARD"}
+  {"title": "Quick Win Task", "description": "Detailed steps with specific tools...", "estimatedTimeMinutes": 15, "difficulty": "EASY"},
+  {"title": "Core Work Task", "description": "Detailed steps with specific tools...", "estimatedTimeMinutes": 35, "difficulty": "MEDIUM"},
+  {"title": "Deep Work Task", "description": "Detailed steps with specific tools...", "estimatedTimeMinutes": 50, "difficulty": "HARD"}
 ]}`
             }
         ], true);
 
         console.log('🤖 Raw AI response:', response);
 
-        // Parse the response
         let tasks: any[] = [];
         
         try {
             const parsed = JSON.parse(response);
-            // Handle both {tasks: [...]} and direct array [...]
             if (Array.isArray(parsed)) {
                 tasks = parsed;
             } else if (parsed.tasks && Array.isArray(parsed.tasks)) {
                 tasks = parsed.tasks;
             }
         } catch {
-            // Try to extract array from response text
             const arrayMatch = response.match(/\[[\s\S]*?\]/);
             if (arrayMatch) {
                 try {
@@ -142,7 +167,6 @@ Respond with ONLY this JSON format, nothing else:
             }
         }
 
-        // Validate we got an array with items
         if (!Array.isArray(tasks) || tasks.length === 0) {
             console.warn('⚠️ AI returned invalid format, response was:', response);
             return getMockTasks(goal, day);
@@ -177,7 +201,7 @@ function getMockTasks(goal: Goal, day: number): Task[] {
             id: `t1-${ts}`, 
             dayNumber: day, 
             title: 'Morning Strategy Session', 
-            description: `Plan your priorities for ${goal.title}.`, 
+            description: `Open your notes app or journal. Write down your top 3 priorities for ${goal.title} today. For each priority, write one specific action you can take. Set a timer for 10 minutes and brainstorm without editing yourself.`, 
             estimatedTimeMinutes: 15, 
             difficulty: Difficulty.EASY, 
             videoRequirements: 'None', 
@@ -188,7 +212,7 @@ function getMockTasks(goal: Goal, day: number): Task[] {
             id: `t2-${ts}`, 
             dayNumber: day, 
             title: 'Deep Work Block', 
-            description: `Focus intensely on making progress toward ${goal.title}.`, 
+            description: `Block 45 minutes on your calendar. Turn off all notifications. Use the Pomodoro technique (25 min work, 5 min break, repeat). Focus entirely on making progress toward ${goal.title}. Track what you accomplish in a simple log.`, 
             estimatedTimeMinutes: 45, 
             difficulty: Difficulty.HARD, 
             videoRequirements: 'None', 
@@ -199,7 +223,7 @@ function getMockTasks(goal: Goal, day: number): Task[] {
             id: `t3-${ts}`, 
             dayNumber: day, 
             title: 'Daily Review & Planning', 
-            description: 'Review today\'s progress and plan tomorrow\'s actions.', 
+            description: 'Open your task list or journal. Write 3 things you accomplished today. Note 1 thing that was challenging and how you handled it. Write your top priority for tomorrow. Rate your energy level 1-10 to track patterns.', 
             estimatedTimeMinutes: 10, 
             difficulty: Difficulty.MEDIUM, 
             videoRequirements: 'None', 
@@ -233,11 +257,19 @@ export async function getChatResponse(
         const messages = [
             {
                 role: 'system',
-                content: `You are "The Guide" - a motivating AI coach helping with "${goal.title}".
-Be concise (2-3 sentences). Be encouraging but practical. No markdown formatting.
+                content: `You are "The Guide" - a supportive AI coach helping someone achieve "${goal.title}".
 
-User's tasks today:
-${taskList || 'No tasks yet'}`
+Your personality:
+- Warm, encouraging, but practical
+- Give specific actionable advice, not generic motivation
+- Keep responses concise (2-4 sentences unless they ask for detail)
+- Reference their specific tasks and goal when relevant
+- Ask follow-up questions to understand their challenges
+
+User's current tasks:
+${taskList || 'No tasks yet'}
+
+${userProfile ? `About them: ${userProfile}` : ''}`
             },
             ...history.slice(-8).map(msg => ({
                 role: msg.role === 'user' ? 'user' : 'assistant',
@@ -256,12 +288,15 @@ ${taskList || 'No tasks yet'}`
 function getFallbackResponse(message: string, goal: Goal): string {
     const msg = message.toLowerCase();
     if (msg.includes('help') || msg.includes('stuck')) {
-        return `Break "${goal.title}" into smaller steps. What's one thing you can do in the next 5 minutes?`;
+        return `Let's break this down. What's the smallest next step you could take toward "${goal.title}" in the next 5 minutes? Sometimes starting tiny builds momentum.`;
     }
-    if (msg.includes('motivat') || msg.includes('tired')) {
-        return `Remember why you started. Every small step toward "${goal.title}" counts. You've got this!`;
+    if (msg.includes('motivat') || msg.includes('tired') || msg.includes('hard')) {
+        return `I hear you - this is challenging work. Remember why you started "${goal.title}". What originally excited you about this goal? Sometimes reconnecting with that spark helps.`;
     }
-    return `Stay focused on "${goal.title}". What specific challenge can I help you with?`;
+    if (msg.includes('done') || msg.includes('finished') || msg.includes('completed')) {
+        return `That's fantastic progress! Every completed task is a step forward. What did you learn from this that you can apply tomorrow?`;
+    }
+    return `I'm here to help with "${goal.title}". What specific challenge are you facing right now? The more detail you share, the better I can help.`;
 }
 
 // ============================================
@@ -274,10 +309,10 @@ export async function getNextOnboardingQuestion(
     history: {question: string, answer: string}[]
 ): Promise<{ type: 'question' | 'finish', content?: string }> { 
     const questions = [
-        "What specifically do you want to achieve?",
-        "Why is this goal important to you right now?",
-        "What's your target timeline?",
-        "What's been stopping you before?"
+        "What specifically do you want to achieve? Be as detailed as possible.",
+        "Why is this goal important to you right now? What will change when you achieve it?",
+        "What's your target timeline? When do you want to see results?",
+        "What's been stopping you from achieving this before? What obstacles do you anticipate?"
     ];
     
     if (history.length >= 4) return { type: 'finish' };
@@ -301,23 +336,23 @@ export async function analyzeGoal(
         const response = await callGroq([
             {
                 role: 'system',
-                content: 'You are a goal strategist. Return ONLY valid JSON with no additional text.'
+                content: 'You are a goal strategist. Analyze the user interview and create a personalized goal plan. Return ONLY valid JSON.'
             },
             {
                 role: 'user',
-                content: `Based on this interview, create a goal plan:
+                content: `Based on this interview, create a compelling goal plan:
 
 ${historyStr}
 
-Return ONLY this JSON format:
+Return ONLY this JSON:
 {
-  "title": "Inspiring 3-5 word title",
-  "summary": "One sentence mission statement",
-  "explanation": "2-3 sentences on why this plan works",
-  "difficultyProfile": "Beginner",
-  "durationDays": 30,
-  "userProfile": "2-3 word user description",
-  "dailyQuestions": ["Check-in question 1", "Check-in question 2"]
+  "title": "Inspiring 3-5 word goal title that feels personal",
+  "summary": "One powerful sentence describing what they'll achieve",
+  "explanation": "2-3 sentences explaining why this plan will work for them specifically",
+  "difficultyProfile": "Beginner" or "Intermediate" or "Advanced",
+  "durationDays": realistic number between 14-90,
+  "userProfile": "Brief 3-5 word description of this person",
+  "dailyQuestions": ["Personalized check-in question 1", "Personalized check-in question 2"]
 }`
             }
         ], true);
@@ -334,12 +369,12 @@ function getDefaultGoalAnalysis(history: {question: string, answer: string}[]): 
     const firstAnswer = history[0]?.answer || 'your goal';
     return { 
         title: `Master ${firstAnswer.slice(0, 25)}`, 
-        summary: "A focused path to achieving your goal.", 
-        explanation: "We've created a structured daily approach based on your answers.", 
+        summary: "A focused path to achieving your goal with daily action steps.", 
+        explanation: "We've created a structured daily approach based on your answers. Each day builds on the last, creating momentum toward your goal.", 
         difficultyProfile: "Intermediate", 
         durationDays: 30, 
-        userProfile: "Focused achiever", 
-        dailyQuestions: ["How did today go?", "What did you learn?"] 
+        userProfile: "Committed achiever", 
+        dailyQuestions: ["What progress did you make today?", "What's your energy level and focus?"] 
     };
 }
 
@@ -357,51 +392,53 @@ export async function getGoalCurriculum(goal: Goal): Promise<Chapter[]> {
         const response = await callGroq([
             {
                 role: 'system',
-                content: 'You are a curriculum designer. Return ONLY valid JSON, no other text.'
+                content: `You are an expert curriculum designer. Create a structured learning path with practical, actionable lessons. Each lesson should teach something specific and useful.`
             },
             {
                 role: 'user',
-                content: `Create a 4-phase learning curriculum for "${goal.title}".
+                content: `Create a 4-phase learning curriculum for: "${goal.title}"
 
-Return ONLY this JSON format:
+Each phase should have exactly 3 lessons. Make lessons specific and practical.
+
+Return ONLY this JSON:
 {"chapters": [
   {
     "id": "ch-1",
     "title": "Phase 1: Foundation",
     "lessons": [
-      {"id": "l1", "title": "Understanding the Basics", "duration": "10 min", "isLocked": false, "description": "Learn the fundamentals"},
-      {"id": "l2", "title": "Setting Up", "duration": "15 min", "isLocked": false, "description": "Prepare your environment"},
-      {"id": "l3", "title": "First Steps", "duration": "10 min", "isLocked": false, "description": "Take initial action"}
+      {"id": "l1", "title": "Specific Lesson Title", "duration": "10 min", "isLocked": false, "description": "What you'll learn and be able to do after this lesson"},
+      {"id": "l2", "title": "Specific Lesson Title", "duration": "12 min", "isLocked": false, "description": "What you'll learn and be able to do after this lesson"},
+      {"id": "l3", "title": "Specific Lesson Title", "duration": "10 min", "isLocked": false, "description": "What you'll learn and be able to do after this lesson"}
     ],
     "quiz": []
   },
   {
-    "id": "ch-2",
+    "id": "ch-2", 
     "title": "Phase 2: Building Skills",
     "lessons": [
-      {"id": "l4", "title": "Core Techniques", "duration": "12 min", "isLocked": false, "description": "Master key skills"},
-      {"id": "l5", "title": "Practice Methods", "duration": "15 min", "isLocked": false, "description": "Effective practice"},
-      {"id": "l6", "title": "Common Mistakes", "duration": "10 min", "isLocked": false, "description": "Avoid pitfalls"}
+      {"id": "l4", "title": "Specific Lesson Title", "duration": "15 min", "isLocked": false, "description": "Description"},
+      {"id": "l5", "title": "Specific Lesson Title", "duration": "12 min", "isLocked": false, "description": "Description"},
+      {"id": "l6", "title": "Specific Lesson Title", "duration": "10 min", "isLocked": false, "description": "Description"}
     ],
     "quiz": []
   },
   {
     "id": "ch-3",
-    "title": "Phase 3: Advanced Strategies",
+    "title": "Phase 3: Advanced Techniques",
     "lessons": [
-      {"id": "l7", "title": "Level Up", "duration": "12 min", "isLocked": false, "description": "Advanced techniques"},
-      {"id": "l8", "title": "Optimization", "duration": "10 min", "isLocked": false, "description": "Fine-tune your approach"},
-      {"id": "l9", "title": "Overcoming Challenges", "duration": "15 min", "isLocked": false, "description": "Handle obstacles"}
+      {"id": "l7", "title": "Specific Lesson Title", "duration": "15 min", "isLocked": false, "description": "Description"},
+      {"id": "l8", "title": "Specific Lesson Title", "duration": "12 min", "isLocked": false, "description": "Description"},
+      {"id": "l9", "title": "Specific Lesson Title", "duration": "15 min", "isLocked": false, "description": "Description"}
     ],
     "quiz": []
   },
   {
     "id": "ch-4",
-    "title": "Phase 4: Mastery",
+    "title": "Phase 4: Mastery & Beyond",
     "lessons": [
-      {"id": "l10", "title": "Long-term Success", "duration": "10 min", "isLocked": false, "description": "Maintain progress"},
-      {"id": "l11", "title": "Expert Tips", "duration": "12 min", "isLocked": false, "description": "Pro-level insights"},
-      {"id": "l12", "title": "Next Steps", "duration": "10 min", "isLocked": false, "description": "Plan your future"}
+      {"id": "l10", "title": "Specific Lesson Title", "duration": "10 min", "isLocked": false, "description": "Description"},
+      {"id": "l11", "title": "Specific Lesson Title", "duration": "12 min", "isLocked": false, "description": "Description"},
+      {"id": "l12", "title": "Specific Lesson Title", "duration": "10 min", "isLocked": false, "description": "Description"}
     ],
     "quiz": []
   }
@@ -409,7 +446,7 @@ Return ONLY this JSON format:
             }
         ], true);
 
-        console.log('🤖 Curriculum response:', response);
+        console.log('🤖 Curriculum response received');
 
         let chapters: any[] = [];
         
@@ -448,7 +485,6 @@ Return ONLY this JSON format:
 
 export async function checkContentSafety(text: string): Promise<{isSafe: boolean, reason?: string}> { 
     if (!text.trim()) return { isSafe: true };
-    
     const badPatterns = /\b(hack|exploit|illegal|spam|scam)\b/i;
     return { isSafe: !badPatterns.test(text) };
 }
@@ -461,15 +497,37 @@ export async function generateDeepInsights(user: UserState): Promise<DeepInsight
     const completed = user.dailyTasks.filter(t => 
         t.status === TaskStatus.APPROVED || t.status === TaskStatus.COMPLETED
     ).length;
+    const total = user.dailyTasks.length;
+    const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
     
-    return {
-        trend: completed > 2 ? "Strong Momentum" : "Building Up",
-        prediction: "Stay consistent and you'll see results!",
-        focusArea: "Daily habits",
-        title: completed > 2 ? "Great Progress!" : "Keep Going",
-        description: `${completed} tasks done. Every step counts!`,
-        type: completed > 2 ? "positive" : "neutral"
-    };
+    if (percentage >= 80) {
+        return {
+            trend: "Exceptional Progress",
+            prediction: "At this rate, you'll exceed your goals ahead of schedule!",
+            focusArea: "Maintain momentum",
+            title: "You're Crushing It!",
+            description: `${completed}/${total} tasks complete (${percentage}%). Your consistency is paying off.`,
+            type: "positive"
+        };
+    } else if (percentage >= 50) {
+        return {
+            trend: "Solid Progress",
+            prediction: "You're building good habits. Keep pushing!",
+            focusArea: "Increase completion rate",
+            title: "Good Momentum",
+            description: `${completed}/${total} tasks complete. Try to finish one more today!`,
+            type: "positive"
+        };
+    } else {
+        return {
+            trend: "Building Up",
+            prediction: "Small steps lead to big changes. Start with one task.",
+            focusArea: "Start with quick wins",
+            title: "Time to Focus",
+            description: `${completed}/${total} tasks complete. Pick the easiest task and knock it out!`,
+            type: "neutral"
+        };
+    }
 }
 
 // ============================================
@@ -489,11 +547,12 @@ export async function verifyTaskVideo(task: Task, videoBase64: string, mimeType:
 }
 
 export async function updateUserProfile(profile: string, checkin: string): Promise<string> { 
-    return `${profile} | ${checkin}`;
+    const timestamp = new Date().toLocaleDateString();
+    return profile ? `${profile} | [${timestamp}] ${checkin}` : `[${timestamp}] ${checkin}`;
 }
 
 export async function analyzeMetricChange(metric: any): Promise<any> { 
-    return { analysis: "Tracking active." }; 
+    return { analysis: "Metric tracking active.", recommendation: "Continue monitoring for trends." }; 
 }
 
 export async function calculateBudgetSplit(amount: number, goal: any, profile: any): Promise<BudgetSplit | null> {

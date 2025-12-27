@@ -23,6 +23,7 @@ export default function SocialView() {
     } = useApp();
 
     const friends = user.friends || [];
+    const completedLessonIds = user.completedLessonIds || [];
 
     const [viewingLesson, setViewingLesson] = useState<Lesson | null>(null);
     const [viewingProfile, setViewingProfile] = useState<Friend | null>(null);
@@ -51,6 +52,11 @@ export default function SocialView() {
     };
 
     const communityList = getCommunityList();
+
+    // Check if lesson is completed
+    const isLessonCompleted = (lessonId: string) => {
+        return completedLessonIds.includes(lessonId);
+    };
 
     // Handle lesson click - generates content on demand
     const handleLessonClick = async (lesson: Lesson, chapter: Chapter) => {
@@ -121,6 +127,22 @@ export default function SocialView() {
         } finally {
             setIsLoadingLessonContent(false);
         }
+    };
+
+    // Handle completing a lesson - ONLY when user clicks the button
+    const handleCompleteLesson = () => {
+        if (!viewingLesson) return;
+        
+        // Add to completed lessons if not already there
+        if (!completedLessonIds.includes(viewingLesson.id)) {
+            setUser(prev => ({
+                ...prev,
+                completedLessonIds: [...(prev.completedLessonIds || []), viewingLesson.id]
+            }));
+        }
+        
+        // Close modal
+        closeLessonModal();
     };
 
     const handleToggleFriendship = async (targetUser: Friend) => {
@@ -248,7 +270,10 @@ export default function SocialView() {
 
     const handleRetryLessonContent = () => {
         if (viewingLesson && currentChapter) {
-            handleLessonClick(viewingLesson, currentChapter);
+            // Reset the lesson content before retrying
+            const lessonWithoutContent = { ...viewingLesson, content: undefined };
+            setViewingLesson(lessonWithoutContent);
+            handleLessonClick(lessonWithoutContent, currentChapter);
         }
     };
 
@@ -256,6 +281,15 @@ export default function SocialView() {
         setViewingLesson(null);
         setIsLoadingLessonContent(false);
         setCurrentChapter(null);
+    };
+
+    // Format action task with proper line breaks
+    const formatActionTask = (task: string) => {
+        // Split by various step patterns and rejoin with proper formatting
+        return task
+            .replace(/Step\s*(\d+):/gi, '\n\nStep $1:')
+            .replace(/^\n+/, '') // Remove leading newlines
+            .trim();
     };
 
     // ==================== RENDER FUNCTIONS ====================
@@ -326,58 +360,69 @@ export default function SocialView() {
                             <div>
                                 <h3 className="text-xl font-black text-primary tracking-tighter uppercase leading-none">{chapter.title}</h3>
                                 <span className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em] mt-1 block">
-                                    {chapter.lessons.length} Learning Modules
+                                    {chapter.lessons.length} Learning Modules • {chapter.lessons.filter(l => isLessonCompleted(l.id)).length} Completed
                                 </span>
                             </div>
                         </div>
                         
                         {/* Lessons List */}
                         <div className="space-y-3 ml-6 border-l-2 border-gray-200 pl-6">
-                            {chapter.lessons.map((l, idx) => (
-                                <div 
-                                    key={l.id} 
-                                    className={`p-5 rounded-2xl border-2 transition-all group cursor-pointer
-                                        ${l.isLocked 
-                                            ? 'bg-gray-50 border-gray-100 opacity-50 cursor-not-allowed' 
-                                            : 'bg-white border-gray-200 hover:border-primary/30 hover:shadow-lg'
-                                        }`}
-                                    onClick={() => handleLessonClick(l, chapter)}
-                                >
-                                    <div className="flex justify-between items-center">
-                                        <div className="flex gap-4 items-center">
-                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all
-                                                ${l.isLocked 
-                                                    ? 'bg-gray-100' 
-                                                    : l.content 
-                                                        ? 'bg-green-100 text-green-600'
-                                                        : 'bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white'
-                                                }`}
-                                            >
-                                                {l.isLocked 
-                                                    ? <Icons.Lock className="w-4 h-4 text-gray-400"/> 
-                                                    : l.content
-                                                        ? <Icons.Check className="w-5 h-5"/>
-                                                        : <span className="font-black text-sm">{idx + 1}</span>
-                                                }
+                            {chapter.lessons.map((l, idx) => {
+                                const completed = isLessonCompleted(l.id);
+                                return (
+                                    <div 
+                                        key={l.id} 
+                                        className={`p-5 rounded-2xl border-2 transition-all group cursor-pointer
+                                            ${l.isLocked 
+                                                ? 'bg-gray-50 border-gray-100 opacity-50 cursor-not-allowed' 
+                                                : completed
+                                                    ? 'bg-green-50 border-green-200 hover:border-green-300'
+                                                    : 'bg-white border-gray-200 hover:border-primary/30 hover:shadow-lg'
+                                            }`}
+                                        onClick={() => handleLessonClick(l, chapter)}
+                                    >
+                                        <div className="flex justify-between items-center">
+                                            <div className="flex gap-4 items-center">
+                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all
+                                                    ${l.isLocked 
+                                                        ? 'bg-gray-100' 
+                                                        : completed
+                                                            ? 'bg-green-500 text-white'
+                                                            : 'bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white'
+                                                    }`}
+                                                >
+                                                    {l.isLocked 
+                                                        ? <Icons.Lock className="w-4 h-4 text-gray-400"/> 
+                                                        : completed
+                                                            ? <Icons.Check className="w-5 h-5"/>
+                                                            : <span className="font-black text-sm">{idx + 1}</span>
+                                                    }
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <h4 className={`font-bold text-sm leading-tight transition-colors
+                                                        ${completed ? 'text-green-700' : 'text-primary group-hover:text-secondary'}`}>
+                                                        {l.title}
+                                                    </h4>
+                                                    <p className="text-xs text-gray-400 mt-1 line-clamp-1">{l.description}</p>
+                                                </div>
                                             </div>
-                                            <div className="flex-1 min-w-0">
-                                                <h4 className="font-bold text-primary text-sm leading-tight group-hover:text-secondary transition-colors">
-                                                    {l.title}
-                                                </h4>
-                                                <p className="text-xs text-gray-400 mt-1 line-clamp-1">{l.description}</p>
+                                            <div className="flex items-center gap-3 ml-4">
+                                                {completed && (
+                                                    <span className="text-[9px] font-bold text-green-600 bg-green-100 px-2 py-1 rounded-full">
+                                                        DONE
+                                                    </span>
+                                                )}
+                                                <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-3 py-1.5 rounded-full whitespace-nowrap">
+                                                    {l.duration}
+                                                </span>
+                                                {!l.isLocked && (
+                                                    <Icons.ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-primary transition-colors" />
+                                                )}
                                             </div>
-                                        </div>
-                                        <div className="flex items-center gap-3 ml-4">
-                                            <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-3 py-1.5 rounded-full whitespace-nowrap">
-                                                {l.duration}
-                                            </span>
-                                            {!l.isLocked && (
-                                                <Icons.ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-primary transition-colors" />
-                                            )}
                                         </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
 
                             {/* Phase Quiz */}
                             {chapter.quiz && chapter.quiz.length > 0 && !chapter.lessons.some(l => l.isLocked) && (
@@ -722,7 +767,7 @@ export default function SocialView() {
                 </div>
             )}
 
-            {/* Lesson Viewer Modal - UPDATED WITH LOADING STATE */}
+            {/* Lesson Viewer Modal - FIXED */}
             {viewingLesson && (
                 <div className="fixed inset-0 z-[80] bg-white pt-safe flex flex-col animate-slide-up overflow-hidden">
                     <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-white">
@@ -780,11 +825,13 @@ export default function SocialView() {
                                     <p className="text-white/90 leading-relaxed">{viewingLesson.content.the_1_percent_secret}</p>
                                 </div>
 
-                                {/* Action Item */}
-                                <div className="p-6 bg-gray-50 rounded-2xl text-center border border-gray-100">
-                                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Your Action Item</h4>
-                                    <p className="text-base font-bold text-primary mb-6 leading-relaxed">{viewingLesson.content.actionable_task}</p>
-                                    <Button onClick={closeLessonModal} className="w-full py-4 text-sm font-black uppercase tracking-widest">
+                                {/* Action Item - FIXED FORMATTING */}
+                                <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 text-center">Your Action Item</h4>
+                                    <div className="text-base font-medium text-primary mb-6 leading-relaxed whitespace-pre-wrap">
+                                        {formatActionTask(viewingLesson.content.actionable_task)}
+                                    </div>
+                                    <Button onClick={handleCompleteLesson} className="w-full py-4 text-sm font-black uppercase tracking-widest">
                                         Complete Lesson
                                     </Button>
                                 </div>

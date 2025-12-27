@@ -8,19 +8,23 @@ export default function TaskExecutionView() {
     const task = user.dailyTasks.find(t => t.id === user.selectedTaskId);
     const initRef = useRef(false);
 
-    // Calculate initial time
+    // Calculate initial time - FIXED VERSION
     const getInitialTime = useCallback(() => {
         if (!task) return 0;
         
         const totalDuration = (task.estimatedTimeMinutes || 15) * 60;
         
-        // If timeLeft was never set, return total duration
-        if (task.timeLeft === undefined || task.timeLeft === null) {
-            console.log('Timer init: No timeLeft stored, using total:', totalDuration);
+        // FIX: If timeLeft is 0 or undefined AND task isn't completed, reset to full duration
+        if (
+            (task.timeLeft === undefined || task.timeLeft === null || task.timeLeft === 0) &&
+            task.status !== TaskStatus.APPROVED &&
+            task.status !== TaskStatus.COMPLETED
+        ) {
+            console.log('Timer init: Resetting to full duration:', totalDuration);
             return totalDuration;
         }
         
-        let storedTime = task.timeLeft;
+        let storedTime = task.timeLeft!;
         console.log('Timer init: Stored timeLeft:', storedTime);
 
         // If timer was active, calculate elapsed time while away
@@ -38,7 +42,6 @@ export default function TaskExecutionView() {
     
     const [isTimerRunning, setIsTimerRunning] = useState(() => {
         if (!task) return false;
-        // Only auto-resume if timer was active AND there's time left
         const initialTime = getInitialTime();
         return task.isTimerActive === true && initialTime > 0;
     });
@@ -53,9 +56,13 @@ export default function TaskExecutionView() {
         
         const totalDuration = (task.estimatedTimeMinutes || 15) * 60;
         
-        // Only initialize if timeLeft is truly undefined
-        if (task.timeLeft === undefined) {
-            console.log('Initializing task with timer properties');
+        // Initialize if timeLeft is undefined OR 0 (and not completed)
+        if (
+            (task.timeLeft === undefined || task.timeLeft === 0) &&
+            task.status !== TaskStatus.APPROVED &&
+            task.status !== TaskStatus.COMPLETED
+        ) {
+            console.log('Initializing task with timer properties, duration:', totalDuration);
             setUser(prev => ({
                 ...prev,
                 dailyTasks: prev.dailyTasks.map(t => 
@@ -72,16 +79,6 @@ export default function TaskExecutionView() {
             setTimeLeft(totalDuration);
         }
     }, [task, setUser]);
-
-    // Recalculate on task change (if navigating between tasks)
-    useEffect(() => {
-        if (task && initRef.current) {
-            const newTime = getInitialTime();
-            if (newTime !== timeLeft) {
-                setTimeLeft(newTime);
-            }
-        }
-    }, [task?.id]);
 
     const playAlert = useCallback(() => {
         if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
@@ -106,7 +103,7 @@ export default function TaskExecutionView() {
         return () => clearInterval(interval);
     }, [isTimerRunning, playAlert]);
 
-    // Auto-save while running (every 10 seconds)
+    // Auto-save while running
     useEffect(() => {
         if (!task || !isTimerRunning) return;
         
@@ -131,11 +128,10 @@ export default function TaskExecutionView() {
         return () => clearInterval(saveInterval);
     }, [task, isTimerRunning, timeLeft, setUser]);
 
-    // Save on unmount or visibility change
+    // Save on visibility change / unmount
     useEffect(() => {
         const saveState = () => {
             if (!task) return;
-            console.log('Saving on visibility/unmount:', timeLeft, isTimerRunning);
             setUser(prev => ({
                 ...prev,
                 dailyTasks: prev.dailyTasks.map(t => 
@@ -161,7 +157,7 @@ export default function TaskExecutionView() {
         return () => {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener('beforeunload', saveState);
-            saveState(); // Save on unmount
+            saveState();
         };
     }, [task, timeLeft, isTimerRunning, setUser]);
 

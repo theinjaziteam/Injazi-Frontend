@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../contexts/AppContext';
-import { SocialSection, GoalCategory, Lesson, Course, Product, QuizQuestion, Chapter, Friend, TaskStatus } from '../types';
+import { AppView, SocialSection, GoalCategory, Lesson, Course, Product, QuizQuestion, Chapter, Friend, TaskStatus } from '../types';
 import { Icons, Button, Badge, Card } from '../components/UIComponents';
 import { api } from '../services/api';
 import { generateLessonContent, generateLessonTasks } from '../services/geminiService';
@@ -15,11 +15,11 @@ const MOCK_GLOBAL_USERS: Friend[] = [
 
 export default function SocialView() {
     const { 
-        user, setUser, 
+        user, setUser, setView,
         feedItems, 
         lessons, setLessons, activeSocialSection, setActiveSocialSection,
         courses, setCourses, recommendedVideos, adsFeed, setAdsFeed,
-        isLoadingLessons, setView
+        isLoadingLessons
     } = useApp();
 
     const friends = user.friends || [];
@@ -462,7 +462,7 @@ export default function SocialView() {
                                                     )}
                                                     {status === 'in_progress' && (
                                                         <span className="text-[9px] font-bold text-amber-600 bg-amber-100 px-2 py-1 rounded-full">
-                                                            {pendingCount} TASK{pendingCount !== 1 ? 'S' : ''} LEFT
+                                                            {pendingCount} LEFT
                                                         </span>
                                                     )}
                                                     <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-3 py-1.5 rounded-full whitespace-nowrap">
@@ -875,7 +875,7 @@ export default function SocialView() {
                                 </div>
 
                                 {/* Action Section - Dynamic based on lesson status */}
-                                <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100">
+                                <div className="p-6 bg-gradient-to-br from-secondary/5 to-primary/5 rounded-2xl border-2 border-secondary/20">
                                     {(() => {
                                         const status = getLessonStatus(viewingLesson.id);
                                         const pendingCount = getPendingTaskCount(viewingLesson.id);
@@ -887,7 +887,7 @@ export default function SocialView() {
                                                         <Icons.Check className="w-8 h-8 text-green-600" />
                                                     </div>
                                                     <h4 className="text-lg font-bold text-green-700 mb-2">Lesson Complete!</h4>
-                                                    <p className="text-sm text-gray-500 mb-4">You've finished all tasks for this lesson.</p>
+                                                    <p className="text-sm text-gray-500 mb-4">You've mastered this lesson.</p>
                                                     <Button onClick={closeLessonModal} variant="outline" className="w-full py-4">
                                                         Close
                                                     </Button>
@@ -903,26 +903,46 @@ export default function SocialView() {
                                                     </div>
                                                     <h4 className="text-lg font-bold text-amber-700 mb-2">Lesson In Progress</h4>
                                                     <p className="text-sm text-gray-500 mb-4">
-                                                        You have {pendingCount} task{pendingCount !== 1 ? 's' : ''} remaining.
+                                                        Complete {pendingCount} remaining task{pendingCount !== 1 ? 's' : ''} to finish this lesson.
                                                     </p>
-                                                    <Button onClick={handleContinueLesson} className="w-full py-4 text-sm font-black uppercase tracking-widest">
-                                                        Go to Dashboard
+                                                    <Button onClick={handleContinueLesson} className="w-full py-4 text-sm font-black uppercase tracking-widest bg-amber-500 hover:bg-amber-600">
+                                                        Go to Tasks
                                                     </Button>
                                                 </div>
                                             );
                                         }
                                         
-                                        // Not started
+                                        // Not started - Show start lesson UI
                                         return (
                                             <>
-                                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 text-center">Ready to Apply?</h4>
-                                                <p className="text-sm text-gray-600 mb-6 text-center leading-relaxed">
-                                                    Start this lesson to receive practical tasks in your dashboard. Complete all tasks to mark this lesson as done.
+                                                <div className="flex items-center gap-3 mb-4">
+                                                    <div className="p-2 bg-secondary/10 rounded-lg">
+                                                        <Icons.Zap className="w-5 h-5 text-secondary" />
+                                                    </div>
+                                                    <h4 className="font-black text-sm text-secondary uppercase tracking-wide">Ready to Practice?</h4>
+                                                </div>
+                                                <p className="text-sm text-gray-600 mb-6 leading-relaxed">
+                                                    Start this lesson to unlock <strong>2 personalized practice tasks</strong> in your dashboard. Complete all tasks to mark this lesson as done.
                                                 </p>
+                                                <div className="bg-white rounded-xl p-4 mb-6 border border-secondary/10">
+                                                    <div className="flex items-center gap-3 text-sm text-gray-600">
+                                                        <Icons.Check className="w-4 h-4 text-secondary" />
+                                                        <span>Tasks generated based on lesson content</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-3 text-sm text-gray-600 mt-2">
+                                                        <Icons.Check className="w-4 h-4 text-secondary" />
+                                                        <span>Track progress in your dashboard</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-3 text-sm text-gray-600 mt-2">
+                                                        <Icons.Check className="w-4 h-4 text-secondary" />
+                                                        <span>Earn completion badge</span>
+                                                    </div>
+                                                </div>
                                                 <Button 
                                                     onClick={handleStartLesson} 
                                                     isLoading={isStartingLesson}
                                                     disabled={isStartingLesson}
+                                                    variant="secondary"
                                                     className="w-full py-4 text-sm font-black uppercase tracking-widest"
                                                 >
                                                     {isStartingLesson ? 'Creating Tasks...' : 'Start Lesson'}

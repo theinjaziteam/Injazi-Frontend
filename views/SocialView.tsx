@@ -4,7 +4,6 @@ import { SocialSection, GoalCategory, Lesson, Course, Product, QuizQuestion, Cha
 import { Icons, Button, Badge, Card } from '../components/UIComponents';
 import { api } from '../services/api';
 
-// --- MOCK GLOBAL USERS (People you can find and add) ---
 const MOCK_GLOBAL_USERS: Friend[] = [
     { id: 'g1', name: 'Alex Builder', streak: 45, avatar: 'https://picsum.photos/seed/alex/200', lastActive: '5m ago', goalTitle: 'Launch Startup', progress: 60 },
     { id: 'g2', name: 'Jordan Fit', streak: 120, avatar: 'https://picsum.photos/seed/jordan/200', lastActive: '1h ago', goalTitle: 'Ironman Training', progress: 85 },
@@ -24,61 +23,48 @@ export default function SocialView() {
 
     const friends = user.friends || [];
 
-    // View States
     const [viewingLesson, setViewingLesson] = useState<Lesson | null>(null);
-    const [viewingProfile, setViewingProfile] = useState<Friend | null>(null); // <--- NEW: Selected User State
+    const [viewingProfile, setViewingProfile] = useState<Friend | null>(null);
     const [activeQuiz, setActiveQuiz] = useState<{ chapter: Chapter, questions: QuizQuestion[] } | null>(null);
     
-    // Quiz States
     const [quizIndex, setQuizIndex] = useState(0);
     const [quizAnswers, setQuizAnswers] = useState<number[]>([]);
     const [quizFinished, setQuizFinished] = useState(false);
     
-    // Search & Modal States
     const [searchQuery, setSearchQuery] = useState('');
     const [isAddingItem, setIsAddingItem] = useState(false);
     const [newItemTitle, setNewItemTitle] = useState('');
     const [newItemDesc, setNewItemDesc] = useState('');
     const [newItemPriceUsd, setNewItemPriceUsd] = useState<string>('');
 
-    // --- LOGIC: Combine Friends + Global Search ---
     const getCommunityList = () => {
-        if (!searchQuery) return friends; // If no search, show only friends
-        
-        // If searching, show Friends matching name + Global Users matching name (who aren't already friends)
+        if (!searchQuery) return friends;
         const matchingFriends = friends.filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase()));
-        
         const matchingStrangers = MOCK_GLOBAL_USERS.filter(u => 
             u.name.toLowerCase().includes(searchQuery.toLowerCase()) && 
-            !friends.some(f => f.id === u.id) // Exclude if already friend
+            !friends.some(f => f.id === u.id)
         );
-
         return [...matchingFriends, ...matchingStrangers];
     };
 
     const communityList = getCommunityList();
 
-    // --- LOGIC: ADD / REMOVE FRIEND ---
     const handleToggleFriendship = async (targetUser: Friend) => {
         const isAlreadyFriend = friends.some(f => f.id === targetUser.id);
         let updatedFriends;
 
         if (isAlreadyFriend) {
-            // Unfriend
             if(!window.confirm(`Disconnect from ${targetUser.name}?`)) return;
             updatedFriends = friends.filter(f => f.id !== targetUser.id);
         } else {
-            // Add Friend
             updatedFriends = [...friends, targetUser];
         }
 
-        // Update State & DB
         const updatedUser = { ...user, friends: updatedFriends };
         setUser(updatedUser);
         
         try {
             await api.sync(updatedUser);
-            // Close modal if unfriending, or keep open to show updated status
             if(isAlreadyFriend) setViewingProfile(null); 
         } catch(e) {
             console.error(e);
@@ -86,7 +72,6 @@ export default function SocialView() {
         }
     };
 
-    // --- EXISTING QUIZ & ITEM LOGIC ---
     const handleQuizStart = (chapter: Chapter) => {
         if (!chapter.quiz || chapter.quiz.length === 0) return;
         setActiveQuiz({ chapter, questions: chapter.quiz });
@@ -107,7 +92,7 @@ export default function SocialView() {
 
     const handleAddItem = () => {
         if (user.activePlanId !== 'creator') {
-            alert("Standard and Premium tiers are unauthorized for market listing. Upgrade to Creator Plan to publish assets.");
+            alert("Upgrade to Creator Plan to publish assets.");
             return;
         }
         setIsAddingItem(true);
@@ -116,7 +101,7 @@ export default function SocialView() {
     const confirmAddItem = () => {
         const basePrice = parseFloat(newItemPriceUsd);
         if (!newItemTitle || isNaN(basePrice)) {
-            alert("Title and valid USD Price are mandatory.");
+            alert("Title and valid USD Price are required.");
             return;
         }
         const fee = basePrice * 0.05;
@@ -152,7 +137,7 @@ export default function SocialView() {
             };
             setCourses(prev => [newCourse, ...prev]);
         }
-        alert(`Protocol Published. Final Price: $${finalPriceUsd.toFixed(2)} (${creditsPrice.toLocaleString()} CR).`);
+        alert(`Published! Price: $${finalPriceUsd.toFixed(2)} (${creditsPrice.toLocaleString()} CR).`);
         setIsAddingItem(false);
         setNewItemTitle('');
         setNewItemDesc('');
@@ -164,46 +149,50 @@ export default function SocialView() {
         const priceUSD = item.priceUsd || (priceCR / 4000);
 
         const choice = window.confirm(
-            `Authorize Acquisition of "${item.title}"?\n\n` +
+            `Purchase "${item.title}"?\n\n` +
             `Option A: ${priceCR.toLocaleString()} Credits\n` +
-            `Option B: $${priceUSD.toFixed(2)} (Direct Balance)\n\n` +
-            `Press OK to prioritize Balance ($), Cancel for Credits (CR).`
+            `Option B: $${priceUSD.toFixed(2)}\n\n` +
+            `Press OK for Balance ($), Cancel for Credits.`
         );
 
         if (choice) { 
             if (user.realMoneyBalance >= priceUSD) {
                 setUser(prev => ({ ...prev, realMoneyBalance: prev.realMoneyBalance - priceUSD }));
-                alert("Transaction Authorized. Content Unlocked.");
+                alert("Purchase complete!");
             } else {
-                alert("Insufficient Global Balance.");
+                alert("Insufficient balance.");
             }
         } else { 
             if (user.credits >= priceCR) {
                 setUser(prev => ({ ...prev, credits: prev.credits - priceCR }));
-                alert("Credit Exchange Authorized. Content Unlocked.");
+                alert("Purchase complete!");
             } else {
-                alert("Insufficient Credit Liquidity.");
+                alert("Insufficient credits.");
             }
         }
     };
 
-    // --- RENDER SECTIONS ---
+    // ==================== RENDER FUNCTIONS ====================
 
     const renderHeader = () => (
-        <div className="sticky top-0 z-40 bg-white border-b border-gray-100 pt-safe">
-            <div className="flex overflow-x-auto no-scrollbar p-4 gap-4">
+        <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 pt-safe">
+            <div className="flex overflow-x-auto no-scrollbar p-3 gap-2">
                 {[
-                  { id: SocialSection.LESSONS, label: 'Curriculum' },
-                  { id: SocialSection.FOR_YOU, label: 'Feed' },
-                  { id: SocialSection.RECOMMENDED, label: 'Resources' },
-                  { id: SocialSection.FRIENDS, label: 'Community' },
-                  { id: SocialSection.PRODUCTS, label: 'Assets' },
-                  { id: SocialSection.COURSES, label: 'User Courses' }
+                  { id: SocialSection.LESSONS, label: 'Curriculum', icon: Icons.BookOpen },
+                  { id: SocialSection.FOR_YOU, label: 'Feed', icon: Icons.Play },
+                  { id: SocialSection.RECOMMENDED, label: 'Resources', icon: Icons.Star },
+                  { id: SocialSection.FRIENDS, label: 'Community', icon: Icons.Users },
+                  { id: SocialSection.PRODUCTS, label: 'Assets', icon: Icons.Shop },
+                  { id: SocialSection.COURSES, label: 'Courses', icon: Icons.Award }
                 ].map(section => (
                     <button 
                         key={section.id}
                         onClick={() => setActiveSocialSection(section.id)}
-                        className={`whitespace-nowrap px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${activeSocialSection === section.id ? 'bg-primary text-white shadow-xl shadow-primary/20' : 'bg-gray-100 text-gray-400 hover:text-primary'}`}
+                        className={`whitespace-nowrap px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-2
+                            ${activeSocialSection === section.id 
+                                ? 'bg-primary text-white shadow-lg' 
+                                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                            }`}
                     >
                         {section.label}
                     </button>
@@ -212,164 +201,216 @@ export default function SocialView() {
         </div>
     );
 
+    const renderLessons = () => (
+        <div className="p-4 pb-28 space-y-8 animate-fade-in">
+            {isLoadingLessons ? (
+                <div className="text-center py-20">
+                    <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-gray-400 font-medium">Loading curriculum...</p>
+                </div>
+            ) : lessons.length > 0 ? (
+                lessons.map((chapter, chapterIdx) => (
+                    <div key={chapter.id} className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
+                        {/* Chapter Header */}
+                        <div className="p-4 bg-gray-50 border-b border-gray-100">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center text-sm font-black">
+                                    {chapterIdx + 1}
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-primary text-sm">{chapter.title}</h3>
+                                    <span className="text-xs text-gray-400">{chapter.lessons.length} lessons</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {/* Lessons List */}
+                        <div className="divide-y divide-gray-50">
+                            {chapter.lessons.map((lesson, idx) => (
+                                <div 
+                                    key={lesson.id} 
+                                    onClick={() => !lesson.isLocked && setViewingLesson(lesson)}
+                                    className={`p-4 flex items-center gap-4 transition-all
+                                        ${lesson.isLocked 
+                                            ? 'opacity-50 cursor-not-allowed' 
+                                            : 'cursor-pointer hover:bg-gray-50 active:bg-gray-100'
+                                        }`}
+                                >
+                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold
+                                        ${lesson.isLocked 
+                                            ? 'bg-gray-100 text-gray-400' 
+                                            : 'bg-primary/10 text-primary'
+                                        }`}
+                                    >
+                                        {lesson.isLocked ? <Icons.Lock className="w-3 h-3" /> : idx + 1}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h4 className="font-medium text-primary text-sm truncate">{lesson.title}</h4>
+                                        <p className="text-xs text-gray-400 truncate">{lesson.description}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">
+                                            {lesson.duration}
+                                        </span>
+                                        {!lesson.isLocked && (
+                                            <Icons.ChevronRight className="w-4 h-4 text-gray-300" />
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Quiz Section */}
+                        {chapter.quiz && chapter.quiz.length > 0 && (
+                            <div className="p-4 bg-gradient-to-r from-primary to-secondary">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3 text-white">
+                                        <Icons.Trophy className="w-5 h-5" />
+                                        <div>
+                                            <span className="font-bold text-sm">Phase Quiz</span>
+                                            <p className="text-xs text-white/70">{chapter.quiz.length} questions</p>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={() => handleQuizStart(chapter)}
+                                        className="px-4 py-2 bg-white text-primary rounded-lg text-xs font-bold"
+                                    >
+                                        Start
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                ))
+            ) : (
+                <div className="text-center py-20">
+                    <Icons.BookOpen className="w-16 h-16 text-gray-200 mx-auto mb-4" />
+                    <p className="text-gray-400 font-medium mb-2">No curriculum yet</p>
+                    <p className="text-gray-300 text-sm">Complete onboarding to generate your learning path</p>
+                </div>
+            )}
+        </div>
+    );
+
     const renderForYou = () => (
         <div className="h-full overflow-y-scroll snap-y snap-mandatory bg-black no-scrollbar">
             {feedItems.length > 0 ? feedItems.map((item) => (
                 <div key={item.id} className="h-full w-full snap-start relative flex items-center justify-center bg-gray-900">
                     <img src={item.thumbnailUrl} className="absolute inset-0 w-full h-full object-cover opacity-70" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
-                    <div className="absolute left-4 bottom-24 right-20 text-white animate-fade-in">
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                    <div className="absolute left-4 bottom-24 right-20 text-white">
                         <div className="flex items-center gap-2 mb-3">
                             <img src={item.creatorAvatar} className="w-8 h-8 rounded-full border border-white/20" />
-                            <h3 className="font-bold text-lg">@{item.creatorName}</h3>
+                            <h3 className="font-bold">@{item.creatorName}</h3>
                         </div>
-                        <p className="text-sm font-bold opacity-100 leading-tight mb-2">{item.title}</p>
-                        {item.description && <p className="text-[10px] opacity-70 leading-relaxed max-w-[80%] line-clamp-2">{item.description}</p>}
+                        <p className="text-sm font-bold mb-2">{item.title}</p>
+                        <p className="text-xs opacity-70 line-clamp-2">{item.description}</p>
                     </div>
                     <div className="absolute right-4 bottom-28 flex flex-col gap-6 items-center">
-                        <div className="flex flex-col items-center group cursor-pointer">
-                            <div className="p-3 bg-white/10 rounded-full backdrop-blur-md group-active:scale-90 transition-transform"><Icons.Heart className={`w-7 h-7 ${item.isLiked ? 'text-red-500 fill-red-500' : 'text-white'}`}/></div>
-                            <span className="text-[10px] text-white font-black mt-1 tracking-tighter">{item.likes}</span>
+                        <div className="flex flex-col items-center">
+                            <div className="p-3 bg-white/10 rounded-full backdrop-blur-md">
+                                <Icons.Heart className={`w-6 h-6 ${item.isLiked ? 'text-red-500 fill-red-500' : 'text-white'}`}/>
+                            </div>
+                            <span className="text-xs text-white font-bold mt-1">{item.likes}</span>
                         </div>
-                        <div className="flex flex-col items-center group cursor-pointer">
-                            <div className="p-3 bg-white/10 rounded-full backdrop-blur-md group-active:scale-90 transition-transform"><Icons.MessageCircle className="w-7 h-7 text-white"/></div>
-                            <span className="text-[10px] text-white font-black mt-1 tracking-tighter">{item.comments.length}</span>
+                        <div className="flex flex-col items-center">
+                            <div className="p-3 bg-white/10 rounded-full backdrop-blur-md">
+                                <Icons.MessageCircle className="w-6 h-6 text-white"/>
+                            </div>
+                            <span className="text-xs text-white font-bold mt-1">{item.comments.length}</span>
                         </div>
-                        <div className="flex flex-col items-center group cursor-pointer">
-                            <div className="p-3 bg-white/10 rounded-full backdrop-blur-md group-active:scale-90 transition-transform"><Icons.Share2 className="w-7 h-7 text-white"/></div>
-                            <span className="text-[10px] text-white font-black mt-1 tracking-tighter">{item.shares}</span>
+                        <div className="flex flex-col items-center">
+                            <div className="p-3 bg-white/10 rounded-full backdrop-blur-md">
+                                <Icons.Share2 className="w-6 h-6 text-white"/>
+                            </div>
+                            <span className="text-xs text-white font-bold mt-1">{item.shares}</span>
                         </div>
                     </div>
                 </div>
-            )) : <div className="h-full flex items-center justify-center text-white/50 font-black uppercase tracking-widest text-xs">No Feed Items Found</div>}
+            )) : (
+                <div className="h-full flex items-center justify-center text-white/50 font-medium">
+                    No feed items yet
+                </div>
+            )}
         </div>
     );
 
     const renderMarketplace = (type: 'products' | 'courses') => {
         const items = type === 'courses' ? courses : adsFeed;
         return (
-            <div className="p-6 pb-28 grid grid-cols-1 gap-8 animate-fade-in">
+            <div className="p-4 pb-28 space-y-4 animate-fade-in">
                 {items.length > 0 ? items.map(item => (
-                    <Card key={item.id} className="overflow-hidden group border-none shadow-xl shadow-gray-100">
-                        <div className="h-56 relative bg-gray-100">
-                             <img src={(item as any).thumbnail || (item as any).mediaUrls?.[0]} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-                             <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-md px-4 py-2 rounded-2xl text-[9px] font-black uppercase text-primary shadow-lg">
-                                 {type === 'courses' ? 'User Masterclass' : 'Community Asset'}
-                             </div>
+                    <Card key={item.id} className="overflow-hidden border border-gray-100">
+                        <div className="h-40 relative bg-gray-100">
+                            <img src={(item as any).thumbnail || (item as any).mediaUrls?.[0]} className="w-full h-full object-cover" />
+                            <div className="absolute top-3 right-3 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-xs font-bold text-primary">
+                                {type === 'courses' ? 'Course' : 'Asset'}
+                            </div>
                         </div>
-                        <div className="p-6">
-                            <h4 className="font-black text-primary text-xl leading-tight mb-2 tracking-tight group-hover:text-secondary transition-colors uppercase">{item.title}</h4>
-                            <p className="text-xs text-gray-500 mb-6 leading-relaxed line-clamp-2">{item.description}</p>
-                            <div className="flex items-center justify-between pt-6 border-t border-gray-100">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-6 h-6 rounded-full bg-accent" />
-                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">By {(item as any).creator || (item as any).creatorName}</span>
+                        <div className="p-4">
+                            <h4 className="font-bold text-primary mb-1">{item.title}</h4>
+                            <p className="text-xs text-gray-500 mb-4 line-clamp-2">{item.description}</p>
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <span className="text-xs text-gray-400">By {(item as any).creator || (item as any).creatorName}</span>
                                 </div>
                                 <div className="text-right">
-                                    <div className="text-lg font-black text-primary mb-2">
-                                        <div className="flex flex-col items-end">
-                                            <span className="text-primary">{(item as any).priceCredits?.toLocaleString() || (Math.round(((item as any).priceUsd || 10) * 4000)).toLocaleString()} CR</span>
-                                            <span className="text-[8px] text-gray-400 uppercase tracking-widest">Digital Credits ONLY</span>
-                                        </div>
+                                    <div className="font-bold text-primary">
+                                        {((item as any).priceCredits || Math.round(((item as any).priceUsd || 10) * 4000)).toLocaleString()} CR
                                     </div>
-                                    <Button onClick={() => handleBuyItem(item)} className="py-2 h-9 text-[10px] uppercase tracking-widest px-4 rounded-xl">Acquire</Button>
+                                    <Button onClick={() => handleBuyItem(item)} className="mt-2 py-1.5 px-4 text-xs">
+                                        Get
+                                    </Button>
                                 </div>
                             </div>
                         </div>
                     </Card>
-                )) : <div className="py-20 text-center text-gray-300 font-black uppercase tracking-widest text-xs">No Items Listed Yet</div>}
+                )) : (
+                    <div className="py-20 text-center text-gray-400 font-medium">
+                        No items yet
+                    </div>
+                )}
             </div>
         );
     };
 
-    const renderLessons = () => (
-        <div className="p-6 pb-28 space-y-12 animate-fade-in">
-            {isLoadingLessons ? (
-                <div className="text-center py-20 text-gray-300 animate-pulse font-black uppercase tracking-widest">Synchronizing Curriculum...</div>
-            ) : lessons.map(chapter => (
-                <div key={chapter.id} className="relative">
-                    <div className="flex items-center gap-4 mb-8">
-                        <div className="w-12 h-12 rounded-[1.25rem] bg-primary text-white flex items-center justify-center text-lg font-black shadow-2xl shadow-primary/20">{chapter.id.replace('c','')}</div>
-                        <div>
-                            <h3 className="text-2xl font-black text-primary tracking-tighter uppercase leading-none">{chapter.title}</h3>
-                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mt-1 block">Phase Intelligence Block</span>
-                        </div>
-                    </div>
-                    <div className="space-y-4 ml-6 border-l-2 border-accent pl-8">
-                        {chapter.lessons.map((l, idx) => (
-                            <div key={l.id} className={`p-6 rounded-[2.5rem] border-2 transition-all group ${l.isLocked ? 'bg-gray-50 border-gray-100 opacity-60' : 'bg-white border-accent shadow-sm hover:shadow-xl hover:border-primary/20'}`}>
-                                <div className="flex justify-between items-start mb-4">
-                                    <div className="flex gap-4">
-                                        <div className={`w-12 h-12 rounded-3xl flex items-center justify-center transition-all group-hover:scale-110 ${l.isLocked ? 'bg-gray-200' : 'bg-primary text-white shadow-lg shadow-primary/20'}`}>
-                                            {l.isLocked ? <Icons.Lock className="w-5 h-5 text-gray-400"/> : <span className="font-black text-base">{idx + 1}</span>}
-                                        </div>
-                                        <div>
-                                            <h4 className="font-black text-primary text-base leading-tight group-hover:text-secondary transition-colors">{l.title}</h4>
-                                            <div className="flex items-center gap-2 mt-1">
-                                                <Badge color="bg-accent text-secondary">{l.duration}</Badge>
-                                                {l.isLocked && <Badge color="bg-gray-200 text-gray-500">Locked</Badge>}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                {!l.isLocked && (
-                                    <>
-                                        <p className="text-xs text-gray-500 mb-6 leading-relaxed line-clamp-2 font-medium">{l.description}</p>
-                                        <Button onClick={() => setViewingLesson(l)} variant="secondary" className="py-2 text-[9px] h-10 w-auto px-8 font-black uppercase tracking-widest rounded-2xl shadow-none hover:shadow-lg transition-all">Begin Module</Button>
-                                    </>
-                                )}
-                            </div>
-                        ))}
-                        {!chapter.lessons.some(l => l.isLocked) && chapter.quiz && (
-                            <div className="p-6 rounded-[2.5rem] bg-secondary text-white shadow-xl shadow-secondary/20">
-                                <div className="flex items-center gap-4 mb-4">
-                                    <div className="p-3 bg-white/10 rounded-2xl"><Icons.Trophy className="w-6 h-6" /></div>
-                                    <div>
-                                        <h4 className="font-black text-sm uppercase tracking-widest">Phase Validation</h4>
-                                        <p className="text-[10px] text-white/60 font-bold">Pass the quiz to fully authorize this phase.</p>
-                                    </div>
-                                </div>
-                                <Button onClick={() => handleQuizStart(chapter)} className="bg-white text-secondary py-3 text-[10px] uppercase font-black tracking-widest rounded-2xl shadow-none">Start Quiz</Button>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            ))}
-        </div>
-    );
-
     const renderFriends = () => (
-        <div className="p-6 pb-28 space-y-6">
-            <div className="relative mb-8">
-                <Icons.Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300"/>
+        <div className="p-4 pb-28 space-y-4">
+            <div className="relative">
+                <Icons.Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"/>
                 <input 
                     type="text" 
-                    placeholder="Find Partners (Search 'Alex', 'Jordan')..." 
-                    className="w-full pl-14 p-6 bg-gray-50 rounded-[2.5rem] border-2 border-transparent focus:border-accent transition-all outline-none text-sm font-bold" 
+                    placeholder="Search community..." 
+                    className="w-full pl-10 pr-4 py-3 bg-gray-100 rounded-xl border-none focus:ring-2 focus:ring-primary outline-none text-sm" 
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                 />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
                 {communityList.length > 0 ? communityList.map(f => {
                     const isFriend = friends.some(existing => existing.id === f.id);
                     return (
                         <Card 
                             key={f.id} 
                             onClick={() => setViewingProfile(f)}
-                            className={`p-6 text-center group cursor-pointer transition-all ${!isFriend ? 'bg-gray-50 border-dashed border-2' : 'bg-white'}`}
+                            className={`p-4 text-center cursor-pointer transition-all border
+                                ${!isFriend ? 'bg-gray-50 border-dashed border-gray-200' : 'bg-white border-gray-100'}`}
                         >
-                            <div className="w-20 h-20 rounded-full mx-auto bg-accent border-4 border-white shadow-xl mb-4 overflow-hidden group-hover:scale-105 transition-transform">
+                            <div className="w-16 h-16 rounded-full mx-auto bg-gray-200 mb-3 overflow-hidden">
                                 <img src={f.avatar} className="w-full h-full object-cover" />
                             </div>
-                            <h4 className="font-black text-sm text-primary tracking-tight uppercase mb-1">{f.name}</h4>
-                            <span className="text-[9px] font-bold text-secondary uppercase tracking-widest block mb-2">{f.streak} Day Streak</span>
-                            {!isFriend && <span className="text-[8px] bg-gray-200 text-gray-500 px-2 py-1 rounded-full uppercase font-bold">Suggested</span>}
+                            <h4 className="font-bold text-sm text-primary truncate">{f.name}</h4>
+                            <span className="text-xs text-gray-400">{f.streak} day streak</span>
+                            {!isFriend && (
+                                <span className="block mt-2 text-xs bg-gray-200 text-gray-500 px-2 py-0.5 rounded-full">
+                                    Suggested
+                                </span>
+                            )}
                         </Card>
                     );
                 }) : (
-                    <div className="col-span-2 text-center py-10 text-gray-300 font-black uppercase text-xs tracking-widest">
-                        No Partners Found
+                    <div className="col-span-2 text-center py-10 text-gray-400 font-medium">
+                        No users found
                     </div>
                 )}
             </div>
@@ -377,29 +418,42 @@ export default function SocialView() {
     );
 
     const renderRecommended = () => (
-        <div className="p-6 pb-28 space-y-8 animate-fade-in">
-            <h3 className="font-black text-primary text-xl uppercase tracking-tighter mb-6">High-Value Assets</h3>
+        <div className="p-4 pb-28 space-y-4 animate-fade-in">
+            <h3 className="font-bold text-primary mb-4">Recommended Resources</h3>
             {recommendedVideos.map(v => (
-                <Card key={v.id} className="overflow-hidden border-none shadow-xl shadow-primary/5 group" onClick={() => window.open(v.url)}>
-                    <div className="h-48 relative">
-                        <img src={v.thumbnail} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-                        <div className="absolute top-4 left-4">
-                            <Badge color="bg-primary/90 text-white backdrop-blur-md">{v.platform}</Badge>
+                <Card key={v.id} className="overflow-hidden border border-gray-100" onClick={() => window.open(v.url)}>
+                    <div className="h-36 relative">
+                        <img src={v.thumbnail} className="w-full h-full object-cover" />
+                        <div className="absolute top-3 left-3">
+                            <Badge color="bg-primary/90 text-white">{v.platform}</Badge>
+                        </div>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center">
+                                <Icons.Play className="w-5 h-5 text-primary ml-1" />
+                            </div>
                         </div>
                     </div>
-                    <div className="p-6">
-                        <h3 className="font-black text-primary text-lg leading-tight mb-2 uppercase tracking-tight">{v.title}</h3>
-                        <p className="text-xs text-gray-500 font-medium line-clamp-2">{v.description}</p>
+                    <div className="p-4">
+                        <h3 className="font-bold text-primary text-sm mb-1">{v.title}</h3>
+                        <p className="text-xs text-gray-500 line-clamp-2">{v.description}</p>
                     </div>
                 </Card>
             ))}
+            {recommendedVideos.length === 0 && (
+                <div className="py-20 text-center text-gray-400 font-medium">
+                    No resources yet
+                </div>
+            )}
         </div>
     );
 
+    // ==================== MAIN RENDER ====================
+
     return (
-        <div className="h-full flex flex-col bg-white overflow-hidden relative">
+        <div className="h-full flex flex-col bg-gray-50 overflow-hidden relative">
             {renderHeader()}
-            <div className="flex-1 relative overflow-y-auto no-scrollbar scroll-smooth">
+            
+            <div className="flex-1 relative overflow-y-auto no-scrollbar scroll-smooth bg-white">
                 {activeSocialSection === SocialSection.LESSONS && renderLessons()}
                 {activeSocialSection === SocialSection.FOR_YOU && renderForYou()}
                 {activeSocialSection === SocialSection.RECOMMENDED && renderRecommended()}
@@ -408,130 +462,189 @@ export default function SocialView() {
                 {activeSocialSection === SocialSection.COURSES && renderMarketplace('courses')}
             </div>
 
+            {/* Add Button for Products/Courses */}
             {(activeSocialSection === SocialSection.PRODUCTS || activeSocialSection === SocialSection.COURSES) && (
-                <button onClick={handleAddItem} className="absolute bottom-28 right-6 w-16 h-16 bg-primary text-white rounded-full shadow-2xl flex items-center justify-center z-50 hover:scale-110 active:scale-90 transition-all">
-                    <Icons.Plus className="w-8 h-8" />
+                <button 
+                    onClick={handleAddItem} 
+                    className="absolute bottom-24 right-4 w-14 h-14 bg-primary text-white rounded-full shadow-lg flex items-center justify-center z-50 active:scale-95 transition-transform"
+                >
+                    <Icons.Plus className="w-6 h-6" />
                 </button>
             )}
 
-            {/* --- MODALS --- */}
+            {/* ==================== MODALS ==================== */}
 
             {/* Profile Modal */}
             {viewingProfile && (
-                <div className="fixed inset-0 z-[100] bg-primary/90 backdrop-blur-xl flex items-center justify-center p-6 animate-fade-in">
-                    <Card className="p-8 w-full max-w-sm bg-white border-none shadow-2xl rounded-[3rem] relative flex flex-col items-center text-center overflow-visible">
-                        <button onClick={() => setViewingProfile(null)} className="absolute top-6 right-6 p-2 bg-gray-50 rounded-full hover:bg-gray-100"><Icons.X className="w-4 h-4"/></button>
+                <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+                    <Card className="p-6 w-full max-w-sm bg-white rounded-2xl relative">
+                        <button onClick={() => setViewingProfile(null)} className="absolute top-4 right-4 p-2 bg-gray-100 rounded-full">
+                            <Icons.X className="w-4 h-4"/>
+                        </button>
                         
-                        <div className="w-28 h-28 rounded-full border-[6px] border-white shadow-2xl -mt-16 mb-4 overflow-hidden relative z-10">
-                            <img src={viewingProfile.avatar} className="w-full h-full object-cover" />
-                        </div>
-                        
-                        <h2 className="text-2xl font-black text-primary uppercase tracking-tighter mb-1">{viewingProfile.name}</h2>
-                        <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-6">{viewingProfile.lastActive}</p>
-
-                        <div className="grid grid-cols-2 gap-4 w-full mb-8">
-                            <div className="bg-gray-50 p-4 rounded-[2rem]">
-                                <span className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Current Streak</span>
-                                <span className="block text-2xl font-black text-accent">{viewingProfile.streak} <span className="text-xs text-gray-400">Days</span></span>
+                        <div className="text-center">
+                            <div className="w-20 h-20 rounded-full mx-auto mb-4 overflow-hidden">
+                                <img src={viewingProfile.avatar} className="w-full h-full object-cover" />
                             </div>
-                            <div className="bg-gray-50 p-4 rounded-[2rem]">
-                                <span className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Primary Goal</span>
-                                <span className="block text-sm font-black text-primary leading-tight mt-1">{viewingProfile.goalTitle}</span>
-                            </div>
-                        </div>
+                            <h2 className="text-xl font-bold text-primary mb-1">{viewingProfile.name}</h2>
+                            <p className="text-xs text-gray-400 mb-4">{viewingProfile.lastActive}</p>
 
-                        <Button 
-                            onClick={() => handleToggleFriendship(viewingProfile)} 
-                            variant={friends.some(f => f.id === viewingProfile.id) ? 'outline' : 'primary'}
-                            className="w-full py-5 text-xs font-black uppercase tracking-widest rounded-2xl"
-                        >
-                            {friends.some(f => f.id === viewingProfile.id) ? 'Disconnect Partner' : 'Connect +'}
-                        </Button>
+                            <div className="grid grid-cols-2 gap-3 mb-6">
+                                <div className="bg-gray-50 p-3 rounded-xl">
+                                    <span className="block text-xs text-gray-400 mb-1">Streak</span>
+                                    <span className="block text-xl font-bold text-primary">{viewingProfile.streak}</span>
+                                </div>
+                                <div className="bg-gray-50 p-3 rounded-xl">
+                                    <span className="block text-xs text-gray-400 mb-1">Goal</span>
+                                    <span className="block text-sm font-bold text-primary truncate">{viewingProfile.goalTitle}</span>
+                                </div>
+                            </div>
+
+                            <Button 
+                                onClick={() => handleToggleFriendship(viewingProfile)} 
+                                variant={friends.some(f => f.id === viewingProfile.id) ? 'outline' : 'primary'}
+                                className="w-full"
+                            >
+                                {friends.some(f => f.id === viewingProfile.id) ? 'Remove Friend' : 'Add Friend'}
+                            </Button>
+                        </div>
                     </Card>
                 </div>
             )}
 
+            {/* Add Item Modal */}
             {isAddingItem && (
-                <div className="fixed inset-0 z-[100] bg-primary/80 backdrop-blur-md flex items-center justify-center p-6 animate-fade-in">
-                    <Card className="p-8 w-full max-w-sm bg-white border-none shadow-2xl rounded-[2.5rem] relative">
-                        <button onClick={() => setIsAddingItem(false)} className="absolute top-6 right-6 p-2 bg-gray-50 rounded-full"><Icons.X className="w-4 h-4"/></button>
-                        <h3 className="text-2xl font-black text-primary uppercase tracking-tighter mb-6">List Asset</h3>
-                        <div className="space-y-4">
-                            <input value={newItemTitle} onChange={e => setNewItemTitle(e.target.value)} className="w-full p-4 bg-gray-50 rounded-2xl border-none focus:ring-2 focus:ring-primary outline-none font-bold" placeholder="Mission Strategy V.1" />
-                            <textarea value={newItemDesc} onChange={e => setNewItemDesc(e.target.value)} className="w-full p-4 bg-gray-50 rounded-2xl border-none focus:ring-2 focus:ring-primary outline-none font-medium h-24 resize-none" placeholder="Explain the value..." />
-                            <input type="number" value={newItemPriceUsd} onChange={e => setNewItemPriceUsd(e.target.value)} className="w-full p-4 bg-gray-50 rounded-2xl border-none focus:ring-2 focus:ring-primary outline-none font-black text-lg" placeholder="10.00" />
-                            <Button onClick={confirmAddItem} variant="primary" className="mt-8 py-5 text-xs font-black uppercase tracking-widest">Publish Protocol</Button>
+                <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+                    <Card className="p-6 w-full max-w-sm bg-white rounded-2xl relative">
+                        <button onClick={() => setIsAddingItem(false)} className="absolute top-4 right-4 p-2 bg-gray-100 rounded-full">
+                            <Icons.X className="w-4 h-4"/>
+                        </button>
+                        <h3 className="text-xl font-bold text-primary mb-4">Add New Item</h3>
+                        <div className="space-y-3">
+                            <input 
+                                value={newItemTitle} 
+                                onChange={e => setNewItemTitle(e.target.value)} 
+                                className="w-full p-3 bg-gray-100 rounded-xl border-none focus:ring-2 focus:ring-primary outline-none text-sm" 
+                                placeholder="Title" 
+                            />
+                            <textarea 
+                                value={newItemDesc} 
+                                onChange={e => setNewItemDesc(e.target.value)} 
+                                className="w-full p-3 bg-gray-100 rounded-xl border-none focus:ring-2 focus:ring-primary outline-none text-sm h-24 resize-none" 
+                                placeholder="Description" 
+                            />
+                            <input 
+                                type="number" 
+                                value={newItemPriceUsd} 
+                                onChange={e => setNewItemPriceUsd(e.target.value)} 
+                                className="w-full p-3 bg-gray-100 rounded-xl border-none focus:ring-2 focus:ring-primary outline-none text-sm" 
+                                placeholder="Price (USD)" 
+                            />
+                            <Button onClick={confirmAddItem} className="w-full mt-4">Publish</Button>
                         </div>
                     </Card>
                 </div>
             )}
 
+            {/* Quiz Modal */}
             {activeQuiz && (
-                <div className="fixed inset-0 z-[100] bg-white flex flex-col animate-slide-up pt-safe">
+                <div className="fixed inset-0 z-[100] bg-white flex flex-col pt-safe">
                     {!quizFinished ? (
-                        <div className="flex-1 p-8 flex flex-col">
-                            <div className="flex justify-between items-center mb-10 mt-2">
-                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Question {quizIndex + 1} of {activeQuiz.questions.length}</span>
-                                <button onClick={() => setActiveQuiz(null)} className="p-2 bg-gray-50 rounded-full"><Icons.X/></button>
+                        <div className="flex-1 p-6 flex flex-col">
+                            <div className="flex justify-between items-center mb-8">
+                                <span className="text-xs font-bold text-gray-400">
+                                    Question {quizIndex + 1} of {activeQuiz.questions.length}
+                                </span>
+                                <button onClick={() => setActiveQuiz(null)} className="p-2 bg-gray-100 rounded-full">
+                                    <Icons.X className="w-4 h-4"/>
+                                </button>
                             </div>
-                            <h2 className="text-3xl font-black text-primary tracking-tighter uppercase mb-12">{activeQuiz.questions[quizIndex].question}</h2>
-                            <div className="space-y-4 flex-1">
+                            <h2 className="text-2xl font-bold text-primary mb-8">
+                                {activeQuiz.questions[quizIndex].question}
+                            </h2>
+                            <div className="space-y-3 flex-1">
                                 {activeQuiz.questions[quizIndex].options.map((opt, i) => (
-                                    <button key={i} onClick={() => handleAnswerSelect(i)} className="w-full p-8 text-left bg-gray-50 hover:bg-primary hover:text-white rounded-[2.5rem] border-2 border-transparent transition-all font-bold text-lg">{opt}</button>
+                                    <button 
+                                        key={i} 
+                                        onClick={() => handleAnswerSelect(i)} 
+                                        className="w-full p-4 text-left bg-gray-100 hover:bg-primary hover:text-white rounded-xl transition-all font-medium"
+                                    >
+                                        {opt}
+                                    </button>
                                 ))}
                             </div>
                         </div>
                     ) : (
-                        <div className="flex-1 p-12 flex flex-col items-center justify-center text-center">
-                            <div className="w-24 h-24 bg-accent rounded-[2.5rem] flex items-center justify-center mb-8 shadow-2xl shadow-accent/50 animate-bounce"><Icons.Check className="w-12 h-12 text-secondary"/></div>
-                            <h2 className="text-4xl font-black text-primary tracking-tighter uppercase mb-4">Phase Completed</h2>
-                            <Button onClick={() => setActiveQuiz(null)} className="py-6 text-base tracking-widest uppercase font-black rounded-[2.5rem] shadow-2xl shadow-primary/20">Continue Curriculum</Button>
+                        <div className="flex-1 p-6 flex flex-col items-center justify-center text-center">
+                            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6">
+                                <Icons.Check className="w-10 h-10 text-green-600"/>
+                            </div>
+                            <h2 className="text-2xl font-bold text-primary mb-2">Quiz Complete!</h2>
+                            <p className="text-gray-500 mb-8">Great job finishing this phase.</p>
+                            <Button onClick={() => setActiveQuiz(null)} className="px-8">Continue</Button>
                         </div>
                     )}
                 </div>
             )}
 
+            {/* Lesson Viewer Modal */}
             {viewingLesson && (
-                <div className="fixed inset-0 z-[80] bg-white pt-safe flex flex-col animate-slide-up overflow-hidden">
-                    <div className="p-6 border-b flex justify-between items-center sticky top-0 bg-white z-10 shadow-sm">
+                <div className="fixed inset-0 z-[80] bg-white pt-safe flex flex-col overflow-hidden">
+                    <div className="p-4 border-b flex justify-between items-center bg-white">
                         <div>
-                            <span className="text-[10px] font-black text-secondary uppercase tracking-[0.3em] mb-1 block">Architecture Session</span>
-                            <h2 className="font-black text-primary text-xl tracking-tighter uppercase leading-none">{viewingLesson.title}</h2>
+                            <span className="text-xs font-bold text-primary/60 uppercase tracking-wide">Lesson</span>
+                            <h2 className="font-bold text-primary">{viewingLesson.title}</h2>
                         </div>
-                        <button onClick={() => setViewingLesson(null)} className="p-2 bg-gray-50 rounded-full"><Icons.X className="w-6 h-6"/></button>
+                        <button onClick={() => setViewingLesson(null)} className="p-2 bg-gray-100 rounded-full">
+                            <Icons.X className="w-5 h-5"/>
+                        </button>
                     </div>
-                    <div className="flex-1 overflow-y-auto p-10 space-y-12 pb-32 no-scrollbar scroll-smooth">
+                    <div className="flex-1 overflow-y-auto p-6 pb-32 space-y-8">
                         {viewingLesson.content ? (
-                          <>
-                            <div className="p-10 bg-accent/30 rounded-[3rem] border-2 border-accent relative overflow-hidden group">
-                                <h4 className="text-[11px] font-black uppercase text-secondary mb-4 tracking-[0.4em]">Strategic Thesis</h4>
-                                <p className="text-xl font-bold text-primary leading-snug relative z-10">{viewingLesson.content.core_concept}</p>
-                                <Icons.Zap className="absolute -bottom-8 -right-8 w-32 h-32 text-accent rotate-12 opacity-50 transition-transform group-hover:scale-110" />
-                            </div>
-                            {viewingLesson.content.subsections.map((sub, i) => (
-                                <div key={i} className="space-y-6">
-                                    <h3 className="text-2xl font-black text-primary uppercase tracking-tighter flex items-center gap-4">
-                                        <span className="text-secondary opacity-30 text-5xl">0{i+1}</span>
-                                        {sub.title}
-                                    </h3>
-                                    <p className="text-primary/80 leading-[2] font-medium text-[17px] whitespace-pre-wrap">{sub.content}</p>
+                            <>
+                                {/* Core Concept */}
+                                <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10">
+                                    <h4 className="text-xs font-bold text-primary/60 uppercase tracking-wide mb-2">Key Concept</h4>
+                                    <p className="text-lg font-medium text-primary">{viewingLesson.content.core_concept}</p>
                                 </div>
-                            ))}
-                            <Card className="bg-primary text-white p-12 border-none shadow-2xl shadow-primary/30 rounded-[3rem] relative overflow-hidden">
-                                <div className="flex items-center gap-4 mb-6">
-                                    <div className="p-3 bg-white/10 rounded-2xl"><Icons.Trophy className="w-6 h-6" /></div>
-                                    <h4 className="text-xs font-black uppercase tracking-[0.3em] text-white/50">Success Protocol X1</h4>
+
+                                {/* Subsections */}
+                                {viewingLesson.content.subsections.map((sub, i) => (
+                                    <div key={i}>
+                                        <h3 className="text-lg font-bold text-primary mb-3 flex items-center gap-3">
+                                            <span className="text-3xl text-primary/20">{i + 1}</span>
+                                            {sub.title}
+                                        </h3>
+                                        <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">{sub.content}</p>
+                                    </div>
+                                ))}
+
+                                {/* Pro Tip */}
+                                <div className="p-6 bg-primary text-white rounded-2xl">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <Icons.Zap className="w-5 h-5" />
+                                        <h4 className="font-bold">Pro Tip</h4>
+                                    </div>
+                                    <p className="text-white/90">{viewingLesson.content.the_1_percent_secret}</p>
                                 </div>
-                                <p className="text-2xl font-black leading-tight tracking-tight relative z-10">{viewingLesson.content.the_1_percent_secret}</p>
-                            </Card>
-                            <div className="bg-gray-50 p-12 rounded-[3.5rem] border-2 border-gray-100 text-center">
-                                <h4 className="text-[10px] font-black text-gray-400 uppercase mb-6 tracking-[0.4em]">Mission Milestone</h4>
-                                <p className="text-2xl font-black text-primary mb-10 tracking-tight uppercase">{viewingLesson.content.actionable_task}</p>
-                                <Button onClick={() => setViewingLesson(null)} className="w-full py-6 text-base tracking-widest uppercase font-black rounded-[2.5rem]">Authorize Module</Button>
-                            </div>
-                          </>
+
+                                {/* Action Item */}
+                                <div className="p-6 bg-gray-100 rounded-2xl text-center">
+                                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">Your Action Item</h4>
+                                    <p className="text-lg font-bold text-primary mb-6">{viewingLesson.content.actionable_task}</p>
+                                    <Button onClick={() => setViewingLesson(null)} className="w-full">
+                                        Complete Lesson
+                                    </Button>
+                                </div>
+                            </>
                         ) : (
-                          <div className="text-center py-20 text-gray-300 animate-pulse font-black uppercase tracking-widest">Synchronizing Curriculum...</div>
+                            <div className="text-center py-20">
+                                <p className="text-gray-400 mb-4">Lesson content is being prepared...</p>
+                                <p className="text-gray-300 text-sm">{viewingLesson.description}</p>
+                                <Button onClick={() => setViewingLesson(null)} className="mt-8">
+                                    Close
+                                </Button>
+                            </div>
                         )}
                     </div>
                 </div>

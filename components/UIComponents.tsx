@@ -191,69 +191,70 @@ ArrowLeft: (props: any) => (
   Smile: (props: any) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
   ),
-  
+  Moon: (props: any) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+),
+
+
   // --- ADDED PAUSE ICON HERE ---
   Pause: (props: any) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
   )
 };
 
+// Update Button component
 export const Button: React.FC<{
-  onClick: () => void;
-  children: React.ReactNode;
-  variant?: 'primary' | 'secondary' | 'outline' | 'danger';
-  className?: string;
-  disabled?: boolean;
-  isLoading?: boolean;
+    onClick: () => void;
+    children: React.ReactNode;
+    variant?: 'primary' | 'secondary' | 'outline' | 'danger';
+    className?: string;
+    disabled?: boolean;
+    isLoading?: boolean;
 }> = ({ onClick, children, variant = 'primary', className = '', disabled = false, isLoading = false }) => {
-  const baseStyle = "w-full py-4 px-6 rounded-3xl font-bold text-sm tracking-wide transition-all duration-200 flex items-center justify-center active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed";
-  
-  const variants = {
-    primary: "bg-primary text-white shadow-lg shadow-primary/20 hover:shadow-primary/40 hover:-translate-y-0.5",
-    secondary: "bg-secondary text-white shadow-lg shadow-secondary/20 hover:shadow-secondary/40 hover:-translate-y-0.5",
-    outline: "border-2 border-primary text-primary bg-transparent hover:bg-primary/5",
-    danger: "bg-red-500 text-white shadow-lg shadow-red-500/30 hover:bg-red-600",
-  };
+    const baseStyle = "w-full py-4 px-6 rounded-3xl font-bold text-sm tracking-wide transition-all duration-200 flex items-center justify-center active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed";
+    
+    const variants = {
+        primary: "bg-primary text-text-inverse shadow-lg hover:opacity-90",
+        secondary: "bg-secondary text-white shadow-lg hover:opacity-90",
+        outline: "bg-transparent border-2 border-border-strong text-text-primary hover:bg-bg-surface",
+        danger: "bg-error text-white shadow-lg hover:opacity-90"
+    };
 
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled || isLoading}
-      className={`${baseStyle} ${variants[variant]} ${className}`}
-    >
-      {isLoading ? (
-        <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
-      ) : null}
-      {children}
-    </button>
-  );
+    return (
+        <button
+            onClick={onClick}
+            disabled={disabled || isLoading}
+            className={`${baseStyle} ${variants[variant]} ${className}`}
+        >
+            {isLoading ? (
+                <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+            ) : children}
+        </button>
+    );
 };
 
-export const Card: React.FC<{ children: React.ReactNode; className?: string; onClick?: () => void; isSelected?: boolean }> = ({ children, className = '', onClick, isSelected = false }) => (
-  <div 
-    onClick={onClick} 
-    className={`
-      relative bg-white rounded-3xl transition-all duration-300
-      ${isSelected 
-        ? 'ring-2 ring-primary shadow-xl shadow-primary/10 z-10 scale-[1.01]' 
-        : 'border border-accent shadow-sm hover:shadow-md hover:-translate-y-1'
-      }
-      ${className} 
-      ${onClick ? 'cursor-pointer' : ''}
-    `}
-  >
-    {children}
-  </div>
-);
-
-export const Badge: React.FC<{ children: React.ReactNode; color?: string }> = ({ children, color }) => {
-  const appliedColor = color || 'bg-accent text-secondary';
-  return (
-    <span className={`px-3 py-1 rounded-full text-[10px] uppercase font-bold tracking-wider ${appliedColor}`}>
-      {children}
-    </span>
-  );
+export const Card: React.FC<{
+    children: React.ReactNode;
+    className?: string;
+}> = ({ children, className = '' }) => {
+    return (
+        <div className={`bg-bg-card rounded-3xl border border-border shadow-lg ${className}`}>
+            {children}
+        </div>
+    );
 };
+
+export const Badge: React.FC<{
+    children: React.ReactNode;
+    color?: string;
+}> = ({ children, color = 'bg-bg-surface text-text-secondary' }) => {
+    return (
+        <span className={`text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full ${color}`}>
+            {children}
+        </span>
+    );
+};
+
 
 export const Toggle: React.FC<{ checked: boolean; onChange: (checked: boolean) => void }> = ({ checked, onChange }) => (
   <button 
@@ -266,44 +267,57 @@ export const Toggle: React.FC<{ checked: boolean; onChange: (checked: boolean) =
 
 // Find the BottomNav export and replace with:
 export const BottomNav: React.FC<{
-  activeTab: string;
-  onTabChange: (tab: string) => void;
+    activeTab: string;
+    onTabChange: (tab: string) => void;
 }> = ({ activeTab, onTabChange }) => {
-  const tabs = [
-    { id: 'dashboard', icon: Icons.Home, label: 'Home' },
-    { id: 'social', icon: Icons.BookOpen, label: 'Learn' },
-    { id: 'chat', icon: Icons.MessageCircle, label: 'Guide' },
-    { id: 'stats', icon: Icons.Activity, label: 'Stats' },
-    { id: 'shop', icon: Icons.Shop, label: 'Shop' },
-  ];
+    const tabs = [
+        { id: 'dashboard', icon: Icons.Home, label: 'Home' },
+        { id: 'social', icon: Icons.BookOpen, label: 'Learn' },
+        { id: 'chat', icon: Icons.MessageCircle, label: 'Guide' },
+        { id: 'stats', icon: Icons.BarChart, label: 'Stats' },
+        { id: 'shop', icon: Icons.Shop, label: 'Shop' },
+    ];
 
-  return (
-    <div className="flex-shrink-0 bg-primary border-t border-white/10 pb-safe" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 12px)' }}>
-      <div className="flex justify-around items-center h-16 px-4 bg-primary">
-        {tabs.map(tab => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => onTabChange(tab.id)}
-              className={`flex flex-col items-center justify-center gap-1 py-2 px-4 rounded-xl transition-all ${
-                isActive 
-                  ? 'text-white' 
-                  : 'text-white/40 hover:text-white/70'
-              }`}
-            >
-              <Icon className={`w-5 h-5 transition-transform ${isActive ? 'scale-110' : ''}`} />
-              <span className={`text-[9px] font-bold uppercase tracking-wider ${isActive ? 'opacity-100' : 'opacity-60'}`}>
-                {tab.label}
-              </span>
-              {isActive && (
-                <div className="absolute bottom-1 w-1 h-1 bg-accent rounded-full" />
-              )}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
+    return (
+        <nav className="bg-bg-secondary border-t border-border px-2 pb-safe transition-colors duration-300">
+            <div className="flex justify-around items-center h-16">
+                {tabs.map(tab => {
+                    const Icon = tab.icon;
+                    const isActive = activeTab === tab.id;
+                    return (
+                        <button
+                            key={tab.id}
+                            onClick={() => onTabChange(tab.id)}
+                            className={`flex flex-col items-center justify-center w-16 h-full transition-all ${
+                                isActive ? 'text-accent' : 'text-text-muted hover:text-text-secondary'
+                            }`}
+                        >
+                            <Icon className={`w-6 h-6 ${isActive ? 'scale-110' : ''} transition-transform`} />
+                            <span className="text-[9px] font-bold mt-1 uppercase tracking-wider">{tab.label}</span>
+                        </button>
+                    );
+                })}
+            </div>
+        </nav>
+    );
+};
+
+// NEW: Theme Toggle Component
+export const ThemeToggle: React.FC = () => {
+    // Import useTheme from your ThemeContext
+    const { theme, toggleTheme } = useTheme();
+    
+    return (
+        <button
+            onClick={toggleTheme}
+            className="p-3 rounded-2xl bg-bg-surface border border-border hover:border-border-strong transition-all"
+            aria-label="Toggle theme"
+        >
+            {theme === 'dark' ? (
+                <Icons.Sun className="w-5 h-5 text-yellow-400" />
+            ) : (
+                <Icons.Moon className="w-5 h-5 text-text-primary" />
+            )}
+        </button>
+    );
 };

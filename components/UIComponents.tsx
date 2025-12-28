@@ -265,45 +265,58 @@ export const Toggle: React.FC<{ checked: boolean; onChange: (checked: boolean) =
 );
 
 // Find the BottomNav export and replace with:
+// --- Bottom Navigation ---
 export const BottomNav: React.FC<{
-  activeTab: string;
-  onTabChange: (tab: string) => void;
-}> = ({ activeTab, onTabChange }) => {
-  const tabs = [
-    { id: 'dashboard', icon: Icons.Home, label: 'Home' },
-    { id: 'social', icon: Icons.BookOpen, label: 'Learn' },
-    { id: 'chat', icon: Icons.MessageCircle, label: 'Guide' },
-    { id: 'stats', icon: Icons.Activity, label: 'Stats' },
-    { id: 'shop', icon: Icons.Shop, label: 'Shop' },
-  ];
+    currentView: string;
+    onNavigate: (view: string) => void;
+}> = ({ currentView, onNavigate }) => {
+    const navItems = [
+        { id: 'DASHBOARD', icon: Icons.Home, label: 'Home' },
+        { id: 'SOCIAL', icon: Icons.BookOpen, label: 'Learn' },
+        { id: 'SHOP', icon: Icons.ShoppingBag, label: 'Shop' },
+        { id: 'STATS', icon: Icons.BarChart, label: 'Stats' },
+    ];
 
-  return (
-    <div className="flex-shrink-0 bg-primary border-t border-white/10 pb-safe" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 12px)' }}>
-      <div className="flex justify-around items-center h-16 px-4 bg-primary">
-        {tabs.map(tab => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => onTabChange(tab.id)}
-              className={`flex flex-col items-center justify-center gap-1 py-2 px-4 rounded-xl transition-all ${
-                isActive 
-                  ? 'text-white' 
-                  : 'text-white/40 hover:text-white/70'
-              }`}
-            >
-              <Icon className={`w-5 h-5 transition-transform ${isActive ? 'scale-110' : ''}`} />
-              <span className={`text-[9px] font-bold uppercase tracking-wider ${isActive ? 'opacity-100' : 'opacity-60'}`}>
-                {tab.label}
-              </span>
-              {isActive && (
-                <div className="absolute bottom-1 w-1 h-1 bg-accent rounded-full" />
-              )}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
+    return (
+        <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#171738] pb-safe">
+            <div className="flex justify-around items-center h-16 px-2">
+                {navItems.map((item) => {
+                    const isActive = currentView === item.id;
+                    const Icon = item.icon;
+                    
+                    return (
+                        <button
+                            key={item.id}
+                            onClick={() => onNavigate(item.id)}
+                            className="flex flex-col items-center justify-center flex-1 py-2 transition-all active:scale-95"
+                        >
+                            {/* Icon Container - Larger touch target */}
+                            <div 
+                                className={`w-10 h-10 rounded-xl flex items-center justify-center mb-0.5 transition-colors ${
+                                    isActive ? 'bg-[#3423A6]/30' : 'bg-transparent'
+                                }`}
+                            >
+                                <Icon 
+                                    className={`w-6 h-6 transition-colors ${
+                                        isActive 
+                                            ? 'text-[#DFF3E4] stroke-[2.5]' 
+                                            : 'text-[#7180B9] stroke-2'
+                                    }`}
+                                />
+                            </div>
+                            
+                            {/* Label */}
+                            <span 
+                                className={`text-[11px] font-semibold transition-colors ${
+                                    isActive ? 'text-[#DFF3E4]' : 'text-[#7180B9]'
+                                }`}
+                            >
+                                {item.label}
+                            </span>
+                        </button>
+                    );
+                })}
+            </div>
+        </nav>
+    );
 };

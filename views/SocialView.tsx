@@ -749,32 +749,80 @@ export default function SocialView() {
         </div>
     );
 
-    // ==================== MAIN RENDER ====================
+   // ==================== MAIN RENDER ====================
 
-    return (
-        <div className="h-full flex flex-col bg-white overflow-hidden relative">
-            {/* Render appropriate header based on section */}
-            {activeSocialSection === SocialSection.FOR_YOU ? renderFeedHeader() : renderHeader()}
-            
-            {/* Content area */}
-            <div className={`flex-1 relative ${activeSocialSection === SocialSection.FOR_YOU ? '' : 'overflow-y-auto no-scrollbar scroll-smooth'}`}>
-                {activeSocialSection === SocialSection.LESSONS && renderLessons()}
-                {activeSocialSection === SocialSection.FOR_YOU && renderForYou()}
-                {activeSocialSection === SocialSection.RECOMMENDED && renderRecommended()}
-                {activeSocialSection === SocialSection.FRIENDS && renderFriends()}
-                {activeSocialSection === SocialSection.PRODUCTS && renderMarketplace('products')}
-                {activeSocialSection === SocialSection.COURSES && renderMarketplace('courses')}
+return (
+    <div className="h-full flex flex-col bg-white overflow-hidden relative">
+        {/* Fixed Header - use flex-shrink-0 */}
+        {activeSocialSection !== SocialSection.FOR_YOU && (
+            <div className="flex-shrink-0 bg-white border-b border-gray-100 pt-safe">
+                <div className="flex overflow-x-auto no-scrollbar p-4 gap-3">
+                    {[
+                      { id: SocialSection.LESSONS, label: 'Curriculum' },
+                      { id: SocialSection.FOR_YOU, label: 'Feed' },
+                      { id: SocialSection.RECOMMENDED, label: 'Resources' },
+                      { id: SocialSection.FRIENDS, label: 'Community' },
+                      { id: SocialSection.PRODUCTS, label: 'Products' },
+                      { id: SocialSection.COURSES, label: 'Courses' }
+                    ].map(section => (
+                        <button 
+                            key={section.id}
+                            onClick={() => setActiveSocialSection(section.id)}
+                            className={`whitespace-nowrap px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all flex-shrink-0
+                                ${activeSocialSection === section.id 
+                                    ? 'bg-primary text-white shadow-lg shadow-primary/20' 
+                                    : 'bg-gray-100 text-gray-400 hover:text-primary'
+                                }`}
+                        >
+                            {section.label}
+                        </button>
+                    ))}
+                </div>
             </div>
-
-            {/* Add Button for Products/Courses */}
-            {(activeSocialSection === SocialSection.PRODUCTS || activeSocialSection === SocialSection.COURSES) && (
-                <button 
-                    onClick={handleAddItem} 
-                    className="absolute bottom-28 right-6 w-14 h-14 bg-primary text-white rounded-full shadow-2xl flex items-center justify-center z-50 hover:scale-110 active:scale-90 transition-all"
-                >
-                    <Icons.Plus className="w-7 h-7" />
-                </button>
+        )}
+        
+        {/* Feed Header - Absolute positioned for TikTok style */}
+        {activeSocialSection === SocialSection.FOR_YOU && renderFeedHeader()}
+        
+        {/* Scrollable Content Area */}
+        <div className="flex-1 overflow-hidden">
+            {activeSocialSection === SocialSection.LESSONS && (
+                <div className="h-full overflow-y-auto overscroll-contain">
+                    {renderLessons()}
+                </div>
             )}
+            {activeSocialSection === SocialSection.FOR_YOU && renderForYou()}
+            {activeSocialSection === SocialSection.RECOMMENDED && (
+                <div className="h-full overflow-y-auto overscroll-contain">
+                    {renderRecommended()}
+                </div>
+            )}
+            {activeSocialSection === SocialSection.FRIENDS && (
+                <div className="h-full overflow-y-auto overscroll-contain">
+                    {renderFriends()}
+                </div>
+            )}
+            {activeSocialSection === SocialSection.PRODUCTS && (
+                <div className="h-full overflow-y-auto overscroll-contain">
+                    {renderMarketplace('products')}
+                </div>
+            )}
+            {activeSocialSection === SocialSection.COURSES && (
+                <div className="h-full overflow-y-auto overscroll-contain">
+                    {renderMarketplace('courses')}
+                </div>
+            )}
+        </div>
+
+        {/* Floating Add Button */}
+        {(activeSocialSection === SocialSection.PRODUCTS || activeSocialSection === SocialSection.COURSES) && (
+            <button 
+                onClick={handleAddItem} 
+                className="absolute bottom-6 right-5 w-14 h-14 bg-primary text-white rounded-full shadow-2xl flex items-center justify-center z-40 active:scale-90 transition-transform"
+            >
+                <Icons.Plus className="w-7 h-7" />
+            </button>
+        )}
 
             {/* ==================== MODALS ==================== */}
 

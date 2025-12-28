@@ -22,6 +22,9 @@ export default function LoginView() {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
 
+    // Cooldown timer (in seconds)
+    const [cooldown, setCooldown] = useState(0);
+
     // Verification Code
     const [verificationCode, setVerificationCode] = useState(['', '', '', '', '', '']);
     const codeInputRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -44,6 +47,14 @@ export default function LoginView() {
         return String.fromCodePoint(...codePoints);
     };
 
+    // Cooldown timer effect
+    useEffect(() => {
+        if (cooldown > 0) {
+            const timer = setTimeout(() => setCooldown(cooldown - 1), 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [cooldown]);
+
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (countryInputRef.current && !countryInputRef.current.contains(event.target as Node)) {
@@ -60,6 +71,12 @@ export default function LoginView() {
     }, [mode]);
 
     const clearMessages = () => { setError(''); setSuccess(''); };
+
+    const formatCooldown = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
 
     const handleCodeChange = (index: number, value: string, isReset: boolean = false) => {
         const codes = isReset ? [...resetCode] : [...verificationCode];
@@ -115,34 +132,28 @@ export default function LoginView() {
                 isRegister: mode === 'register'
             });
 
-            console.log("✅ Auth Success:", result);
+            console.log("✅ Auth result:", result);
 
-            // Registration - always require verification
-            if (mode === 'register') {
+            // Registration - go to verify
+            if (mode === 'register' || result.requiresVerification) {
                 setSuccess('Verification code sent to your email!');
+                setCooldown(300); // 5 minutes
                 setMode('verify');
                 setIsLoading(false);
                 return;
             }
 
-            // Login - check if verification needed
-            if (result.requiresVerification || result.user?.isEmailVerified === false) {
-                setMode('verify');
-                try {
-                    await api.resendVerification(email);
-                    setSuccess('Verification code sent to your email.');
-                } catch (e) {}
-                setIsLoading(false);
-                return;
-            }
-
-            // Verified user - proceed
+            // Login success - user is verified
             setUser(result.user);
             setIsAuthenticated(true);
             setView(result.user.goal ? AppView.DASHBOARD : AppView.ONBOARDING);
 
         } catch (error: any) {
             console.error("Auth Failed:", error);
+            // Check if there's a cooldown in the error
+            if (error.cooldownRemaining) {
+                setCooldown(error.cooldownRemaining);
+            }
             setError(error.message || "Connection Error. Please try again.");
         } finally {
             setIsLoading(false);
@@ -156,20 +167,31 @@ export default function LoginView() {
         
         setIsLoading(true);
         try {
-            await api.verifyEmail(email, code);
+            const result = await api.verifyEmail(email, code);
             setSuccess('Email verified successfully!');
             
-            await new Promise(r => setTimeout(r, 500));
-            
-            const result = await api.auth({ email, password, isRegister: false });
-            setUser(result.user);
-            setIsAuthenticated(true);
-            setView(result.user.goal ? AppView.DASHBOARD : AppView.ONBOARDING);
+            // The verify endpoint now returns the user and token
+            if (result.user && result.token) {
+                setUser(result.user);
+                setIsAuthenticated(true);
+                setView(result.user.goal ? AppView.DASHBOARD : AppView.ONBOARDING);
+            } else {
+                // Fallback - login after verification
+                await new Promise(r => setTimeout(r, 500));
+                const loginResult = await api.auth({ email, password, isRegister: false });
+                setUser(loginResult.user);
+                setIsAuthenticated(true);
+                setView(loginResult.user.goal ? AppView.DASHBOARD : AppView.ONBOARDING);
+            }
         } catch (err: any) {
             if (err.message?.includes('expired')) {
-                setError('Code expired. Please request a new one.');
+                setError('Code expired. Please register again.');
+                setCooldown(0);
             } else if (err.message?.includes('Invalid')) {
                 setError('Invalid code. Please check and try again.');
+            } else if (err.message?.includes('No pending')) {
+                setError('Registration expired. Please sign up again.');
+                setMode('register');
             } else {
                 setError(err.message || 'Verification failed');
             }
@@ -179,14 +201,20 @@ export default function LoginView() {
     };
 
     const handleResendCode = async () => {
+        if (cooldown > 0) return;
+        
         clearMessages();
         setIsLoading(true);
         try {
-            await api.resendVerification(email);
+            const result = await api.resendVerification(email);
             setSuccess('New verification code sent!');
+            setCooldown(result.cooldownRemaining || 300); // 5 minutes
             setVerificationCode(['', '', '', '', '', '']);
             setTimeout(() => codeInputRefs.current[0]?.focus(), 100);
         } catch (err: any) {
+            if (err.cooldownRemaining) {
+                setCooldown(err.cooldownRemaining);
+            }
             setError(err.message || 'Failed to resend code');
         } finally {
             setIsLoading(false);
@@ -200,8 +228,12 @@ export default function LoginView() {
         try {
             await api.forgotPassword(email);
             setSuccess('If this email exists, a reset code was sent.');
+            setCooldown(300);
             setMode('reset');
         } catch (err: any) {
+            if (err.cooldownRemaining) {
+                setCooldown(err.cooldownRemaining);
+            }
             setError(err.message || 'Failed to send reset code');
         } finally {
             setIsLoading(false);
@@ -222,6 +254,7 @@ export default function LoginView() {
             setPassword('');
             setNewPassword('');
             setResetCode(['', '', '', '', '', '']);
+            setCooldown(0);
         } catch (err: any) {
             setError(err.message || 'Reset failed');
         } finally {
@@ -418,16 +451,16 @@ export default function LoginView() {
     const renderVerifyForm = () => (
         <div className="px-6 pb-6 space-y-6">
             <button
-                onClick={() => { setMode('login'); clearMessages(); }}
+                onClick={() => { setMode('register'); clearMessages(); setCooldown(0); }}
                 className="flex items-center gap-2 text-white/50 hover:text-white transition-colors"
             >
-                <Icons.ArrowLeft className="w-4 h-4" />
-                <span className="text-sm">Back to Login</span>
+                <Icons.ChevronLeft className="w-4 h-4" />
+                <span className="text-sm">Back</span>
             </button>
 
             <div className="text-center">
                 <div className="w-16 h-16 bg-[#3423A6]/30 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Icons.Mail className="w-8 h-8 text-[#DFF3E4]" />
+                    <Icons.Shield className="w-8 h-8 text-[#DFF3E4]" />
                 </div>
                 <h2 className="text-xl font-bold text-white mb-2">Verify Your Email</h2>
                 <p className="text-white/50 text-sm">
@@ -452,13 +485,19 @@ export default function LoginView() {
 
             <div className="text-center">
                 <p className="text-white/40 text-xs mb-2">Didn't receive the code?</p>
-                <button
-                    onClick={handleResendCode}
-                    disabled={isLoading}
-                    className="text-[#DFF3E4] text-sm font-medium hover:underline disabled:opacity-50"
-                >
-                    Resend Code
-                </button>
+                {cooldown > 0 ? (
+                    <p className="text-white/60 text-sm font-medium">
+                        Resend available in <span className="text-[#DFF3E4]">{formatCooldown(cooldown)}</span>
+                    </p>
+                ) : (
+                    <button
+                        onClick={handleResendCode}
+                        disabled={isLoading}
+                        className="text-[#DFF3E4] text-sm font-medium hover:underline disabled:opacity-50"
+                    >
+                        Resend Code
+                    </button>
+                )}
             </div>
         </div>
     );
@@ -467,10 +506,10 @@ export default function LoginView() {
     const renderResetForm = () => (
         <div className="px-6 pb-6 space-y-6">
             <button
-                onClick={() => { setMode('login'); clearMessages(); }}
+                onClick={() => { setMode('login'); clearMessages(); setCooldown(0); }}
                 className="flex items-center gap-2 text-white/50 hover:text-white transition-colors"
             >
-                <Icons.ArrowLeft className="w-4 h-4" />
+                <Icons.ChevronLeft className="w-4 h-4" />
                 <span className="text-sm">Back to Login</span>
             </button>
 
@@ -515,13 +554,19 @@ export default function LoginView() {
             </button>
 
             <div className="text-center">
-                <button
-                    onClick={handleForgotPassword}
-                    disabled={isLoading}
-                    className="text-[#DFF3E4] text-sm font-medium hover:underline disabled:opacity-50"
-                >
-                    Resend Code
-                </button>
+                {cooldown > 0 ? (
+                    <p className="text-white/60 text-sm font-medium">
+                        Resend available in <span className="text-[#DFF3E4]">{formatCooldown(cooldown)}</span>
+                    </p>
+                ) : (
+                    <button
+                        onClick={handleForgotPassword}
+                        disabled={isLoading}
+                        className="text-[#DFF3E4] text-sm font-medium hover:underline disabled:opacity-50"
+                    >
+                        Resend Code
+                    </button>
+                )}
             </div>
         </div>
     );

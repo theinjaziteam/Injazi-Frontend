@@ -62,3 +62,18 @@ export const api = {
         }
     }
 };
+
+// AdGem Offerwall URL generator
+getAdgemOfferwallUrl: (userEmail: string): string => {
+    const ADGEM_APP_ID = import.meta.env.VITE_ADGEM_APP_ID || 'YOUR_APP_ID';
+    const baseUrl = 'https://api.adgem.com/v1/wall';
+    
+    // player_id should be the user's unique identifier (email)
+    const params = new URLSearchParams({
+        appid: ADGEM_APP_ID,
+        playerid: userEmail,
+    });
+    
+    return `${baseUrl}?${params.toString()}`;
+}
+

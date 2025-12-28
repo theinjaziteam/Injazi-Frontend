@@ -1,305 +1,55 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/* ============================================
-   INJAZI THEME SYSTEM - DISTINCT DARK/LIGHT MODES
-   ============================================ */
-
+/* Theme CSS Variables - Set by ThemeContext */
 :root {
-    /* === DARK MODE (Default) === */
-    
-    /* Brand Colors */
-    --color-brand-primary: #171738;
-    --color-brand-secondary: #3423A6;
+    /* Default to dark theme */
+    --color-primary: #171738;
+    --color-secondary: #3423A6;
     --color-accent: #DFF3E4;
-    --color-accent-hover: #C5E8D0;
     
-    /* Background Colors - Dark purples */
-    --color-bg-page: #0F0F24;
-    --color-bg-primary: #171738;
-    --color-bg-secondary: #1E1E4A;
-    --color-bg-card: #232352;
-    --color-bg-surface: #2A2A5A;
-    --color-bg-input: #1E1E4A;
-    --color-bg-hover: #2F2F6A;
+    --color-bgPage: #171738;
+    --color-bgCard: #1e1e4a;
+    --color-bgCardHover: #252560;
+    --color-bgSurface: #2a2a5c;
+    --color-bgInput: #1e1e4a;
+    --color-bgItem: #252560;
+    --color-bgItemHover: #2d2d6b;
     
-    /* Text Colors */
-    --color-text-primary: #FFFFFF;
-    --color-text-secondary: #C9CADF;
-    --color-text-muted: #8B8CAA;
-    --color-text-inverse: #171738;
-    --color-text-on-card: #FFFFFF;
+    --color-textPrimary: #FFFFFF;
+    --color-textSecondary: #a5a5c7;
+    --color-textMuted: #6b6b8f;
+    --color-textOnCard: #FFFFFF;
+    --color-textOnItem: #FFFFFF;
     
-    /* Semantic Colors */
-    --color-success: #22C55E;
-    --color-success-bg: rgba(34, 197, 94, 0.15);
-    --color-warning: #F59E0B;
-    --color-warning-bg: rgba(245, 158, 11, 0.15);
-    --color-error: #EF4444;
-    --color-error-bg: rgba(239, 68, 68, 0.15);
+    --color-border: #3d3d6b;
+    --color-borderCard: #3d3d6b;
     
-    /* Border Colors */
-    --color-border: rgba(255, 255, 255, 0.1);
-    --color-border-strong: rgba(255, 255, 255, 0.2);
-    --color-border-card: rgba(255, 255, 255, 0.08);
-    
-    /* Shadows - Dark mode shadows */
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.5);
-    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.6);
-    --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.7);
-    --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.4);
-    
-    /* Navigation */
-    --color-nav-bg: #171738;
-    --color-nav-text: rgba(255, 255, 255, 0.4);
-    --color-nav-text-active: #FFFFFF;
-    --color-nav-border: rgba(255, 255, 255, 0.1);
-    
-    /* Header */
-    --color-header-bg: #171738;
-    --color-header-text: #FFFFFF;
-    
-    /* Task/Card items */
-    --color-item-bg: #2A2A5A;
-    --color-item-border: rgba(255, 255, 255, 0.1);
-    --color-item-text: #FFFFFF;
-    --color-item-muted: #8B8CAA;
-    --color-item-hover: #353580;
-    
-    /* Badge backgrounds */
-    --color-badge-primary: rgba(52, 35, 166, 0.3);
-    --color-badge-secondary: rgba(255, 255, 255, 0.1);
-    
-    /* Button colors */
-    --color-button-primary-bg: #3423A6;
-    --color-button-primary-text: #FFFFFF;
-    --color-button-secondary-bg: rgba(255, 255, 255, 0.1);
-    --color-button-secondary-text: #FFFFFF;
+    --color-shadow: rgba(0, 0, 0, 0.3);
+    --color-shadowCard: rgba(0, 0, 0, 0.4);
 }
 
-/* === LIGHT MODE - Distinctly lighter === */
-[data-theme="light"], .light {
-    /* Brand Colors - Lighter versions */
-    --color-brand-primary: #6B5BD2;
-    --color-brand-secondary: #8B7DE8;
-    --color-accent: #DFF3E4;
-    --color-accent-hover: #C5E8D0;
-    
-    /* Background Colors - Very light, airy */
-    --color-bg-page: #F5F7FF;
-    --color-bg-primary: #FFFFFF;
-    --color-bg-secondary: #EEF1FC;
-    --color-bg-card: #FFFFFF;
-    --color-bg-surface: #F8F9FE;
-    --color-bg-input: #F5F7FF;
-    --color-bg-hover: #E8EBFA;
-    
-    /* Text Colors - Dark for readability */
-    --color-text-primary: #1A1A3A;
-    --color-text-secondary: #4A4A7A;
-    --color-text-muted: #7A7AAA;
-    --color-text-inverse: #FFFFFF;
-    --color-text-on-card: #1A1A3A;
-    
-    /* Semantic Colors */
-    --color-success: #16A34A;
-    --color-success-bg: rgba(22, 163, 74, 0.12);
-    --color-warning: #D97706;
-    --color-warning-bg: rgba(217, 119, 6, 0.12);
-    --color-error: #DC2626;
-    --color-error-bg: rgba(220, 38, 38, 0.12);
-    
-    /* Border Colors - Visible but subtle */
-    --color-border: #E2E5F5;
-    --color-border-strong: #C8CCE8;
-    --color-border-card: #E2E5F5;
-    
-    /* Shadows - Lighter, more subtle */
-    --shadow-sm: 0 1px 3px rgba(107, 91, 210, 0.06);
-    --shadow-md: 0 4px 8px rgba(107, 91, 210, 0.08);
-    --shadow-lg: 0 10px 20px rgba(107, 91, 210, 0.1);
-    --shadow-xl: 0 20px 30px rgba(107, 91, 210, 0.12);
-    --shadow-card: 0 2px 12px rgba(107, 91, 210, 0.08);
-    
-    /* Navigation - Light with purple accents */
-    --color-nav-bg: #FFFFFF;
-    --color-nav-text: #9A9AC8;
-    --color-nav-text-active: #6B5BD2;
-    --color-nav-border: #E2E5F5;
-    
-    /* Header - Lighter purple */
-    --color-header-bg: #6B5BD2;
-    --color-header-text: #FFFFFF;
-    
-    /* Task/Card items */
-    --color-item-bg: #F8F9FE;
-    --color-item-border: #E2E5F5;
-    --color-item-text: #1A1A3A;
-    --color-item-muted: #7A7AAA;
-    --color-item-hover: #EEF1FC;
-    
-    /* Badge backgrounds */
-    --color-badge-primary: rgba(107, 91, 210, 0.15);
-    --color-badge-secondary: rgba(107, 91, 210, 0.08);
-    
-    /* Button colors */
-    --color-button-primary-bg: #6B5BD2;
-    --color-button-primary-text: #FFFFFF;
-    --color-button-secondary-bg: rgba(107, 91, 210, 0.1);
-    --color-button-secondary-text: #6B5BD2;
-}
+/* Theme utility classes */
+.theme-bg-page { background-color: var(--color-bgPage); }
+.theme-bg-card { background-color: var(--color-bgCard); }
+.theme-bg-hover { background-color: var(--color-bgCardHover); }
+.theme-bg-surface { background-color: var(--color-bgSurface); }
+.theme-bg-input { background-color: var(--color-bgInput); }
+.theme-item-bg { background-color: var(--color-bgItem); }
 
-/* ============================================
-   BASE STYLES
-   ============================================ */
+.theme-text-primary { color: var(--color-textPrimary); }
+.theme-text-secondary { color: var(--color-textSecondary); }
+.theme-text-muted { color: var(--color-textMuted); }
+.theme-text-on-card { color: var(--color-textOnCard); }
+.theme-item-text { color: var(--color-textOnItem); }
 
-html {
-    font-family: 'Inter', system-ui, sans-serif;
-}
-
-body {
-    background-color: var(--color-bg-page);
-    color: var(--color-text-primary);
-    transition: background-color 0.3s ease, color 0.3s ease;
-}
-
-/* ============================================
-   THEME-AWARE UTILITY CLASSES
-   ============================================ */
-
-/* Background utilities */
-.theme-bg-page { background-color: var(--color-bg-page); }
-.theme-bg-primary { background-color: var(--color-bg-primary); }
-.theme-bg-secondary { background-color: var(--color-bg-secondary); }
-.theme-bg-card { background-color: var(--color-bg-card); }
-.theme-bg-surface { background-color: var(--color-bg-surface); }
-.theme-bg-input { background-color: var(--color-bg-input); }
-.theme-bg-hover { background-color: var(--color-bg-hover); }
-.theme-bg-item { background-color: var(--color-item-bg); }
-
-/* Text utilities */
-.theme-text-primary { color: var(--color-text-primary); }
-.theme-text-secondary { color: var(--color-text-secondary); }
-.theme-text-muted { color: var(--color-text-muted); }
-.theme-text-inverse { color: var(--color-text-inverse); }
-.theme-text-on-card { color: var(--color-text-on-card); }
-
-/* Border utilities */
 .theme-border { border-color: var(--color-border); }
-.theme-border-strong { border-color: var(--color-border-strong); }
-.theme-border-card { border-color: var(--color-border-card); }
+.theme-border-card { border-color: var(--color-borderCard); }
 
-/* Brand color utilities */
-.theme-brand-primary { background-color: var(--color-brand-primary); }
-.theme-brand-secondary { background-color: var(--color-brand-secondary); }
-.theme-accent { background-color: var(--color-accent); }
+.theme-shadow-sm { box-shadow: 0 1px 3px var(--color-shadow); }
+.theme-shadow-card { box-shadow: 0 4px 12px var(--color-shadowCard); }
+.theme-shadow-xl { box-shadow: 0 10px 40px var(--color-shadowCard); }
 
-/* Shadow utilities */
-.theme-shadow-sm { box-shadow: var(--shadow-sm); }
-.theme-shadow-md { box-shadow: var(--shadow-md); }
-.theme-shadow-lg { box-shadow: var(--shadow-lg); }
-.theme-shadow-xl { box-shadow: var(--shadow-xl); }
-.theme-shadow-card { box-shadow: var(--shadow-card); }
+.theme-brand-primary { background-color: var(--color-primary); }
 
-/* Navigation utilities */
-.theme-nav-bg { background-color: var(--color-nav-bg); }
-.theme-nav-text { color: var(--color-nav-text); }
-.theme-nav-text-active { color: var(--color-nav-text-active); }
-
-/* Item utilities */
-.theme-item-bg { background-color: var(--color-item-bg); }
-.theme-item-text { color: var(--color-item-text); }
-.theme-item-muted { color: var(--color-item-muted); }
-
-/* ============================================
-   SAFE AREA INSETS (PWA)
-   ============================================ */
-
-.pt-safe {
-    padding-top: max(env(safe-area-inset-top), 1rem);
-}
-
-.pb-safe {
-    padding-bottom: max(env(safe-area-inset-bottom), 1rem);
-}
-
-.pl-safe {
-    padding-left: max(env(safe-area-inset-left), 0);
-}
-
-.pr-safe {
-    padding-right: max(env(safe-area-inset-right), 0);
-}
-
-/* ============================================
-   ANIMATIONS
-   ============================================ */
-
-@keyframes fade-in {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-@keyframes slide-up {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes scale-in {
-    from { opacity: 0; transform: scale(0.95); }
-    to { opacity: 1; transform: scale(1); }
-}
-
-@keyframes pulse-subtle {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.7; }
-}
-
-.animate-fade-in { animation: fade-in 0.3s ease-out; }
-.animate-slide-up { animation: slide-up 0.4s ease-out; }
-.animate-scale-in { animation: scale-in 0.2s ease-out; }
-.animate-pulse-subtle { animation: pulse-subtle 2s ease-in-out infinite; }
-
-/* ============================================
-   SCROLLBAR STYLING
-   ============================================ */
-
-::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-}
-
-::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-    background: var(--color-border-strong);
-    border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: var(--color-text-muted);
-}
-
-.no-scrollbar::-webkit-scrollbar {
-    display: none;
-}
-
-.no-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-}
-
-/* ============================================
-   TRANSITION CLASSES
-   ============================================ */
-
+/* Smooth theme transitions */
 .theme-transition {
-    transition: background-color 0.3s ease, 
-                color 0.3s ease, 
-                border-color 0.3s ease,
-                box-shadow 0.3s ease;
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }

@@ -1,55 +1,71 @@
-/* Theme CSS Variables - Set by ThemeContext */
-:root {
-    /* Default to dark theme */
-    --color-primary: #171738;
-    --color-secondary: #3423A6;
-    --color-accent: #DFF3E4;
+/* ========================================
+   LIGHT MODE OVERRIDES
+   Dark mode is default (no changes needed)
+   ======================================== */
+
+/* Light mode - Much lighter versions of dark mode colors */
+.light-mode {
+    /* Page backgrounds */
+    --light-bg-page: #F8F9FC;
+    --light-bg-card: #FFFFFF;
+    --light-bg-card-hover: #F1F3F8;
+    --light-bg-surface: #EEF1F6;
+    --light-bg-input: #F5F7FA;
+    --light-bg-item: #F5F7FA;
+    --light-bg-item-hover: #EBEEF4;
     
-    --color-bgPage: #171738;
-    --color-bgCard: #1e1e4a;
-    --color-bgCardHover: #252560;
-    --color-bgSurface: #2a2a5c;
-    --color-bgInput: #1e1e4a;
-    --color-bgItem: #252560;
-    --color-bgItemHover: #2d2d6b;
+    /* Text colors */
+    --light-text-primary: #171738;
+    --light-text-secondary: #4A4B6A;
+    --light-text-muted: #7A7B96;
     
-    --color-textPrimary: #FFFFFF;
-    --color-textSecondary: #a5a5c7;
-    --color-textMuted: #6b6b8f;
-    --color-textOnCard: #FFFFFF;
-    --color-textOnItem: #FFFFFF;
-    
-    --color-border: #3d3d6b;
-    --color-borderCard: #3d3d6b;
-    
-    --color-shadow: rgba(0, 0, 0, 0.3);
-    --color-shadowCard: rgba(0, 0, 0, 0.4);
+    /* Borders */
+    --light-border: #E2E4ED;
+    --light-border-card: #DFE1EA;
 }
 
-/* Theme utility classes */
-.theme-bg-page { background-color: var(--color-bgPage); }
-.theme-bg-card { background-color: var(--color-bgCard); }
-.theme-bg-hover { background-color: var(--color-bgCardHover); }
-.theme-bg-surface { background-color: var(--color-bgSurface); }
-.theme-bg-input { background-color: var(--color-bgInput); }
-.theme-item-bg { background-color: var(--color-bgItem); }
+/* Background overrides for light mode */
+.light-mode .theme-bg-page,
+.light-mode.theme-bg-page { background-color: var(--light-bg-page) !important; }
 
-.theme-text-primary { color: var(--color-textPrimary); }
-.theme-text-secondary { color: var(--color-textSecondary); }
-.theme-text-muted { color: var(--color-textMuted); }
-.theme-text-on-card { color: var(--color-textOnCard); }
-.theme-item-text { color: var(--color-textOnItem); }
+.light-mode .theme-bg-card,
+.light-mode.theme-bg-card { background-color: var(--light-bg-card) !important; }
 
-.theme-border { border-color: var(--color-border); }
-.theme-border-card { border-color: var(--color-borderCard); }
+.light-mode .theme-bg-hover:hover { background-color: var(--light-bg-card-hover) !important; }
 
-.theme-shadow-sm { box-shadow: 0 1px 3px var(--color-shadow); }
-.theme-shadow-card { box-shadow: 0 4px 12px var(--color-shadowCard); }
-.theme-shadow-xl { box-shadow: 0 10px 40px var(--color-shadowCard); }
+.light-mode .theme-bg-surface { background-color: var(--light-bg-surface) !important; }
 
-.theme-brand-primary { background-color: var(--color-primary); }
+.light-mode .theme-bg-input { background-color: var(--light-bg-input) !important; }
 
-/* Smooth theme transitions */
-.theme-transition {
-    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+.light-mode .theme-item-bg { background-color: var(--light-bg-item) !important; }
+
+.light-mode .theme-item-bg:hover { background-color: var(--light-bg-item-hover) !important; }
+
+/* Text overrides for light mode */
+.light-mode .theme-text-primary { color: var(--light-text-primary) !important; }
+
+.light-mode .theme-text-on-card { color: var(--light-text-primary) !important; }
+
+.light-mode .theme-item-text { color: var(--light-text-primary) !important; }
+
+.light-mode .theme-text-secondary { color: var(--light-text-secondary) !important; }
+
+.light-mode .theme-text-muted { color: var(--light-text-muted) !important; }
+
+/* Border overrides for light mode */
+.light-mode .theme-border { border-color: var(--light-border) !important; }
+
+.light-mode .theme-border-card { border-color: var(--light-border-card) !important; }
+
+/* Shadow overrides for light mode */
+.light-mode .theme-shadow-card { 
+    box-shadow: 0 4px 16px rgba(23, 23, 56, 0.08) !important; 
+}
+
+.light-mode .theme-shadow-sm { 
+    box-shadow: 0 2px 8px rgba(23, 23, 56, 0.06) !important; 
+}
+
+.light-mode .theme-shadow-xl { 
+    box-shadow: 0 12px 40px rgba(23, 23, 56, 0.12) !important; 
 }

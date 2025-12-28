@@ -622,40 +622,66 @@ export default function SocialView() {
     );
 
     const renderMarketplace = (type: 'products' | 'courses') => {
-        const items = type === 'courses' ? courses : adsFeed;
-        return (
-            <div className="p-5 pb-4 grid grid-cols-1 gap-6 animate-fade-in">
-                {items.length > 0 ? items.map(item => (
-                    <Card key={item.id} className="overflow-hidden group border border-gray-100 shadow-lg shadow-gray-100/50">
-                        <div className="h-48 relative bg-gray-100">
-                             <img src={(item as any).thumbnail || (item as any).mediaUrls?.[0]} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-                             <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-xl text-[9px] font-black uppercase text-primary shadow-lg">
-                                 {type === 'courses' ? 'Masterclass' : 'Product'}
-                             </div>
-                        </div>
-                        <div className="p-5">
-                            <h4 className="font-black text-primary text-lg leading-tight mb-2 tracking-tight group-hover:text-secondary transition-colors">{item.title}</h4>
-                            <p className="text-xs text-gray-500 mb-5 leading-relaxed line-clamp-2">{item.description}</p>
-                            <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-6 h-6 rounded-full bg-gray-200" />
-                                    <span className="text-[10px] font-bold text-gray-400">By {(item as any).creator || (item as any).creatorName}</span>
-                                </div>
-                                <div className="text-right">
-                                    <div className="text-base font-black text-primary mb-2">
-                                        {(item as any).priceCredits?.toLocaleString() || (Math.round(((item as any).priceUsd || 10) * 4000)).toLocaleString()} CR
-                                    </div>
-                                    <Button onClick={() => handleBuyItem(item)} className="py-2 h-9 text-[10px] uppercase tracking-widest px-4 rounded-xl">Acquire</Button>
-                                </div>
+    const items = type === 'courses' ? courses : adsFeed;
+    
+    return (
+        <div className="p-4 space-y-3">
+            {items.length > 0 ? items.map(item => (
+                <div 
+                    key={item.id} 
+                    className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex gap-3 p-3 active:scale-[0.98] transition-transform"
+                >
+                    {/* Thumbnail - Square, compact */}
+                    <div className="w-24 h-24 rounded-xl bg-gray-100 overflow-hidden flex-shrink-0">
+                        <img 
+                            src={(item as any).thumbnail || (item as any).mediaUrls?.[0]} 
+                            className="w-full h-full object-cover" 
+                            alt={item.title}
+                        />
+                    </div>
+                    
+                    {/* Content */}
+                    <div className="flex-1 flex flex-col justify-between min-w-0 py-0.5">
+                        <div>
+                            <div className="flex items-center gap-2 mb-1">
+                                <span className="text-[8px] font-bold uppercase px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                                    {type === 'courses' ? 'Course' : 'Product'}
+                                </span>
                             </div>
+                            <h4 className="font-bold text-primary text-sm leading-tight line-clamp-1">
+                                {item.title}
+                            </h4>
+                            <p className="text-[10px] text-gray-400 mt-0.5 line-clamp-1">
+                                By {(item as any).creator || (item as any).creatorName}
+                            </p>
                         </div>
-                    </Card>
-                )) : (
-                    <div className="py-20 text-center text-gray-300 font-bold">No Items Listed Yet</div>
-                )}
-            </div>
-        );
-    };
+                        
+                        <div className="flex items-center justify-between mt-2">
+                            <div className="text-base font-black text-primary">
+                                {((item as any).priceCredits || Math.round(((item as any).priceUsd || 10) * 4000)).toLocaleString()} 
+                                <span className="text-[10px] font-bold text-gray-400 ml-0.5">CR</span>
+                            </div>
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); handleBuyItem(item); }}
+                                className="bg-primary text-white text-[9px] font-bold uppercase tracking-wider px-4 py-2 rounded-xl active:scale-95 transition-transform"
+                            >
+                                Get
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )) : (
+                <div className="flex flex-col items-center justify-center py-16">
+                    <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
+                        <Icons.ShoppingBag className="w-7 h-7 text-gray-300" />
+                    </div>
+                    <h3 className="text-gray-400 font-bold text-sm">No Items Yet</h3>
+                    <p className="text-[11px] text-gray-300 mt-1">Check back soon!</p>
+                </div>
+            )}
+        </div>
+    );
+};
 
     const renderFriends = () => (
         <div className="p-5 pb-4 space-y-5">

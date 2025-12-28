@@ -247,8 +247,9 @@ export default function DashboardView() {
                             onClick={() => setIsEarnExpanded(!isEarnExpanded)}
                         >
                             <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-500/20">
-                                    <Icons.Coins className="w-6 h-6 text-white" />
+                                {/* CHANGED: Solid casual yellow instead of gradient */}
+                                <div className="w-12 h-12 bg-yellow-400 rounded-2xl flex items-center justify-center shadow-lg shadow-yellow-400/30">
+                                    <Icons.Coins className="w-6 h-6 text-yellow-900" />
                                 </div>
                                 <div>
                                     <h3 className="text-lg font-black text-primary">Earn Credits</h3>
@@ -312,9 +313,9 @@ export default function DashboardView() {
                                                     </p>
                                                 </div>
                                                 
-                                                {/* Reward */}
+                                                {/* CHANGED: Solid casual yellow instead of gradient */}
                                                 <div className="text-right flex-shrink-0">
-                                                    <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white px-3 py-1.5 rounded-xl">
+                                                    <div className="bg-yellow-400 text-yellow-900 px-3 py-1.5 rounded-xl">
                                                         <span className="font-black text-sm">+{offer.amount}</span>
                                                     </div>
                                                     <span className="text-[9px] text-gray-400 mt-1 block">credits</span>

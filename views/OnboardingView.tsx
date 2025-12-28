@@ -1,9 +1,10 @@
+// views/OnboardingView.tsx
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { AppView, GoalCategory, GoalMode, Goal, TaskStatus, Difficulty } from '../types';
 import { Button, Icons, Card } from '../components/UIComponents';
 import { getNextOnboardingQuestion, analyzeGoal, generateGoalVisualization, checkContentSafety, generateDailyTasks } from '../services/geminiService';
-import { api } from '../services/api'; // <--- IMPORT API
+import { api } from '../services/api';
 
 export default function OnboardingView() {
     const { user, setUser, setView } = useApp();
@@ -20,6 +21,9 @@ export default function OnboardingView() {
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [proposedGoal, setProposedGoal] = useState<any>(null);
     const [isCommitting, setIsCommitting] = useState(false);
+
+    // Check if user already has a goal (editing vs first time)
+    const hasExistingGoal = user?.goal?.id;
 
     const CATEGORY_ICONS: Record<GoalCategory, React.ReactNode> = {
       [GoalCategory.HEALTH]: <Icons.Activity className="w-6 h-6" />,
@@ -41,6 +45,23 @@ export default function OnboardingView() {
         [GoalCategory.LIFESTYLE]: "bg-orange-50 border-orange-100 text-orange-600 hover:border-orange-300",
         [GoalCategory.ENVIRONMENT]: "bg-teal-50 border-teal-100 text-teal-600 hover:border-teal-300",
         [GoalCategory.OTHER]: "bg-gray-50 border-gray-100 text-gray-600 hover:border-gray-300"
+    };
+
+    // Cancel and go back to Dashboard
+    const handleCancel = () => {
+        if (hasExistingGoal) {
+            setView(AppView.DASHBOARD);
+        } else {
+            // First time user - confirm they want to leave
+            if (onboardStep > 1) {
+                const confirmLeave = window.confirm("Are you sure you want to cancel? Your progress will be lost.");
+                if (confirmLeave) {
+                    setView(AppView.DASHBOARD);
+                }
+            } else {
+                setView(AppView.DASHBOARD);
+            }
+        }
     };
 
     const handleCategorySelect = (category: GoalCategory) => {
@@ -67,7 +88,6 @@ export default function OnboardingView() {
         setOnboardingInput('');
         setIsOnboardingLoading(true);
 
-        // AI decides if we need more info
         const result = await getNextOnboardingQuestion(selectedCategory, selectedMode, newHistory);
         
         if (result.type === 'finish') {
@@ -82,14 +102,8 @@ export default function OnboardingView() {
         setIsOnboardingLoading(false);
         setIsAnalyzing(true);
         try {
-          // Flatten history for the prompt
-          const historyStr = history.map(h => `Guide: ${h.question}\nUser: ${h.answer}`).join('\n');
-          const category = selectedCategory || "General";
-          const mode = selectedMode || GoalMode.LEARNING;
-          
-          // Pass the HISTORY ARRAY, not a string, because geminiService expects an array
           const analysis = await analyzeGoal(history); 
-          
+          const category = selectedCategory || "General";
           const visual = await generateGoalVisualization(analysis.title, category);
           setProposedGoal({ ...analysis, visualUrl: visual });
           setOnboardStep(4); 
@@ -141,7 +155,6 @@ export default function OnboardingView() {
             
             const initialTasks = await generateDailyTasks(newGoal, 1, [], []);
             
-            // --- CRITICAL FIX: FORCE SAVE TO DATABASE IMMEDIATELY ---
             const updatedUser = { 
                 ...user, 
                 goal: newGoal,
@@ -151,14 +164,10 @@ export default function OnboardingView() {
                 currentDay: 1
             };
 
-            // 1. Update Local State
             setUser(updatedUser);
-
-            // 2. FORCE SYNC TO SERVER
             console.log("💾 Forcing Database Save...");
             await api.sync(updatedUser);
             
-            // 3. Navigate only after sync starts
             setTimeout(() => setView(AppView.DASHBOARD), 100);
 
         } catch (error) {
@@ -178,6 +187,16 @@ export default function OnboardingView() {
                 </div>
                 <h2 className="text-2xl font-black text-primary mb-2 animate-pulse uppercase tracking-tighter">Architecting Your Mission</h2>
                 <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest">Building Success Roadmap...</p>
+                
+                {/* Cancel button during analysis */}
+                {hasExistingGoal && (
+                    <button 
+                        onClick={handleCancel}
+                        className="mt-8 text-gray-400 hover:text-red-500 text-xs font-bold uppercase tracking-wider transition-colors"
+                    >
+                        Cancel
+                    </button>
+                )}
             </div>
         );
     }
@@ -186,7 +205,19 @@ export default function OnboardingView() {
         <div className="h-full overflow-y-auto pb-safe scroll-smooth">
             <div className="min-h-full bg-white px-6 pt-safe pt-6 pb-20 animate-fade-in flex flex-col">
                 
-                <h1 className="text-3xl font-black text-primary mb-2 uppercase tracking-tighter">Mission Setup</h1>
+                {/* Header with Cancel Button */}
+                <div className="flex items-center justify-between mb-2">
+                    <h1 className="text-3xl font-black text-primary uppercase tracking-tighter">Mission Setup</h1>
+                    {hasExistingGoal && (
+                        <button 
+                            onClick={handleCancel}
+                            className="flex items-center gap-2 text-gray-400 hover:text-red-500 transition-colors"
+                        >
+                            <Icons.X className="w-5 h-5" />
+                        </button>
+                    )}
+                </div>
+                
                 <div className="w-full mb-8">
                     <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
                         <div className="h-full bg-primary transition-all duration-500 ease-out" style={{ width: `${(onboardStep / 4) * 100}%` }}></div>
@@ -208,6 +239,16 @@ export default function OnboardingView() {
                                 </button>
                             ))}
                         </div>
+                        
+                        {/* Cancel button at bottom of step 1 */}
+                        {hasExistingGoal && (
+                            <button 
+                                onClick={handleCancel}
+                                className="w-full py-4 text-gray-400 hover:text-red-500 text-xs font-bold uppercase tracking-wider transition-colors"
+                            >
+                                Cancel & Return to Dashboard
+                            </button>
+                        )}
                     </div>
                 )}
 
@@ -224,7 +265,18 @@ export default function OnboardingView() {
                             <h3 className="text-xl font-black mb-1 uppercase tracking-tighter">Elite Tracking</h3>
                             <p className="text-sm text-secondary font-medium">Maintain existing success. Focus on stabilization.</p>
                         </button>
-                        <Button variant="outline" onClick={() => setOnboardStep(1)} className="mt-8">Back to Domains</Button>
+                        
+                        <div className="flex gap-4 mt-8">
+                            <Button variant="outline" onClick={() => setOnboardStep(1)} className="flex-1">Back</Button>
+                            {hasExistingGoal && (
+                                <button 
+                                    onClick={handleCancel}
+                                    className="px-6 py-3 text-red-400 hover:text-red-500 text-xs font-bold uppercase tracking-wider transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                            )}
+                        </div>
                     </div>
                 )}
 
@@ -248,9 +300,19 @@ export default function OnboardingView() {
                             onChange={(e) => setOnboardingInput(e.target.value)}
                             onKeyDown={(e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleOnboardingAnswer(onboardingInput); } }} 
                         />
-                        <div className="flex mt-8 gap-4">
-                            <button onClick={() => setOnboardStep(2)} className="text-[10px] font-black uppercase text-gray-400 tracking-widest px-6 py-2">Restart</button>
-                            <button onClick={() => handleOnboardingAnswer(onboardingInput)} disabled={!onboardingInput.trim() || isOnboardingLoading} className="ml-auto flex items-center bg-primary text-white font-black uppercase text-[10px] tracking-[0.2em] px-10 py-4 rounded-full shadow-2xl shadow-primary/20 transition-all hover:scale-105 active:scale-95">Analyze <Icons.ArrowRight className="w-4 h-4 ml-2"/></button>
+                        <div className="flex mt-8 gap-4 items-center">
+                            <button onClick={() => setOnboardStep(2)} className="text-[10px] font-black uppercase text-gray-400 tracking-widest px-6 py-2">Back</button>
+                            
+                            {hasExistingGoal && (
+                                <button 
+                                    onClick={handleCancel}
+                                    className="text-[10px] font-black uppercase text-red-400 hover:text-red-500 tracking-widest px-6 py-2 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                            )}
+                            
+                            <button onClick={() => handleOnboardingAnswer(onboardingInput)} disabled={!onboardingInput.trim() || isOnboardingLoading} className="ml-auto flex items-center bg-primary text-white font-black uppercase text-[10px] tracking-[0.2em] px-10 py-4 rounded-full shadow-2xl shadow-primary/20 transition-all hover:scale-105 active:scale-95 disabled:opacity-50">Analyze <Icons.ArrowRight className="w-4 h-4 ml-2"/></button>
                         </div>
                     </div>
                 )}
@@ -284,7 +346,14 @@ export default function OnboardingView() {
 
                         <div className="flex flex-col gap-4 mt-10">
                             <Button onClick={confirmGoal} variant="secondary" disabled={isCommitting} isLoading={isCommitting} className="w-full py-6 text-base tracking-widest uppercase font-black rounded-[2rem]">Authorize Architecture</Button>
-                            <button onClick={handleRegenerate} disabled={isCommitting} className="text-[10px] font-black text-gray-400 hover:text-primary uppercase tracking-[0.3em] mx-auto py-4">Regenerate Roadmap</button>
+                            
+                            <div className="flex justify-center gap-6">
+                                <button onClick={handleRegenerate} disabled={isCommitting} className="text-[10px] font-black text-gray-400 hover:text-primary uppercase tracking-[0.3em] py-4 transition-colors">Regenerate</button>
+                                
+                                {hasExistingGoal && (
+                                    <button onClick={handleCancel} disabled={isCommitting} className="text-[10px] font-black text-red-400 hover:text-red-500 uppercase tracking-[0.3em] py-4 transition-colors">Cancel</button>
+                                )}
+                            </div>
                         </div>
                     </div>
                 )}

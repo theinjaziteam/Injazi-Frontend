@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AppProvider, useApp } from './contexts/AppContext';
 import { AppView } from './types';
 import { BottomNav } from './components/UIComponents';
@@ -18,9 +17,66 @@ import TaskHistoryView from './views/TaskHistoryView';
 import TaskSelectionView from './views/TaskSelectionView';
 
 function AppContent() {
-    const { view, setView, isAuthenticated, showAdOverlay, showCheckIn, adCountdown } = useApp();
+    const { view, setView, isAuthenticated, showAdOverlay, adCountdown } = useApp();
+    const [isNavVisible, setIsNavVisible] = useState(true);
+    const lastScrollY = useRef(0);
+    const scrollTimeout = useRef<NodeJS.Timeout | null>(null);
+
+    // TikTok-style scroll handler
+    useEffect(() => {
+        const handleScroll = (e: Event) => {
+            const target = e.target as HTMLElement;
+            if (!target) return;
+            
+            const currentScrollY = target.scrollTop;
+            const scrollDiff = currentScrollY - lastScrollY.current;
+            
+            // Clear existing timeout
+            if (scrollTimeout.current) {
+                clearTimeout(scrollTimeout.current);
+            }
+            
+            // Scrolling down - hide nav
+            if (scrollDiff > 10 && currentScrollY > 50) {
+                setIsNavVisible(false);
+            }
+            // Scrolling up - show nav
+            else if (scrollDiff < -10) {
+                setIsNavVisible(true);
+            }
+            
+            // Show nav after scroll stops
+            scrollTimeout.current = setTimeout(() => {
+                setIsNavVisible(true);
+            }, 1500);
+            
+            lastScrollY.current = currentScrollY;
+        };
+
+        // Add scroll listeners to scrollable containers
+        const mainContainer = document.getElementById('main-container');
+        if (mainContainer) {
+            const scrollableElements = mainContainer.querySelectorAll('[class*="overflow-y"]');
+            scrollableElements.forEach(el => {
+                el.addEventListener('scroll', handleScroll, { passive: true });
+            });
+            
+            return () => {
+                scrollableElements.forEach(el => {
+                    el.removeEventListener('scroll', handleScroll);
+                });
+            };
+        }
+    }, [view]);
 
     if (!isAuthenticated) return <LoginView />;
+
+    const showNav = view !== AppView.ONBOARDING && 
+                    view !== AppView.LIVE_CALL && 
+                    view !== AppView.TASK_EXECUTION && 
+                    view !== AppView.SETTINGS && 
+                    view !== AppView.TASK_HISTORY && 
+                    view !== AppView.TASK_SELECTION;
 
     return (
         <div className="h-[100dvh] w-screen bg-white overflow-hidden flex flex-col font-sans">
@@ -36,7 +92,6 @@ function AppContent() {
                 {view === AppView.TASK_HISTORY && <TaskHistoryView />}
                 {view === AppView.TASK_SELECTION && <TaskSelectionView />}
                 
-                {/* Placeholders for settings/plans if not fully implemented in this turn */}
                 {(view === AppView.PLANS || view === AppView.USER_PROFILE) && (
                     <div className="p-10 text-center flex flex-col items-center justify-center h-full">
                         <h1 className="text-2xl font-bold mb-2">View: {view}</h1>
@@ -59,24 +114,30 @@ function AppContent() {
                 </div>
             )}
 
-            {/* Navigation */}
-            {view !== AppView.ONBOARDING && view !== AppView.LIVE_CALL && view !== AppView.TASK_EXECUTION && view !== AppView.SETTINGS && view !== AppView.TASK_HISTORY && view !== AppView.TASK_SELECTION && (
-                <BottomNav 
-                  activeTab={
-                      view === AppView.DASHBOARD ? 'dashboard' :
-                      view === AppView.SOCIAL ? 'social' :
-                      view === AppView.CHAT ? 'chat' :
-                      view === AppView.STATS ? 'stats' :
-                      view === AppView.SHOP ? 'shop' : ''
-                  } 
-                  onTabChange={(tab) => {
-                      if (tab === 'dashboard') setView(AppView.DASHBOARD);
-                      if (tab === 'social') setView(AppView.SOCIAL);
-                      if (tab === 'chat') setView(AppView.CHAT);
-                      if (tab === 'stats') setView(AppView.STATS);
-                      if (tab === 'shop') setView(AppView.SHOP);
-                  }} 
-                />
+            {/* TikTok-style Navigation - slides up/down */}
+            {showNav && (
+                <div 
+                    className={`transition-transform duration-300 ease-out ${
+                        isNavVisible ? 'translate-y-0' : 'translate-y-full'
+                    }`}
+                >
+                    <BottomNav 
+                      activeTab={
+                          view === AppView.DASHBOARD ? 'dashboard' :
+                          view === AppView.SOCIAL ? 'social' :
+                          view === AppView.CHAT ? 'chat' :
+                          view === AppView.STATS ? 'stats' :
+                          view === AppView.SHOP ? 'shop' : ''
+                      } 
+                      onTabChange={(tab) => {
+                          if (tab === 'dashboard') setView(AppView.DASHBOARD);
+                          if (tab === 'social') setView(AppView.SOCIAL);
+                          if (tab === 'chat') setView(AppView.CHAT);
+                          if (tab === 'stats') setView(AppView.STATS);
+                          if (tab === 'shop') setView(AppView.SHOP);
+                      }} 
+                    />
+                </div>
             )}
         </div>
     );

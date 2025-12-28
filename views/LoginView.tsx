@@ -1,6 +1,6 @@
 // src/views/LoginView.tsx
 import React, { useState, useRef, useEffect } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../contexts/AppContext';
 import { User, AppView } from '../types';
 import { Eye, EyeOff, Mail, Lock, User as UserIcon, Globe, ChevronDown, Check, AlertCircle, ArrowLeft, RefreshCw } from 'lucide-react';
 import { api } from '../services/api';

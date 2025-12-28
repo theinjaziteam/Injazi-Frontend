@@ -264,21 +264,23 @@ export const Toggle: React.FC<{ checked: boolean; onChange: (checked: boolean) =
   </button>
 );
 
-// Add this to UIComponents.tsx - Replace existing BottomNav
+// BottomNav - Add/replace in UIComponents.tsx
 
 export const BottomNav: React.FC<{
     activeTab: string;
     onTabChange: (tab: string) => void;
 }> = ({ activeTab, onTabChange }) => {
-    // Get theme from localStorage directly (to avoid circular imports)
     const theme = localStorage.getItem('injazi_theme') || 'light';
-    const isLight = theme === 'light';
+    const isDark = theme === 'dark';
     
+    // Light mode colors (new palette)
+    // Dark mode colors (old palette)
     const colors = {
-        navBg: isLight ? '#F9F5EE' : '#000000',
-        navActive: isLight ? '#3B4777' : '#A7B0F4',
+        navBg: isDark ? '#171738' : '#F9F5EE',
+        navActive: isDark ? '#DFF3E4' : '#3B4777',
         navInactive: '#7D8777',
-        border: isLight ? '#EDECFB' : '#1e1e3c',
+        border: isDark ? '#232350' : '#EDECFB',
+        activeBg: isDark ? 'rgba(223,243,228,0.1)' : 'rgba(59,71,119,0.1)',
     };
 
     const navItems = [
@@ -306,9 +308,7 @@ export const BottomNav: React.FC<{
                         >
                             <div 
                                 className="w-10 h-10 rounded-xl flex items-center justify-center mb-0.5 transition-colors"
-                                style={{ 
-                                    backgroundColor: isActive ? `${colors.navActive}20` : 'transparent'
-                                }}
+                                style={{ backgroundColor: isActive ? colors.activeBg : 'transparent' }}
                             >
                                 <Icon 
                                     className="w-6 h-6 transition-colors"

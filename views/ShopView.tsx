@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { Icons, Button, Card, Badge } from '../components/UIComponents';
-import { api } from '../services/api'; // <--- IMPORT API
+import { api } from '../services/api';
 
 export default function ShopView() {
     const { user, setUser } = useApp();
@@ -20,12 +20,11 @@ export default function ShopView() {
         { id: 'b4', price: 100, credits: 75000, label: 'Architect Max', popular: false }
     ];
 
-    // --- FORCE SAVE FUNCTION ---
     const updateAndSave = async (updates: Partial<typeof user>) => {
         const newUserState = { ...user, ...updates };
-        setUser(newUserState); // Update UI
+        setUser(newUserState);
         try {
-            await api.sync(newUserState); // Force DB Save
+            await api.sync(newUserState);
             console.log("✅ Transaction Saved to DB");
         } catch (e) {
             console.error("Save Failed", e);
@@ -39,8 +38,7 @@ export default function ShopView() {
 
         setTimeout(() => {
             const newCredits = (user.credits || 0) + tier.credits;
-            
-            updateAndSave({ credits: newCredits }); // <--- USES FORCE SAVE
+            updateAndSave({ credits: newCredits });
             
             setIsProcessing(false);
             setProcessingType(null);
@@ -68,7 +66,7 @@ export default function ShopView() {
             updateAndSave({ 
                 credits: newCredits,
                 realMoneyBalance: newBalance 
-            }); // <--- USES FORCE SAVE
+            });
 
             setIsProcessing(false);
             setProcessingType(null);
@@ -86,7 +84,7 @@ export default function ShopView() {
                 <div className="absolute top-0 right-0 w-64 h-64 bg-[#3423A6] rounded-full blur-[80px] opacity-20 translate-x-1/2 -translate-y-1/2"></div>
                 
                 <div className="relative z-10">
-                    <div className="flex justify-between items-center mb-6">
+                    <div className="flex justify-between items-center mb-6 mt-2">
                         <h1 className="text-2xl font-black text-white tracking-tight">Asset Store</h1>
                         <div className="p-2 bg-white/10 rounded-full backdrop-blur-md">
                             <Icons.Shop className="w-6 h-6 text-white"/>
@@ -155,27 +153,31 @@ export default function ShopView() {
 
                         <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mt-8 mb-4 ml-2">Purchase Allocations</h3>
                         
-                        <div className="grid grid-cols-2 gap-4">
+                        {/* FIXED: Changed from grid to flex column for rectangular cards */}
+                        <div className="space-y-4">
                             {buyTiers.map((tier) => (
                                 <button 
                                     key={tier.id}
                                     onClick={() => handleBuy(tier)}
                                     disabled={isProcessing}
-                                    className={`relative bg-white p-5 rounded-[2rem] text-left border-2 transition-all hover:shadow-xl active:scale-95 flex flex-col justify-between h-48 ${tier.popular ? 'border-[#3423A6]' : 'border-transparent'}`}
+                                    className={`relative w-full bg-white p-5 rounded-2xl text-left border-2 transition-all hover:shadow-xl active:scale-[0.98] flex items-center justify-between ${tier.popular ? 'border-[#3423A6]' : 'border-transparent'}`}
                                 >
                                     {tier.popular && (
-                                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#3423A6] text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
+                                        <div className="absolute -top-3 left-6 bg-[#3423A6] text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
                                             Best Value
                                         </div>
                                     )}
-                                    <div>
-                                        <div className="text-3xl font-black text-[#171738] mb-1">{tier.credits.toLocaleString()}</div>
-                                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Credits</div>
+                                    <div className="flex items-center gap-4">
+                                        <div className="text-left">
+                                            <div className="text-2xl font-black text-[#171738]">{tier.credits.toLocaleString()}</div>
+                                            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Credits</div>
+                                        </div>
                                     </div>
-                                    <div className="flex justify-between items-end">
-                                        <div className="text-lg font-bold text-[#3423A6]">${tier.price}</div>
-                                        <div className="w-8 h-8 bg-gray-50 rounded-full flex items-center justify-center text-gray-400">
-                                            <Icons.Plus className="w-4 h-4"/>
+                                    <div className="flex items-center gap-4">
+                                        <div className="text-xl font-bold text-[#3423A6]">${tier.price}</div>
+                                        {/* FIXED: Rounded plus button */}
+                                        <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center text-white shadow-lg shadow-primary/30 hover:scale-110 transition-transform">
+                                            <Icons.Plus className="w-5 h-5"/>
                                         </div>
                                     </div>
                                 </button>
@@ -187,13 +189,13 @@ export default function ShopView() {
                         <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                             <Icons.Shop className="w-8 h-8 text-gray-300"/>
                         </div>
-                        <h3 className="text-gray-400 font-bold">Marketplace Offline</h3>
-                        <p className="text-xs text-gray-300 mt-2">Connect to server to fetch assets.</p>
+                        <h3 className="text-gray-400 font-bold">Marketplace Coming Soon</h3>
+                        <p className="text-xs text-gray-300 mt-2">Browse courses, assets, and more.</p>
                     </div>
                 )}
             </div>
 
-            {/* --- MODALS --- */}
+            {/* Modals remain the same */}
             {showRedeem && (
                 <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[#171738]/90 backdrop-blur-sm p-4 animate-fade-in">
                     <div className="bg-white w-full max-w-sm rounded-[2.5rem] p-6 shadow-2xl animate-slide-up">

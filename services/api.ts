@@ -60,20 +60,23 @@ export const api = {
         } catch(e) { 
             console.error("❌ Sync Error:", e); 
         }
+    },
+
+    async getAdgemOffers(email: string) {
+        try {
+            console.log("📡 Fetching AdGem offers...");
+            const response = await fetch(`${API_URL}/api/adgem/offers?email=${encodeURIComponent(email)}`);
+            
+            if (!response.ok) {
+                throw new Error('Failed to fetch offers');
+            }
+            
+            const data = await response.json();
+            console.log(`✅ Fetched ${data.offers?.length || 0} offers`);
+            return data;
+        } catch (error) {
+            console.error('❌ Error fetching AdGem offers:', error);
+            return { status: 'error', offers: [] };
+        }
     }
 };
-
-// AdGem Offerwall URL generator
-getAdgemOfferwallUrl: (userEmail: string): string => {
-    const ADGEM_APP_ID = import.meta.env.VITE_ADGEM_APP_ID || 'YOUR_APP_ID';
-    const baseUrl = 'https://api.adgem.com/v1/wall';
-    
-    // player_id should be the user's unique identifier (email)
-    const params = new URLSearchParams({
-        appid: ADGEM_APP_ID,
-        playerid: userEmail,
-    });
-    
-    return `${baseUrl}?${params.toString()}`;
-}
-

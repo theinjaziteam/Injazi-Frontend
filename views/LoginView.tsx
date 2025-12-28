@@ -771,3 +771,4 @@ export const LoginView: React.FC = () => {
     </div>
   );
 };
+export default LoginView;

@@ -1,24 +1,28 @@
-import { UserState } from '../types';
-
 const API_URL = import.meta.env.VITE_API_URL || 'https://injazi-backend.onrender.com';
 
-console.log('🌐 API URL configured:', API_URL);
+console.log('🌐 API URL:', API_URL);
 
 export const api = {
-    async auth(data: { email: string; password: string; name?: string; country?: string; isRegister: boolean }) {
-        console.log("🚀 Connecting to:", `${API_URL}/api/auth`);
-        
+    // ============================================
+    // AUTHENTICATION
+    // ============================================
+    auth: async (data: { 
+        email: string; 
+        password: string; 
+        name?: string; 
+        country?: string; 
+        isRegister?: boolean 
+    }) => {
         try {
             const response = await fetch(`${API_URL}/api/auth`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data),
+                body: JSON.stringify(data)
             });
-
+            
             const result = await response.json();
             
             if (!response.ok) {
-                console.error("❌ Server Error:", result);
                 throw new Error(result.message || 'Authentication failed');
             }
             
@@ -26,57 +30,160 @@ export const api = {
                 localStorage.setItem('injazi_token', result.token);
             }
             
-            console.log("✅ Login Success:", result.user.email);
-            return result.user; 
+            return result;
         } catch (error: any) {
-            console.error("❌ Connection Failed:", error.message);
-            if (error.message === 'Failed to fetch') {
-                throw new Error(`Cannot connect to backend. Please check if the backend is running.`);
-            }
-            throw error;
+            console.error('Auth Error:', error);
+            throw new Error(error.message || 'Connection failed. Please try again.');
         }
     },
 
-    async sync(userState: UserState) {
-        if(!userState.email) return;
-        
-        const token = localStorage.getItem('injazi_token');
-
+    // ============================================
+    // EMAIL VERIFICATION
+    // ============================================
+    verifyEmail: async (email: string, code: string) => {
         try {
+            const response = await fetch(`${API_URL}/api/auth/verify-email`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, code })
+            });
+            
+            const result = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(result.message || 'Verification failed');
+            }
+            
+            return result;
+        } catch (error: any) {
+            console.error('Verify Email Error:', error);
+            throw new Error(error.message || 'Verification failed');
+        }
+    },
+
+    resendVerification: async (email: string) => {
+        try {
+            const response = await fetch(`${API_URL}/api/auth/resend-verification`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+            
+            const result = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(result.message || 'Failed to resend code');
+            }
+            
+            return result;
+        } catch (error: any) {
+            console.error('Resend Verification Error:', error);
+            throw new Error(error.message || 'Failed to resend code');
+        }
+    },
+
+    // ============================================
+    // PASSWORD RESET
+    // ============================================
+    forgotPassword: async (email: string) => {
+        try {
+            const response = await fetch(`${API_URL}/api/auth/forgot-password`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+            
+            const result = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(result.message || 'Request failed');
+            }
+            
+            return result;
+        } catch (error: any) {
+            console.error('Forgot Password Error:', error);
+            throw new Error(error.message || 'Request failed');
+        }
+    },
+
+    resetPassword: async (email: string, code: string, newPassword: string) => {
+        try {
+            const response = await fetch(`${API_URL}/api/auth/reset-password`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, code, newPassword })
+            });
+            
+            const result = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(result.message || 'Reset failed');
+            }
+            
+            return result;
+        } catch (error: any) {
+            console.error('Reset Password Error:', error);
+            throw new Error(error.message || 'Reset failed');
+        }
+    },
+
+    // ============================================
+    // DATA SYNC
+    // ============================================
+    sync: async (userState: any) => {
+        if (!userState.email) return;
+        
+        try {
+            const token = localStorage.getItem('injazi_token');
             const response = await fetch(`${API_URL}/api/sync`, {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify(userState),
+                body: JSON.stringify(userState)
             });
-
+            
             if (!response.ok) {
-                console.error("❌ Sync failed:", response.status);
+                console.error('Sync failed');
             } else {
-                console.log("☁️ Data synced successfully");
+                console.log('✅ Synced to server');
             }
-        } catch(e) { 
-            console.error("❌ Sync Error:", e); 
+        } catch (error) {
+            console.error('Sync Error:', error);
         }
     },
 
-    async getAdgemOffers(email: string) {
+    // ============================================
+    // USER DATA
+    // ============================================
+    getUser: async (email: string) => {
         try {
-            console.log("📡 Fetching AdGem offers...");
-            const response = await fetch(`${API_URL}/api/adgem/offers?email=${encodeURIComponent(email)}`);
+            const response = await fetch(`${API_URL}/api/user/${encodeURIComponent(email)}`);
+            const result = await response.json();
             
             if (!response.ok) {
-                throw new Error('Failed to fetch offers');
+                throw new Error(result.message || 'Failed to get user');
             }
             
-            const data = await response.json();
-            console.log(`✅ Fetched ${data.offers?.length || 0} offers`);
-            return data;
+            return result;
+        } catch (error: any) {
+            console.error('Get User Error:', error);
+            throw new Error(error.message || 'Failed to get user');
+        }
+    },
+
+    // ============================================
+    // ADGEM OFFERS
+    // ============================================
+    getAdgemOffers: async (email: string) => {
+        try {
+            const response = await fetch(`${API_URL}/api/adgem/offers?email=${encodeURIComponent(email)}`);
+            const result = await response.json();
+            return result;
         } catch (error) {
-            console.error('❌ Error fetching AdGem offers:', error);
-            return { status: 'error', offers: [] };
+            console.error('AdGem Offers Error:', error);
+            return { offers: [] };
         }
     }
 };

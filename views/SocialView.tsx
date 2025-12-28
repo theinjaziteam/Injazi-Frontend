@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { AppView, SocialSection, GoalCategory, Lesson, Course, Product, QuizQuestion, Chapter, Friend, TaskStatus } from '../types';
 import { Icons, Button, Badge, Card } from '../components/UIComponents';
@@ -42,6 +42,11 @@ export default function SocialView() {
     const [newItemDesc, setNewItemDesc] = useState('');
     const [newItemPriceUsd, setNewItemPriceUsd] = useState<string>('');
 
+    // TikTok-style header visibility for Feed only
+    const [isFeedHeaderVisible, setIsFeedHeaderVisible] = useState(true);
+    const lastScrollY = useRef(0);
+    const scrollTimeout = useRef<NodeJS.Timeout | null>(null);
+
     const getCommunityList = () => {
         if (!searchQuery) return friends;
         const matchingFriends = friends.filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -53,6 +58,33 @@ export default function SocialView() {
     };
 
     const communityList = getCommunityList();
+
+    // Handle feed scroll for TikTok-style header
+    const handleFeedScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+        const currentScrollY = e.currentTarget.scrollTop;
+        const scrollDiff = currentScrollY - lastScrollY.current;
+        
+        // Clear existing timeout
+        if (scrollTimeout.current) {
+            clearTimeout(scrollTimeout.current);
+        }
+        
+        // Scrolling down - hide header
+        if (scrollDiff > 8 && currentScrollY > 60) {
+            setIsFeedHeaderVisible(false);
+        }
+        // Scrolling up - show header
+        else if (scrollDiff < -8) {
+            setIsFeedHeaderVisible(true);
+        }
+        
+        // Show header after scroll stops
+        scrollTimeout.current = setTimeout(() => {
+            setIsFeedHeaderVisible(true);
+        }, 2000);
+        
+        lastScrollY.current = currentScrollY;
+    }, []);
 
     // Check lesson status
     const getLessonStatus = (lessonId: string): 'not_started' | 'in_progress' | 'completed' => {
@@ -89,13 +121,11 @@ export default function SocialView() {
         
         setCurrentChapter(chapter);
         
-        // If content already exists, just show it
         if (lesson.content) {
             setViewingLesson(lesson);
             return;
         }
         
-        // Otherwise, show modal with loading state and generate content
         setViewingLesson(lesson);
         setIsLoadingLessonContent(true);
         
@@ -151,14 +181,12 @@ export default function SocialView() {
         }
     };
 
-    // Handle Start Lesson - generates tasks and adds to dashboard
     const handleStartLesson = async () => {
         if (!viewingLesson || !viewingLesson.content || !user.goal) return;
         
         setIsStartingLesson(true);
         
         try {
-            // Generate tasks for this lesson
             const lessonTasks = await generateLessonTasks(
                 {
                     id: viewingLesson.id,
@@ -169,13 +197,11 @@ export default function SocialView() {
                 viewingLesson.content
             );
             
-            // Add tasks to dailyTasks
             setUser(prev => ({
                 ...prev,
                 dailyTasks: [...(prev.dailyTasks || []), ...lessonTasks]
             }));
             
-            // Close modal and go to dashboard
             closeLessonModal();
             setView(AppView.DASHBOARD);
             
@@ -187,7 +213,6 @@ export default function SocialView() {
         }
     };
 
-    // Handle "Continue" for in-progress lessons
     const handleContinueLesson = () => {
         closeLessonModal();
         setView(AppView.DASHBOARD);
@@ -316,14 +341,6 @@ export default function SocialView() {
         }
     };
 
-    const handleRetryLessonContent = () => {
-        if (viewingLesson && currentChapter) {
-            const lessonWithoutContent = { ...viewingLesson, content: undefined };
-            setViewingLesson(lessonWithoutContent);
-            handleLessonClick(lessonWithoutContent, currentChapter);
-        }
-    };
-
     const closeLessonModal = () => {
         setViewingLesson(null);
         setIsLoadingLessonContent(false);
@@ -331,16 +348,9 @@ export default function SocialView() {
         setCurrentChapter(null);
     };
 
-    // Format action task with proper line breaks
-    const formatActionTask = (task: string) => {
-        return task
-            .replace(/Step\s*(\d+):/gi, '\n\nStep $1:')
-            .replace(/^\n+/, '')
-            .trim();
-    };
-
     // ==================== RENDER FUNCTIONS ====================
 
+    // Standard header for non-Feed sections
     const renderHeader = () => (
         <div className="sticky top-0 z-40 bg-white border-b border-gray-100 pt-safe">
             <div className="flex overflow-x-auto no-scrollbar p-4 gap-3">
@@ -349,8 +359,8 @@ export default function SocialView() {
                   { id: SocialSection.FOR_YOU, label: 'Feed' },
                   { id: SocialSection.RECOMMENDED, label: 'Resources' },
                   { id: SocialSection.FRIENDS, label: 'Community' },
-                  { id: SocialSection.PRODUCTS, label: 'Assets' },
-                  { id: SocialSection.COURSES, label: 'User Courses' }
+                  { id: SocialSection.PRODUCTS, label: 'Products' },
+                  { id: SocialSection.COURSES, label: 'Courses' }
                 ].map(section => (
                     <button 
                         key={section.id}
@@ -359,6 +369,41 @@ export default function SocialView() {
                             ${activeSocialSection === section.id 
                                 ? 'bg-primary text-white shadow-lg shadow-primary/20' 
                                 : 'bg-gray-100 text-gray-400 hover:text-primary'
+                            }`}
+                    >
+                        {section.label}
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+
+    // TikTok-style header for Feed section (transparent, slides away)
+    const renderFeedHeader = () => (
+        <div 
+            className={`absolute top-0 left-0 right-0 z-50 bg-gradient-to-b from-black/70 via-black/40 to-transparent pt-safe transition-all duration-300 ease-out ${
+                isFeedHeaderVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-full pointer-events-none'
+            }`}
+        >
+            <div className="flex overflow-x-auto no-scrollbar p-4 gap-3">
+                {[
+                  { id: SocialSection.LESSONS, label: 'Curriculum' },
+                  { id: SocialSection.FOR_YOU, label: 'Feed' },
+                  { id: SocialSection.RECOMMENDED, label: 'Resources' },
+                  { id: SocialSection.FRIENDS, label: 'Community' },
+                  { id: SocialSection.PRODUCTS, label: 'Products' },
+                  { id: SocialSection.COURSES, label: 'Courses' }
+                ].map(section => (
+                    <button 
+                        key={section.id}
+                        onClick={() => {
+                            setActiveSocialSection(section.id);
+                            setIsFeedHeaderVisible(true);
+                        }}
+                        className={`whitespace-nowrap px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all backdrop-blur-sm
+                            ${activeSocialSection === section.id 
+                                ? 'bg-white text-primary shadow-lg' 
+                                : 'bg-white/20 text-white hover:bg-white/30'
                             }`}
                     >
                         {section.label}
@@ -386,13 +431,12 @@ export default function SocialView() {
         }
 
         return (
-            <div className="p-6 pb-28 space-y-10 animate-fade-in">
+            <div className="p-6 pb-32 space-y-10 animate-fade-in">
                 {lessons.length > 0 ? lessons.map((chapter, chapterIdx) => {
                     const completedInChapter = chapter.lessons.filter(l => getLessonStatus(l.id) === 'completed').length;
                     
                     return (
                         <div key={chapter.id} className="relative">
-                            {/* Chapter Header */}
                             <div className="flex items-center gap-4 mb-6">
                                 <div className="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center text-lg font-black shadow-lg shadow-primary/20">
                                     {chapterIdx + 1}
@@ -405,7 +449,6 @@ export default function SocialView() {
                                 </div>
                             </div>
                             
-                            {/* Lessons List */}
                             <div className="space-y-3 ml-6 border-l-2 border-gray-200 pl-6">
                                 {chapter.lessons.map((l, idx) => {
                                     const status = getLessonStatus(l.id);
@@ -456,18 +499,12 @@ export default function SocialView() {
                                                 </div>
                                                 <div className="flex items-center gap-2 ml-4">
                                                     {status === 'completed' && (
-                                                        <span className="text-[9px] font-bold text-green-600 bg-green-100 px-2 py-1 rounded-full">
-                                                            DONE
-                                                        </span>
+                                                        <span className="text-[9px] font-bold text-green-600 bg-green-100 px-2 py-1 rounded-full">DONE</span>
                                                     )}
                                                     {status === 'in_progress' && (
-                                                        <span className="text-[9px] font-bold text-amber-600 bg-amber-100 px-2 py-1 rounded-full">
-                                                            {pendingCount} LEFT
-                                                        </span>
+                                                        <span className="text-[9px] font-bold text-amber-600 bg-amber-100 px-2 py-1 rounded-full">{pendingCount} LEFT</span>
                                                     )}
-                                                    <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-3 py-1.5 rounded-full whitespace-nowrap">
-                                                        {l.duration}
-                                                    </span>
+                                                    <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-3 py-1.5 rounded-full whitespace-nowrap">{l.duration}</span>
                                                     {!l.isLocked && (
                                                         <Icons.ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-primary transition-colors" />
                                                     )}
@@ -477,7 +514,6 @@ export default function SocialView() {
                                     );
                                 })}
 
-                                {/* Phase Quiz */}
                                 {chapter.quiz && chapter.quiz.length > 0 && !chapter.lessons.some(l => l.isLocked) && (
                                     <div className="p-5 rounded-2xl bg-gradient-to-r from-primary to-secondary text-white shadow-lg shadow-primary/20">
                                         <div className="flex items-center justify-between">
@@ -517,45 +553,70 @@ export default function SocialView() {
         );
     };
 
+    // Feed with TikTok-style scroll behavior
     const renderForYou = () => (
-        <div className="h-full overflow-y-scroll snap-y snap-mandatory bg-black no-scrollbar">
-            {feedItems.length > 0 ? feedItems.map((item) => (
+        <div 
+            onScroll={handleFeedScroll}
+            className="h-full overflow-y-scroll snap-y snap-mandatory bg-black no-scrollbar"
+        >
+            {feedItems.length > 0 ? feedItems.map((item, index) => (
                 <div key={item.id} className="h-full w-full snap-start relative flex items-center justify-center bg-gray-900">
                     <img src={item.thumbnailUrl} className="absolute inset-0 w-full h-full object-cover opacity-70" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40 pointer-events-none" />
                     
-                    <div className="absolute left-4 bottom-24 right-20 text-white animate-fade-in">
-                        <div className="flex items-center gap-2 mb-3">
-                            <img src={item.creatorAvatar} className="w-8 h-8 rounded-full border border-white/20" />
-                            <h3 className="font-bold text-lg">@{item.creatorName}</h3>
+                    {/* Content */}
+                    <div className="absolute left-4 bottom-28 right-20 text-white animate-fade-in">
+                        <div className="flex items-center gap-3 mb-3">
+                            <img src={item.creatorAvatar} className="w-10 h-10 rounded-full border-2 border-white/30" />
+                            <div>
+                                <h3 className="font-bold text-base">@{item.creatorName}</h3>
+                                <p className="text-[10px] text-white/60">Creator</p>
+                            </div>
                         </div>
-                        <p className="text-sm font-bold opacity-100 leading-tight mb-2">{item.title}</p>
-                        {item.description && <p className="text-[10px] opacity-70 leading-relaxed max-w-[80%] line-clamp-2">{item.description}</p>}
+                        <p className="text-sm font-bold leading-tight mb-2">{item.title}</p>
+                        {item.description && (
+                            <p className="text-[11px] text-white/70 leading-relaxed max-w-[90%] line-clamp-2">{item.description}</p>
+                        )}
                     </div>
 
-                    <div className="absolute right-4 bottom-28 flex flex-col gap-6 items-center">
+                    {/* Action buttons */}
+                    <div className="absolute right-4 bottom-32 flex flex-col gap-5 items-center">
                         <div className="flex flex-col items-center group cursor-pointer">
                             <div className="p-3 bg-white/10 rounded-full backdrop-blur-md group-active:scale-90 transition-transform">
                                 <Icons.Heart className={`w-7 h-7 ${item.isLiked ? 'text-red-500 fill-red-500' : 'text-white'}`}/>
                             </div>
-                            <span className="text-[10px] text-white font-black mt-1 tracking-tighter">{item.likes}</span>
+                            <span className="text-[10px] text-white font-black mt-1">{item.likes}</span>
                         </div>
                         <div className="flex flex-col items-center group cursor-pointer">
                             <div className="p-3 bg-white/10 rounded-full backdrop-blur-md group-active:scale-90 transition-transform">
                                 <Icons.MessageCircle className="w-7 h-7 text-white"/>
                             </div>
-                            <span className="text-[10px] text-white font-black mt-1 tracking-tighter">{item.comments.length}</span>
+                            <span className="text-[10px] text-white font-black mt-1">{item.comments.length}</span>
                         </div>
                         <div className="flex flex-col items-center group cursor-pointer">
                             <div className="p-3 bg-white/10 rounded-full backdrop-blur-md group-active:scale-90 transition-transform">
                                 <Icons.Share2 className="w-7 h-7 text-white"/>
                             </div>
-                            <span className="text-[10px] text-white font-black mt-1 tracking-tighter">{item.shares}</span>
+                            <span className="text-[10px] text-white font-black mt-1">{item.shares}</span>
                         </div>
                     </div>
+
+                    {/* Scroll hint on first item */}
+                    {index === 0 && (
+                        <div className="absolute bottom-20 left-1/2 -translate-x-1/2 flex flex-col items-center animate-bounce">
+                            <Icons.ChevronDown className="w-6 h-6 text-white/50" />
+                            <span className="text-[9px] text-white/40 font-bold uppercase tracking-wider">Scroll</span>
+                        </div>
+                    )}
                 </div>
             )) : (
-                <div className="h-full flex items-center justify-center text-white/50 font-black uppercase tracking-widest text-xs">No Feed Items Found</div>
+                <div className="h-full flex flex-col items-center justify-center text-center p-10">
+                    <div className="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center mb-4">
+                        <Icons.Film className="w-10 h-10 text-white/30" />
+                    </div>
+                    <h3 className="text-white/50 font-black uppercase tracking-widest text-sm mb-2">No Feed Items</h3>
+                    <p className="text-white/30 text-xs">Content coming soon</p>
+                </div>
             )}
         </div>
     );
@@ -563,13 +624,13 @@ export default function SocialView() {
     const renderMarketplace = (type: 'products' | 'courses') => {
         const items = type === 'courses' ? courses : adsFeed;
         return (
-            <div className="p-6 pb-28 grid grid-cols-1 gap-6 animate-fade-in">
+            <div className="p-6 pb-32 grid grid-cols-1 gap-6 animate-fade-in">
                 {items.length > 0 ? items.map(item => (
                     <Card key={item.id} className="overflow-hidden group border border-gray-100 shadow-lg shadow-gray-100/50">
                         <div className="h-48 relative bg-gray-100">
                              <img src={(item as any).thumbnail || (item as any).mediaUrls?.[0]} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                              <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-xl text-[9px] font-black uppercase text-primary shadow-lg">
-                                 {type === 'courses' ? 'Masterclass' : 'Asset'}
+                                 {type === 'courses' ? 'Masterclass' : 'Product'}
                              </div>
                         </div>
                         <div className="p-5">
@@ -597,7 +658,7 @@ export default function SocialView() {
     };
 
     const renderFriends = () => (
-        <div className="p-6 pb-28 space-y-6">
+        <div className="p-6 pb-32 space-y-6">
             <div className="relative mb-6">
                 <Icons.Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300"/>
                 <input 
@@ -624,23 +685,19 @@ export default function SocialView() {
                             <h4 className="font-bold text-sm text-primary truncate mb-1">{f.name}</h4>
                             <span className="text-[10px] font-bold text-gray-400">{f.streak} day streak</span>
                             {!isFriend && (
-                                <span className="block mt-2 text-[9px] bg-gray-200 text-gray-500 px-2 py-1 rounded-full font-bold">
-                                    Suggested
-                                </span>
+                                <span className="block mt-2 text-[9px] bg-gray-200 text-gray-500 px-2 py-1 rounded-full font-bold">Suggested</span>
                             )}
                         </Card>
                     );
                 }) : (
-                    <div className="col-span-2 text-center py-10 text-gray-400 font-medium">
-                        No users found
-                    </div>
+                    <div className="col-span-2 text-center py-10 text-gray-400 font-medium">No users found</div>
                 )}
             </div>
         </div>
     );
 
     const renderRecommended = () => (
-        <div className="p-6 pb-28 space-y-6 animate-fade-in">
+        <div className="p-6 pb-32 space-y-6 animate-fade-in">
             <h3 className="font-black text-primary text-lg uppercase tracking-tight mb-4">Recommended Resources</h3>
             {recommendedVideos.length > 0 ? recommendedVideos.map(v => (
                 <Card key={v.id} className="overflow-hidden border border-gray-100 shadow-lg shadow-gray-100/50 group cursor-pointer" onClick={() => window.open(v.url)}>
@@ -651,7 +708,7 @@ export default function SocialView() {
                         </div>
                         <div className="absolute inset-0 flex items-center justify-center">
                             <div className="w-14 h-14 bg-white/90 rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                                <Icons.Play className="w-6 h-6 text-primary ml-1" />
+                                <Icons.PlayCircle className="w-6 h-6 text-primary" />
                             </div>
                         </div>
                     </div>
@@ -670,9 +727,11 @@ export default function SocialView() {
 
     return (
         <div className="h-full flex flex-col bg-white overflow-hidden relative">
-            {renderHeader()}
+            {/* Render appropriate header based on section */}
+            {activeSocialSection === SocialSection.FOR_YOU ? renderFeedHeader() : renderHeader()}
             
-            <div className="flex-1 relative overflow-y-auto no-scrollbar scroll-smooth">
+            {/* Content area */}
+            <div className={`flex-1 relative ${activeSocialSection === SocialSection.FOR_YOU ? '' : 'overflow-y-auto no-scrollbar scroll-smooth'}`}>
                 {activeSocialSection === SocialSection.LESSONS && renderLessons()}
                 {activeSocialSection === SocialSection.FOR_YOU && renderForYou()}
                 {activeSocialSection === SocialSection.RECOMMENDED && renderRecommended()}
@@ -733,11 +792,11 @@ export default function SocialView() {
             {/* Add Item Modal */}
             {isAddingItem && (
                 <div className="fixed inset-0 z-[100] bg-primary/80 backdrop-blur-md flex items-center justify-center p-6 animate-fade-in">
-                    <Card className="p-8 w-full max-w-sm bg-white border-none shadow-2xl rounded-[2rem] relative">
+                    <Card className="p-8 w-full max-w-sm bg-white border-none shadow-2xl rounded-[2rem] relative max-h-[90vh] overflow-y-auto">
                         <button onClick={() => setIsAddingItem(false)} className="absolute top-5 right-5 p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
                             <Icons.X className="w-4 h-4"/>
                         </button>
-                        <h3 className="text-xl font-black text-primary uppercase tracking-tight mb-6">List Asset</h3>
+                        <h3 className="text-xl font-black text-primary uppercase tracking-tight mb-6">List Item</h3>
                         <div className="space-y-4">
                             <input 
                                 value={newItemTitle} 
@@ -785,7 +844,7 @@ export default function SocialView() {
                 <div className="fixed inset-0 z-[100] bg-white flex flex-col pt-safe animate-slide-up">
                     {!quizFinished ? (
                         <div className="flex-1 p-8 flex flex-col">
-                            <div className="flex justify-between items-center mb-10">
+                            <div className="flex justify-between items-center mb-10 mt-2">
                                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
                                     Question {quizIndex + 1} of {activeQuiz.questions.length}
                                 </span>
@@ -821,10 +880,10 @@ export default function SocialView() {
                 </div>
             )}
 
-            {/* Lesson Viewer Modal - WITH START LESSON FLOW */}
+            {/* Lesson Viewer Modal */}
             {viewingLesson && (
                 <div className="fixed inset-0 z-[80] bg-white pt-safe flex flex-col animate-slide-up overflow-hidden">
-                    <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-white">
+                    <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-white flex-shrink-0">
                         <div>
                             <span className="text-[10px] font-bold text-primary/50 uppercase tracking-widest block mb-1">Lesson</span>
                             <h2 className="font-black text-primary text-lg tracking-tight">{viewingLesson.title}</h2>
@@ -846,13 +905,11 @@ export default function SocialView() {
                             </div>
                         ) : viewingLesson.content ? (
                             <>
-                                {/* Core Concept */}
                                 <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10">
                                     <h4 className="text-[10px] font-black text-primary/50 uppercase tracking-widest mb-3">Key Concept</h4>
                                     <p className="text-lg font-bold text-primary leading-relaxed">{viewingLesson.content.core_concept}</p>
                                 </div>
 
-                                {/* Subsections */}
                                 {viewingLesson.content.subsections.map((sub, i) => (
                                     <div key={i}>
                                         <h3 className="text-lg font-black text-primary mb-3 flex items-center gap-3">
@@ -863,7 +920,6 @@ export default function SocialView() {
                                     </div>
                                 ))}
 
-                                {/* Pro Tip */}
                                 <div className="p-6 bg-primary text-white rounded-2xl shadow-lg">
                                     <div className="flex items-center gap-3 mb-3">
                                         <div className="p-2 bg-white/10 rounded-lg">
@@ -874,7 +930,6 @@ export default function SocialView() {
                                     <p className="text-white/90 leading-relaxed">{viewingLesson.content.the_1_percent_secret}</p>
                                 </div>
 
-                                {/* Action Section - Dynamic based on lesson status */}
                                 <div className="p-6 bg-gradient-to-br from-secondary/5 to-primary/5 rounded-2xl border-2 border-secondary/20">
                                     {(() => {
                                         const status = getLessonStatus(viewingLesson.id);
@@ -888,9 +943,7 @@ export default function SocialView() {
                                                     </div>
                                                     <h4 className="text-lg font-bold text-green-700 mb-2">Lesson Complete!</h4>
                                                     <p className="text-sm text-gray-500 mb-4">You've mastered this lesson.</p>
-                                                    <Button onClick={closeLessonModal} variant="outline" className="w-full py-4">
-                                                        Close
-                                                    </Button>
+                                                    <Button onClick={closeLessonModal} variant="outline" className="w-full py-4">Close</Button>
                                                 </div>
                                             );
                                         }
@@ -903,7 +956,7 @@ export default function SocialView() {
                                                     </div>
                                                     <h4 className="text-lg font-bold text-amber-700 mb-2">Lesson In Progress</h4>
                                                     <p className="text-sm text-gray-500 mb-4">
-                                                        Complete {pendingCount} remaining task{pendingCount !== 1 ? 's' : ''} to finish this lesson.
+                                                        Complete {pendingCount} remaining task{pendingCount !== 1 ? 's' : ''} to finish.
                                                     </p>
                                                     <Button onClick={handleContinueLesson} className="w-full py-4 text-sm font-black uppercase tracking-widest bg-amber-500 hover:bg-amber-600">
                                                         Go to Tasks
@@ -912,7 +965,6 @@ export default function SocialView() {
                                             );
                                         }
                                         
-                                        // Not started - Show start lesson UI
                                         return (
                                             <>
                                                 <div className="flex items-center gap-3 mb-4">
@@ -922,30 +974,24 @@ export default function SocialView() {
                                                     <h4 className="font-black text-sm text-secondary uppercase tracking-wide">Ready to Practice?</h4>
                                                 </div>
                                                 <p className="text-sm text-gray-600 mb-6 leading-relaxed">
-                                                    Start this lesson to unlock <strong>2 personalized practice tasks</strong> in your dashboard. Complete all tasks to mark this lesson as done.
+                                                    Start this lesson to unlock <strong>2 personalized practice tasks</strong> in your dashboard.
                                                 </p>
                                                 <div className="bg-white rounded-xl p-4 mb-6 border border-secondary/10">
                                                     <div className="flex items-center gap-3 text-sm text-gray-600">
-                                                        <Icons.Check className="w-4 h-4 text-secondary" />
-                                                        <span>Tasks generated based on lesson content</span>
+                                                        <Icons.Check className="w-4 h-4 text-secondary flex-shrink-0" />
+                                                        <span>Tasks based on lesson content</span>
                                                     </div>
                                                     <div className="flex items-center gap-3 text-sm text-gray-600 mt-2">
-                                                        <Icons.Check className="w-4 h-4 text-secondary" />
-                                                        <span>Track progress in your dashboard</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-3 text-sm text-gray-600 mt-2">
-                                                        <Icons.Check className="w-4 h-4 text-secondary" />
-                                                        <span>Earn completion badge</span>
+                                                        <Icons.Check className="w-4 h-4 text-secondary flex-shrink-0" />
+                                                        <span>Track progress in dashboard</span>
                                                     </div>
                                                 </div>
                                                 <Button 
                                                     onClick={handleStartLesson} 
                                                     isLoading={isStartingLesson}
-                                                    disabled={isStartingLesson}
-                                                    variant="secondary"
                                                     className="w-full py-4 text-sm font-black uppercase tracking-widest"
                                                 >
-                                                    {isStartingLesson ? 'Creating Tasks...' : 'Start Lesson'}
+                                                    Start Lesson
                                                 </Button>
                                             </>
                                         );
@@ -954,15 +1000,8 @@ export default function SocialView() {
                             </>
                         ) : (
                             <div className="text-center py-20">
-                                <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                                    <Icons.AlertTriangle className="w-8 h-8 text-red-400" />
-                                </div>
-                                <p className="text-gray-600 font-medium mb-2">Could not load lesson content</p>
-                                <p className="text-gray-400 text-sm mb-6 max-w-xs mx-auto">{viewingLesson.description}</p>
-                                <div className="flex flex-col gap-3 max-w-xs mx-auto">
-                                    <Button onClick={handleRetryLessonContent}>Try Again</Button>
-                                    <Button onClick={closeLessonModal} variant="outline">Close</Button>
-                                </div>
+                                <p className="text-gray-400">Failed to load lesson content.</p>
+                                <Button onClick={closeLessonModal} variant="outline" className="mt-4">Close</Button>
                             </div>
                         )}
                     </div>

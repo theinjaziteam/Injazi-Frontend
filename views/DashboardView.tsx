@@ -1,3 +1,4 @@
+// views/DashboardView.tsx
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { AppView, TaskStatus, AgentAlert, Goal, Task } from '../types';
@@ -16,12 +17,12 @@ export default function DashboardView() {
     const [isLoadingOffers, setIsLoadingOffers] = useState(false);
     const [adgemOffers, setAdgemOffers] = useState<any[]>([]);
 
-    // --- SAFETY CHECKS ---
+    // Safety checks
     const dailyTasks = user.dailyTasks || [];
     const allGoals = user.allGoals || [];
     const agentAlerts = user.agentAlerts || [];
     const adgemTransactions = (user as any).adgemTransactions || [];
-    const currentGoal = user.goal || { title: "Loading...", category: "General", durationDays: 30, mode: "Standard" };
+    const currentGoal = user.goal || { title: "Set Your Goal", category: "General", durationDays: 30, mode: "Standard" };
 
     // Separate daily tasks from lesson tasks
     const pendingDailyTasks = dailyTasks.filter(t => 
@@ -30,7 +31,7 @@ export default function DashboardView() {
         !t.isLessonTask
     );
 
-    // Fetch AdGem offers when section expands
+    // Fetch AdGem offers
     useEffect(() => {
         if (isEarnExpanded && user.email && adgemOffers.length === 0) {
             fetchAdgemOffers();
@@ -39,7 +40,6 @@ export default function DashboardView() {
 
     const fetchAdgemOffers = async () => {
         if (isLoadingOffers) return;
-        
         setIsLoadingOffers(true);
         try {
             const response = await api.getAdgemOffers(user.email);
@@ -53,16 +53,6 @@ export default function DashboardView() {
         }
     };
 
-    // Get lesson name for a task
-    const getLessonNameForTask = (task: Task): string | null => {
-        if (!task.sourceLessonId || !lessons) return null;
-        for (const chapter of lessons) {
-            const lesson = chapter.lessons.find(l => l.id === task.sourceLessonId);
-            if (lesson) return lesson.title;
-        }
-        return null;
-    };
-
     const calculateRealTimeRemaining = (task: Task) => {
         let currentSeconds = task.timeLeft || 0;
         if (task.isTimerActive && task.lastUpdated) {
@@ -70,7 +60,7 @@ export default function DashboardView() {
             currentSeconds = Math.max(0, currentSeconds - elapsed);
         }
         const mins = Math.ceil(currentSeconds / 60);
-        return `${mins}m left`;
+        return `${mins}m`;
     };
 
     const handleTaskSelect = (taskId: string) => {
@@ -108,44 +98,40 @@ export default function DashboardView() {
 
     const saveCurrentGoalState = (prevUser: typeof user) => {
         if (!prevUser.goal) return prevUser.allGoals || [];
-        return (prevUser.allGoals || []).map(g => g.id === prevUser.goal?.id ? { ...g, savedTasks: prevUser.dailyTasks || [] } : g);
+        return (prevUser.allGoals || []).map(g => 
+            g.id === prevUser.goal?.id ? { ...g, savedTasks: prevUser.dailyTasks || [] } : g
+        );
     };
     
     const switchGoal = (targetGoal: Goal) => {
         if (targetGoal.id === user.goal?.id) return;
-        setUser(prev => ({ ...prev, allGoals: saveCurrentGoalState(prev), goal: targetGoal, dailyTasks: targetGoal.savedTasks || [], currentDay: targetGoal.savedDay || 1 }));
+        setUser(prev => ({ 
+            ...prev, 
+            allGoals: saveCurrentGoalState(prev), 
+            goal: targetGoal, 
+            dailyTasks: targetGoal.savedTasks || [], 
+            currentDay: targetGoal.savedDay || 1 
+        }));
     };
 
     const handleAddGoal = () => {
         if (allGoals.length >= user.maxGoalSlots) {
-            const confirmPurchase = window.confirm(`You have reached the limit of ${user.maxGoalSlots} goal slots.\n\nUnlock a new Goal Slot for $2.99?`);
+            const confirmPurchase = window.confirm(`You have reached ${user.maxGoalSlots} goal slots.\n\nUnlock a new slot for $2.99?`);
             if (confirmPurchase) {
                 setUser(prev => ({ ...prev, maxGoalSlots: prev.maxGoalSlots + 1 }));
-                alert("Payment Successful! Slot Authorized.");
+                alert("Slot Unlocked!");
             } else return;
         }
         setUser(prev => ({ ...prev, allGoals: saveCurrentGoalState(prev) }));
         setView(AppView.ONBOARDING);
     };
 
-    // Handle clicking on an AdGem offer
     const handleOfferClick = (offer: any) => {
         if (offer.clickUrl) {
             window.open(offer.clickUrl, '_blank');
         }
     };
 
-    // Get difficulty label
-    const getDifficultyLabel = (difficulty?: number) => {
-        switch(difficulty) {
-            case 1: return 'Easy';
-            case 2: return 'Medium';
-            case 3: return 'Hard';
-            default: return 'Easy';
-        }
-    };
-
-    // Get difficulty color
     const getDifficultyColor = (difficulty?: number) => {
         switch(difficulty) {
             case 1: return 'bg-green-100 text-green-700';
@@ -155,236 +141,365 @@ export default function DashboardView() {
         }
     };
 
-    const AgentAlertCard: React.FC<{ alert: AgentAlert; onClick?: () => void }> = ({ alert, onClick }) => (
-        <div onClick={onClick} className={`rounded-2xl mb-4 border-l-4 shadow-lg bg-white p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors ${alert.severity === 'high' ? 'border-red-500 shadow-red-500/10' : 'border-blue-500 shadow-blue-500/10'}`}>
-            <div className="flex items-center gap-3 overflow-hidden">
-                <Icons.AlertTriangle className={`w-5 h-5 flex-shrink-0 ${alert.severity === 'high' ? 'text-red-500' : 'text-blue-500'}`}/>
-                <h3 className="font-bold text-primary text-sm truncate">{alert.title}</h3>
-            </div>
-            <Icons.ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
-        </div>
-    );
+    const getDifficultyLabel = (difficulty?: number) => {
+        switch(difficulty) {
+            case 1: return 'Easy';
+            case 2: return 'Medium';
+            case 3: return 'Hard';
+            default: return 'Easy';
+        }
+    };
 
     return (
-        <div className="h-full overflow-y-auto pb-safe scroll-smooth">
-            <div className="min-h-full bg-white pb-28 animate-fade-in">
-                <div className="bg-primary text-white px-6 pt-safe pt-12 pb-16 rounded-b-[3rem] relative overflow-hidden shadow-2xl shadow-primary/20">
-                    <div className="flex justify-between items-center relative z-20 mb-6 mt-4">
+        <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
+            {/* ===== FIXED HEADER ===== */}
+            <div className="flex-shrink-0 bg-primary text-white pt-safe rounded-b-[2rem] shadow-xl relative overflow-hidden">
+                {/* Background decoration */}
+                <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" />
+                <div className="absolute bottom-0 left-0 w-32 h-32 bg-accent/10 rounded-full blur-2xl translate-y-1/2 -translate-x-1/4" />
+                
+                <div className="relative z-10 px-5 pb-5">
+                    {/* Top Bar */}
+                    <div className="flex justify-between items-center py-3">
                         <h2 className="text-xl font-black tracking-tighter">INJAZI</h2>
                         <div className="flex gap-2">
-                            <button onClick={() => setShowCheckIn(true)} className="p-2 bg-[#DFF3E4] text-primary rounded-full hover:bg-white transition-colors shadow-lg"><Icons.Check className="w-5 h-5" /></button>
-                            <button onClick={() => setView(AppView.SETTINGS)} className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors"><Icons.Settings className="w-5 h-5" /></button>
-                        </div>
-                    </div>
-                    
-                    <div className="relative z-20 w-full mb-10">
-                        <div className="flex justify-center items-center flex-wrap gap-4 text-xs font-bold tracking-[0.2em] uppercase">
-                            {allGoals.map((g, idx) => (<React.Fragment key={g.id}><button onClick={() => switchGoal(g)} className={`transition-all hover:scale-105 ${g.id === currentGoal.id ? 'text-white border-b-2 border-accent pb-0.5' : 'text-white/40'}`}>Goal {idx + 1}</button><span className="text-white/10">|</span></React.Fragment>))}
-                            <button onClick={handleAddGoal} className="text-white/40 hover:text-white transition-colors flex items-center gap-1">+ New</button>
+                            <button 
+                                onClick={() => setShowCheckIn(true)} 
+                                className="w-10 h-10 bg-accent text-primary rounded-full flex items-center justify-center shadow-lg shadow-accent/30 active:scale-95 transition-transform"
+                            >
+                                <Icons.Check className="w-5 h-5" />
+                            </button>
+                            <button 
+                                onClick={() => setView(AppView.SETTINGS)} 
+                                className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center active:scale-95 transition-transform"
+                            >
+                                <Icons.Settings className="w-5 h-5" />
+                            </button>
                         </div>
                     </div>
 
-                    <div className="flex flex-col items-center text-center relative z-10 animate-slide-up">
-                        <div className="relative w-40 h-40 flex items-center justify-center mb-4">
+                    {/* Goal Tabs */}
+                    <div className="flex justify-center items-center gap-3 mb-4">
+                        {allGoals.map((g, idx) => (
+                            <button 
+                                key={g.id}
+                                onClick={() => switchGoal(g)} 
+                                className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full transition-all ${
+                                    g.id === currentGoal.id 
+                                        ? 'bg-white/20 text-white' 
+                                        : 'text-white/40'
+                                }`}
+                            >
+                                Goal {idx + 1}
+                            </button>
+                        ))}
+                        <button 
+                            onClick={handleAddGoal} 
+                            className="text-[10px] font-bold uppercase tracking-wider text-white/40 hover:text-white px-2 py-1.5 transition-colors"
+                        >
+                            + New
+                        </button>
+                    </div>
+
+                    {/* Progress Circle & Goal Info */}
+                    <div className="flex items-center gap-5">
+                        {/* Progress Ring */}
+                        <div className="relative w-24 h-24 flex-shrink-0">
                             <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                                <circle cx="50" cy="50" r="42" stroke="currentColor" strokeWidth="6" fill="none" className="text-white/5" />
-                                <circle cx="50" cy="50" r="42" stroke="currentColor" strokeWidth="6" fill="none" className="text-accent" strokeDasharray="263.8" strokeDashoffset={263.8 - (263.8 * (user.currentDay / (currentGoal.durationDays || 365)))} strokeLinecap="round" />
+                                <circle 
+                                    cx="50" cy="50" r="40" 
+                                    stroke="currentColor" 
+                                    strokeWidth="8" 
+                                    fill="none" 
+                                    className="text-white/10" 
+                                />
+                                <circle 
+                                    cx="50" cy="50" r="40" 
+                                    stroke="currentColor" 
+                                    strokeWidth="8" 
+                                    fill="none" 
+                                    className="text-accent" 
+                                    strokeDasharray="251.2" 
+                                    strokeDashoffset={251.2 - (251.2 * (user.currentDay / (currentGoal.durationDays || 30)))} 
+                                    strokeLinecap="round" 
+                                />
                             </svg>
-                            <div className="absolute inset-0 flex items-center justify-center flex-col">
-                                <span className="text-4xl font-black text-white tracking-tighter">{Math.round((user.currentDay/(currentGoal.durationDays || 365))*100)}%</span>
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <span className="text-2xl font-black">
+                                    {Math.round((user.currentDay / (currentGoal.durationDays || 30)) * 100)}%
+                                </span>
                             </div>
                         </div>
-                        <h3 className="font-bold text-2xl leading-tight mb-2 max-w-[80%] mx-auto">{currentGoal.title}</h3>
-                        <div className="flex items-center gap-3 mt-1"><span className="text-white/60 text-xs font-bold uppercase tracking-wide bg-white/5 px-3 py-1 rounded-lg">Day {user.currentDay} of {currentGoal.durationDays}</span></div>
+
+                        {/* Goal Details */}
+                        <div className="flex-1 min-w-0">
+                            <h3 className="font-bold text-lg leading-tight line-clamp-2 mb-1">
+                                {currentGoal.title}
+                            </h3>
+                            <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-white/50 bg-white/10 px-2.5 py-1 rounded-full">
+                                    Day {user.currentDay}/{currentGoal.durationDays}
+                                </span>
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-accent">
+                                    🔥 {user.streak || 0} streak
+                                </span>
+                            </div>
+                        </div>
                     </div>
                 </div>
+            </div>
 
-                <div className="px-6 -mt-8 relative z-20 space-y-6">
-                    {agentAlerts.filter(a => !a.isRead).map(alert => (<AgentAlertCard key={alert.id} alert={alert} onClick={() => setView(AppView.STATS)} />))}
-
-                    {/* Active Daily Missions Card */}
-                    <Card className="p-0 overflow-hidden border-none shadow-xl shadow-primary/10">
-                        <div className="bg-white p-6">
-                            <div className="flex justify-between items-center mb-4">
-                                <h3 className="font-bold text-primary text-lg">Daily Missions</h3>
-                                <Badge color="bg-secondary text-white">{pendingDailyTasks.length} ACTIVE</Badge>
-                            </div>
-                            
-                            {pendingDailyTasks.length === 0 ? (
-                                <div className="text-center py-6">
-                                    <Icons.Check className="w-10 h-10 text-green-500 mx-auto mb-2" />
-                                    <p className="text-gray-500 text-sm">All daily tasks complete!</p>
-                                </div>
-                            ) : (
-                                <div className="space-y-3 mb-6">
-                                   {pendingDailyTasks.map(task => (
-                                       <div key={task.id} onClick={() => handleTaskSelect(task.id)} className="bg-gray-50 border border-gray-100 p-4 rounded-xl flex justify-between items-center cursor-pointer hover:shadow-md transition-all group">
-                                           <div>
-                                               <div className="text-[9px] font-black uppercase text-secondary tracking-widest mb-1">Daily Task</div>
-                                               <h4 className="font-bold text-primary text-sm group-hover:text-secondary transition-colors">{task.title}</h4>
-                                           </div>
-                                           <div className="flex items-center gap-3">
-                                               {(task.timeLeft !== undefined && task.timeLeft > 0 && task.timeLeft < ((task.estimatedTimeMinutes || 20) * 60)) && (
-                                                   <Badge color={task.isTimerActive ? "bg-green-100 text-green-700 animate-pulse" : "bg-yellow-100 text-yellow-700"}>
-                                                       {calculateRealTimeRemaining(task)}
-                                                   </Badge>
-                                               )}
-                                               <Icons.ChevronRight className="w-5 h-5 text-gray-300"/>
-                                           </div>
-                                       </div>
-                                   ))}
-                                </div>
-                            )}
-                            
-                            <Button onClick={() => setView(AppView.TASK_SELECTION)} className="w-full group" variant="secondary">Browse All Tasks</Button>
-                        </div>
-                    </Card>
-
-                    {/* Earn Credits Section - AdGem Offers */}
-                    <div className="bg-white rounded-[2rem] border border-gray-100 shadow-md overflow-hidden transition-all duration-300">
+            {/* ===== SCROLLABLE CONTENT ===== */}
+            <div className="flex-1 overflow-y-auto overscroll-contain">
+                <div className="px-4 py-4 space-y-4">
+                    
+                    {/* Agent Alerts */}
+                    {agentAlerts.filter(a => !a.isRead).map(alert => (
                         <div 
-                            className="p-6 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors" 
-                            onClick={() => setIsEarnExpanded(!isEarnExpanded)}
+                            key={alert.id}
+                            onClick={() => setView(AppView.STATS)}
+                            className={`bg-white rounded-2xl p-4 flex items-center gap-3 shadow-sm border-l-4 active:scale-[0.98] transition-transform ${
+                                alert.severity === 'high' ? 'border-red-500' : 'border-blue-500'
+                            }`}
                         >
-                            <div className="flex items-center gap-3">
-                                {/* CHANGED: Solid casual yellow instead of gradient */}
-                                <div className="w-12 h-12 bg-yellow-400 rounded-2xl flex items-center justify-center shadow-lg shadow-yellow-400/30">
-                                    <Icons.Coins className="w-6 h-6 text-yellow-900" />
-                                </div>
-                                <div>
-                                    <h3 className="text-lg font-black text-primary">Earn Credits</h3>
-                                    <p className="text-xs text-gray-400">Complete offers to earn rewards</p>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <div className="text-right">
-                                    <span className="text-lg font-black text-primary">{user.credits}</span>
-                                    <span className="text-xs text-gray-400 ml-1">CR</span>
-                                </div>
-                                <Icons.ChevronDown className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${isEarnExpanded ? 'rotate-180' : ''}`} />
+                            <Icons.AlertTriangle className={`w-5 h-5 flex-shrink-0 ${
+                                alert.severity === 'high' ? 'text-red-500' : 'text-blue-500'
+                            }`}/>
+                            <span className="font-bold text-primary text-sm flex-1 truncate">{alert.title}</span>
+                            <Icons.ChevronRight className="w-4 h-4 text-gray-300" />
+                        </div>
+                    ))}
+
+                    {/* Daily Missions */}
+                    <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+                        <div className="p-4 border-b border-gray-50">
+                            <div className="flex justify-between items-center">
+                                <h3 className="font-bold text-primary text-base">Daily Missions</h3>
+                                <span className="text-[10px] font-bold uppercase bg-secondary text-white px-2.5 py-1 rounded-full">
+                                    {pendingDailyTasks.length} Active
+                                </span>
                             </div>
                         </div>
                         
-                        {isEarnExpanded && (
-                            <div className="px-6 pb-6 animate-slide-up">
-                                {/* Loading State */}
-                                {isLoadingOffers && (
-                                    <div className="py-8 text-center">
-                                        <div className="w-10 h-10 border-4 border-secondary border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-                                        <p className="text-sm text-gray-400">Loading offers...</p>
+                        <div className="p-3">
+                            {pendingDailyTasks.length === 0 ? (
+                                <div className="text-center py-6">
+                                    <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                                        <Icons.Check className="w-6 h-6 text-green-600" />
                                     </div>
-                                )}
+                                    <p className="text-sm font-medium text-gray-500">All tasks complete!</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    {pendingDailyTasks.slice(0, 3).map(task => (
+                                        <div 
+                                            key={task.id} 
+                                            onClick={() => handleTaskSelect(task.id)} 
+                                            className="bg-gray-50 p-3 rounded-xl flex items-center gap-3 active:scale-[0.98] transition-transform"
+                                        >
+                                            <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                                                <Icons.Zap className="w-5 h-5 text-primary" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="font-bold text-primary text-sm truncate">{task.title}</h4>
+                                                <p className="text-[10px] text-gray-400">
+                                                    {task.estimatedTimeMinutes || 15} min • {task.creditsReward || 50} CR
+                                                </p>
+                                            </div>
+                                            {task.timeLeft !== undefined && task.timeLeft > 0 && (
+                                                <span className={`text-[9px] font-bold px-2 py-1 rounded-full ${
+                                                    task.isTimerActive 
+                                                        ? 'bg-green-100 text-green-700' 
+                                                        : 'bg-yellow-100 text-yellow-700'
+                                                }`}>
+                                                    {calculateRealTimeRemaining(task)}
+                                                </span>
+                                            )}
+                                            <Icons.ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            
+                            <button 
+                                onClick={() => setView(AppView.TASK_SELECTION)}
+                                className="w-full mt-3 py-3 bg-primary text-white font-bold text-sm rounded-xl active:scale-[0.98] transition-transform"
+                            >
+                                View All Tasks
+                            </button>
+                        </div>
+                    </div>
 
-                                {/* Offers List */}
-                                {!isLoadingOffers && adgemOffers.length > 0 && (
-                                    <div className="space-y-3">
-                                        {adgemOffers.map(offer => (
+                    {/* Earn Credits */}
+                    <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+                        <div 
+                            onClick={() => setIsEarnExpanded(!isEarnExpanded)}
+                            className="p-4 flex items-center gap-3 active:bg-gray-50 transition-colors"
+                        >
+                            <div className="w-12 h-12 bg-yellow-400 rounded-2xl flex items-center justify-center shadow-lg shadow-yellow-400/30 flex-shrink-0">
+                                <Icons.Coins className="w-6 h-6 text-yellow-900" />
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="font-bold text-primary text-base">Earn Credits</h3>
+                                <p className="text-[10px] text-gray-400">Complete offers for rewards</p>
+                            </div>
+                            <div className="text-right mr-2">
+                                <span className="text-lg font-black text-primary">{(user.credits || 0).toLocaleString()}</span>
+                                <span className="text-[10px] text-gray-400 ml-1">CR</span>
+                            </div>
+                            <Icons.ChevronDown className={`w-5 h-5 text-gray-300 transition-transform ${isEarnExpanded ? 'rotate-180' : ''}`} />
+                        </div>
+                        
+                        {isEarnExpanded && (
+                            <div className="px-4 pb-4 border-t border-gray-50">
+                                {isLoadingOffers ? (
+                                    <div className="py-8 text-center">
+                                        <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                                        <p className="text-xs text-gray-400">Loading offers...</p>
+                                    </div>
+                                ) : adgemOffers.length > 0 ? (
+                                    <div className="space-y-2 pt-3">
+                                        {adgemOffers.slice(0, 5).map(offer => (
                                             <div 
                                                 key={offer.id} 
                                                 onClick={() => handleOfferClick(offer)}
-                                                className="bg-gray-50 border border-gray-100 p-4 rounded-2xl flex items-center gap-4 cursor-pointer hover:shadow-lg hover:border-secondary/30 transition-all group"
+                                                className="bg-gray-50 p-3 rounded-xl flex items-center gap-3 active:scale-[0.98] transition-transform"
                                             >
-                                                {/* App Icon */}
-                                                <div className="w-14 h-14 rounded-xl bg-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                                <div className="w-12 h-12 rounded-xl bg-gray-200 overflow-hidden flex-shrink-0">
                                                     {offer.icon ? (
-                                                        <img src={offer.icon} alt={offer.name} className="w-full h-full object-cover" />
+                                                        <img src={offer.icon} alt="" className="w-full h-full object-cover" />
                                                     ) : (
-                                                        <Icons.Gift className="w-6 h-6 text-gray-400" />
+                                                        <div className="w-full h-full flex items-center justify-center">
+                                                            <Icons.Gift className="w-5 h-5 text-gray-400" />
+                                                        </div>
                                                     )}
                                                 </div>
-                                                
-                                                {/* Content */}
                                                 <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded ${getDifficultyColor(offer.completionDifficulty)}`}>
+                                                    <div className="flex items-center gap-1.5 mb-0.5">
+                                                        <span className={`text-[8px] font-bold uppercase px-1.5 py-0.5 rounded ${getDifficultyColor(offer.completionDifficulty)}`}>
                                                             {getDifficultyLabel(offer.completionDifficulty)}
                                                         </span>
-                                                        {offer.renderSticker && offer.stickerText && (
-                                                            <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded bg-green-100 text-green-700">
-                                                                {offer.stickerText}
-                                                            </span>
-                                                        )}
                                                     </div>
-                                                    <h4 className="font-bold text-primary text-sm leading-tight group-hover:text-secondary transition-colors truncate">
-                                                        {offer.name}
-                                                    </h4>
-                                                    <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">
-                                                        {offer.shortDescription || offer.description}
-                                                    </p>
+                                                    <h4 className="font-bold text-primary text-sm truncate">{offer.name}</h4>
+                                                    <p className="text-[10px] text-gray-400 truncate">{offer.shortDescription}</p>
                                                 </div>
-                                                
-                                                {/* CHANGED: Solid casual yellow instead of gradient */}
-                                                <div className="text-right flex-shrink-0">
-                                                    <div className="bg-yellow-400 text-yellow-900 px-3 py-1.5 rounded-xl">
-                                                        <span className="font-black text-sm">+{offer.amount}</span>
-                                                    </div>
-                                                    <span className="text-[9px] text-gray-400 mt-1 block">credits</span>
+                                                <div className="bg-yellow-400 text-yellow-900 px-2.5 py-1.5 rounded-xl flex-shrink-0">
+                                                    <span className="font-black text-sm">+{offer.amount}</span>
                                                 </div>
                                             </div>
                                         ))}
+                                        
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); fetchAdgemOffers(); }}
+                                            disabled={isLoadingOffers}
+                                            className="w-full py-2.5 text-[10px] font-bold text-primary uppercase tracking-wider hover:bg-gray-50 rounded-xl transition-colors"
+                                        >
+                                            Refresh Offers
+                                        </button>
                                     </div>
-                                )}
-
-                                {/* Empty State */}
-                                {!isLoadingOffers && adgemOffers.length === 0 && (
+                                ) : (
                                     <div className="py-8 text-center">
-                                        <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                                            <Icons.Gift className="w-8 h-8 text-gray-300" />
+                                        <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                                            <Icons.Gift className="w-6 h-6 text-gray-300" />
                                         </div>
-                                        <p className="text-sm text-gray-500 font-medium">No offers available</p>
-                                        <p className="text-xs text-gray-400 mt-1">Check back later for new offers</p>
+                                        <p className="text-sm text-gray-400">No offers available</p>
+                                        <p className="text-[10px] text-gray-300 mt-1">Check back later</p>
                                     </div>
                                 )}
 
-                                {/* Completed Transactions */}
+                                {/* Recent Transactions */}
                                 {adgemTransactions.length > 0 && (
-                                    <div className="mt-6 pt-4 border-t border-gray-100">
-                                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">
-                                            Recently Completed ({adgemTransactions.length})
+                                    <div className="mt-4 pt-3 border-t border-gray-100">
+                                        <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">
+                                            Recent Earnings
                                         </h4>
-                                        <div className="space-y-2">
+                                        <div className="space-y-1.5">
                                             {adgemTransactions.slice(-3).reverse().map((t: any) => (
-                                                <div key={t.transactionId} className="bg-green-50 p-3 rounded-xl flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
-                                                        <Icons.Check className="w-4 h-4 text-green-600" />
+                                                <div key={t.transactionId} className="bg-green-50 p-2.5 rounded-xl flex items-center gap-2">
+                                                    <div className="w-7 h-7 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
+                                                        <Icons.Check className="w-3.5 h-3.5 text-green-600" />
                                                     </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <h4 className="font-semibold text-green-700 text-sm truncate">
-                                                            {t.offerName}
-                                                        </h4>
-                                                    </div>
+                                                    <span className="font-medium text-green-700 text-xs flex-1 truncate">{t.offerName}</span>
                                                     <span className="text-xs font-bold text-green-600">+{t.credits}</span>
                                                 </div>
                                             ))}
                                         </div>
                                     </div>
                                 )}
-
-                                {/* Refresh Button */}
-                                <button 
-                                    onClick={(e) => { e.stopPropagation(); fetchAdgemOffers(); }}
-                                    disabled={isLoadingOffers}
-                                    className="w-full mt-4 py-3 text-xs font-bold text-secondary uppercase tracking-wider hover:bg-secondary/5 rounded-xl transition-colors disabled:opacity-50"
-                                >
-                                    {isLoadingOffers ? 'Refreshing...' : 'Refresh Offers'}
-                                </button>
                             </div>
                         )}
                     </div>
-                </div>
 
-                {showCheckIn && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-primary/80 backdrop-blur-sm p-6 animate-fade-in">
-                        <div className="bg-white rounded-[2rem] w-full max-w-md p-8 shadow-2xl animate-scale-in">
-                            <h2 className="text-2xl font-bold text-primary mb-2">Daily Check-in</h2>
-                            <p className="text-sm text-secondary mb-6">What did you accomplish today?</p>
-                            <textarea value={checkInText} onChange={(e) => setCheckInText(e.target.value)} className="w-full h-32 p-4 bg-accent/30 rounded-xl border border-accent mb-6 focus:outline-none" placeholder="I researched 3 competitors..." />
-                            <Button onClick={submitDailyCheckIn} isLoading={isProcessingCheckIn} disabled={!checkInText.trim()}>Submit Check-in</Button>
-                            <button onClick={() => setShowCheckIn(false)} className="w-full mt-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Cancel</button>
+                    {/* Quick Stats */}
+                    <div className="grid grid-cols-3 gap-3">
+                        <div className="bg-white rounded-2xl p-4 text-center shadow-sm">
+                            <Icons.Flame className="w-6 h-6 text-orange-500 mx-auto mb-1" />
+                            <span className="text-xl font-black text-primary block">{user.streak || 0}</span>
+                            <span className="text-[9px] text-gray-400 font-bold uppercase">Streak</span>
+                        </div>
+                        <div className="bg-white rounded-2xl p-4 text-center shadow-sm">
+                            <Icons.Check className="w-6 h-6 text-green-500 mx-auto mb-1" />
+                            <span className="text-xl font-black text-primary block">
+                                {dailyTasks.filter(t => t.status === TaskStatus.APPROVED || t.status === TaskStatus.COMPLETED).length}
+                            </span>
+                            <span className="text-[9px] text-gray-400 font-bold uppercase">Done</span>
+                        </div>
+                        <div 
+                            onClick={() => setView(AppView.SHOP)}
+                            className="bg-white rounded-2xl p-4 text-center shadow-sm active:scale-[0.98] transition-transform"
+                        >
+                            <Icons.Coins className="w-6 h-6 text-yellow-500 mx-auto mb-1" />
+                            <span className="text-xl font-black text-primary block">{(user.credits || 0).toLocaleString()}</span>
+                            <span className="text-[9px] text-gray-400 font-bold uppercase">Credits</span>
                         </div>
                     </div>
-                )}
+
+                </div>
             </div>
+
+            {/* ===== CHECK-IN MODAL ===== */}
+            {showCheckIn && (
+                <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white w-full max-w-lg rounded-t-[2rem] p-5 shadow-2xl animate-slide-up">
+                        <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
+                        
+                        <h2 className="text-xl font-black text-primary mb-1">Daily Check-in</h2>
+                        <p className="text-sm text-gray-400 mb-4">What did you accomplish today?</p>
+                        
+                        <textarea 
+                            value={checkInText} 
+                            onChange={(e) => setCheckInText(e.target.value)} 
+                            className="w-full h-28 p-4 bg-gray-50 rounded-2xl border-2 border-gray-100 focus:border-primary/30 focus:outline-none text-sm resize-none" 
+                            placeholder="I completed 3 lessons and practiced for 2 hours..." 
+                        />
+                        
+                        <button 
+                            onClick={submitDailyCheckIn}
+                            disabled={!checkInText.trim() || isProcessingCheckIn}
+                            className="w-full mt-4 py-4 bg-primary text-white font-bold rounded-2xl disabled:opacity-50 active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
+                        >
+                            {isProcessingCheckIn ? (
+                                <>
+                                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    Processing...
+                                </>
+                            ) : (
+                                'Submit Check-in'
+                            )}
+                        </button>
+                        
+                        <button 
+                            onClick={() => setShowCheckIn(false)} 
+                            className="w-full mt-2 py-3 text-gray-400 font-bold text-sm"
+                        >
+                            Cancel
+                        </button>
+                        
+                        {/* Safe area padding for home indicator */}
+                        <div className="h-safe" />
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -1,82 +1,42 @@
 import { 
-    Goal, Task, Difficulty, ChatMessage, ChatAttachment, GoalCategory, 
+    Goal, Task, Difficulty, ChatMessage, GoalCategory, 
     FeedItem, Chapter, Course, GoalMode, ConnectedApp, TaskStatus, 
-    BudgetSplit, DeepInsight, UserState, ExtraLog, Product, LessonContent, Lesson
+    BudgetSplit, DeepInsight, UserState, ExtraLog, Product, LessonContent
 } from "../types";
 
-// Groq API Configuration
-const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY || '';
-const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const MODEL = 'llama-3.3-70b-versatile';
-
+// API Configuration - now points to YOUR backend
+const API_URL = import.meta.env.VITE_API_URL || 'https://injazi-backend.onrender.com';
 
 // ============================================
-// CORE API CALL FUNCTION
+// CORE API CALL FUNCTION - NOW CALLS YOUR BACKEND
 // ============================================
 
-async function callGroq(messages: {role: string, content: string}[], jsonMode: boolean = false): Promise<string> {
-    if (!GROQ_API_KEY) {
-        throw new Error('No API key');
-    }
-
+async function callAI(endpoint: string, body: object): Promise<any> {
     try {
-        const response = await fetch(GROQ_URL, {
+        const response = await fetch(`${API_URL}/api/ai/${endpoint}`, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${GROQ_API_KEY}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                model: MODEL,
-                messages: messages,
-                temperature: 0.7,
-                max_tokens: 4096,
-                ...(jsonMode && { response_format: { type: "json_object" } })
-            })
+            body: JSON.stringify(body)
         });
 
         const data = await response.json();
         
-        if (data.error) {
-            console.error('Groq API error:', data.error);
-            throw new Error(data.error.message);
+        if (!response.ok) {
+            console.error(`AI ${endpoint} error:`, data.error);
+            throw new Error(data.error || 'AI request failed');
         }
 
-        return data.choices?.[0]?.message?.content || '';
+        return data;
     } catch (error) {
-        console.error('Groq API error:', error);
+        console.error(`AI ${endpoint} error:`, error);
         throw error;
     }
 }
 
-// Safe JSON parser
-function safeParseJSON(text: string, fallback: any = null): any {
-    if (!text) return fallback;
-    
-    try {
-        return JSON.parse(text);
-    } catch {
-        const arrayMatch = text.match(/\[[\s\S]*\]/);
-        if (arrayMatch) {
-            try {
-                return JSON.parse(arrayMatch[0]);
-            } catch {}
-        }
-        
-        const objectMatch = text.match(/\{[\s\S]*\}/);
-        if (objectMatch) {
-            try {
-                return JSON.parse(objectMatch[0]);
-            } catch {}
-        }
-        
-        console.warn('Failed to parse JSON:', text.substring(0, 100));
-        return fallback;
-    }
-}
-
 // ============================================
-// GENERATE DAILY TASKS - IMPROVED PROMPTS
+// GENERATE DAILY TASKS
 // ============================================
 
 export async function generateDailyTasks(
@@ -86,95 +46,22 @@ export async function generateDailyTasks(
     checkIn: string = '', 
     pending: any[] = []
 ): Promise<Task[]> {
-    if (!GROQ_API_KEY) {
-        console.log('⚠️ No API key, using mock tasks');
-        return getMockTasks(goal, day);
-    }
-
     try {
-        const response = await callGroq([
-            {
-                role: 'system',
-                content: `You are an expert task coach creating highly actionable daily tasks. 
+        const data = await callAI('generate-tasks', {
+            goal: { title: goal.title, category: goal.category },
+            day,
+            userProfile,
+            checkIn
+        });
 
-RULES FOR GOOD TASKS:
-1. Title: Clear, specific action (e.g., "Create Emergency Fund Spreadsheet" not "Check finances")
-2. Description: MUST include:
-   - Exact steps to complete the task
-   - Specific tools, apps, websites, or resources to use
-   - What "done" looks like (success criteria)
-   - Pro tips if relevant
-
-EXAMPLE OF EXCELLENT TASK:
-{
-  "title": "Build Your Emergency Fund Tracker",
-  "description": "Open Google Sheets or Excel. Create columns: Date, Income, Expenses, Savings, Emergency Fund Total. List your last 3 months of expenses to find your monthly average. Your target is 3-6 months of expenses saved. Add a progress bar using conditional formatting to visualize your goal.",
-  "estimatedTimeMinutes": 25,
-  "difficulty": "MEDIUM"
-}
-
-EXAMPLE OF BAD TASK (never do this):
-{
-  "title": "Work on savings",
-  "description": "Think about your savings goals",
-  "estimatedTimeMinutes": 10,
-  "difficulty": "EASY"
-}
-
-Be specific. Be actionable. Include real tools and steps.`
-            },
-            {
-                role: 'user',
-                content: `Create 3 highly detailed tasks for Day ${day} of: "${goal.title}" (${goal.category}).
-${checkIn ? `\nUser's update: "${checkIn}"` : ''}
-${userProfile ? `\nAbout user: ${userProfile}` : ''}
-
-Requirements:
-- Task 1: Quick win (15-20 min, EASY) - Something they can start immediately
-- Task 2: Core work (30-45 min, MEDIUM) - Main progress task for the day  
-- Task 3: Deep work (45-60 min, HARD) - Challenging task that moves the needle
-
-Each description must have specific steps and tools/resources.
-
-Return ONLY valid JSON:
-{"tasks": [
-  {"title": "Quick Win Task", "description": "Detailed steps with specific tools...", "estimatedTimeMinutes": 15, "difficulty": "EASY"},
-  {"title": "Core Work Task", "description": "Detailed steps with specific tools...", "estimatedTimeMinutes": 35, "difficulty": "MEDIUM"},
-  {"title": "Deep Work Task", "description": "Detailed steps with specific tools...", "estimatedTimeMinutes": 50, "difficulty": "HARD"}
-]}`
-            }
-        ], true);
-
-        console.log('🤖 Raw AI response:', response);
-
-        let tasks: any[] = [];
-        
-        try {
-            const parsed = JSON.parse(response);
-            if (Array.isArray(parsed)) {
-                tasks = parsed;
-            } else if (parsed.tasks && Array.isArray(parsed.tasks)) {
-                tasks = parsed.tasks;
-            }
-        } catch {
-            const arrayMatch = response.match(/\[[\s\S]*?\]/);
-            if (arrayMatch) {
-                try {
-                    tasks = JSON.parse(arrayMatch[0]);
-                } catch {
-                    console.warn('Failed to parse array match');
-                }
-            }
-        }
-
-        if (!Array.isArray(tasks) || tasks.length === 0) {
-            console.warn('⚠️ AI returned invalid format, response was:', response);
+        if (!data.tasks || !Array.isArray(data.tasks) || data.tasks.length === 0) {
+            console.warn('⚠️ AI returned no tasks, using fallback');
             return getMockTasks(goal, day);
         }
 
-        console.log('✅ AI generated', tasks.length, 'tasks');
+        console.log('✅ AI generated', data.tasks.length, 'tasks');
 
-        return tasks.map((t: any, i: number) => ({
+        return data.tasks.map((t: any, i: number) => ({
             id: `task-${day}-${i}-${Date.now()}`,
             dayNumber: day,
             title: t.title || `Task ${i + 1}`,
@@ -244,41 +131,19 @@ export async function getChatResponse(
     userProfile: string, 
     currentTasks: Task[], 
     connectedApps: ConnectedApp[], 
-    attachment?: ChatAttachment, 
+    attachment?: any, 
     extraLogs: ExtraLog[] = []
 ): Promise<string> { 
-    if (!GROQ_API_KEY) {
-        return getFallbackResponse(newMessage, goal);
-    }
-    
     try {
-        const taskList = currentTasks.map(t => `- ${t.title} (${t.status})`).join('\n');
-        
-        const messages = [
-            {
-                role: 'system',
-                content: `You are "The Guide" - a supportive AI coach helping someone achieve "${goal.title}".
+        const data = await callAI('chat', {
+            goal: { title: goal.title, category: goal.category },
+            history: history.map(m => ({ role: m.role, text: m.text })),
+            message: newMessage,
+            userProfile,
+            currentTasks: currentTasks.map(t => ({ title: t.title, status: t.status }))
+        });
 
-Your personality:
-- Warm, encouraging, but practical
-- Give specific actionable advice, not generic motivation
-- Keep responses concise (2-4 sentences unless they ask for detail)
-- Reference their specific tasks and goal when relevant
-- Ask follow-up questions to understand their challenges
-
-User's current tasks:
-${taskList || 'No tasks yet'}
-
-${userProfile ? `About them: ${userProfile}` : ''}`
-            },
-            ...history.slice(-8).map(msg => ({
-                role: msg.role === 'user' ? 'user' : 'assistant',
-                content: msg.text
-            })),
-            { role: 'user', content: newMessage }
-        ];
-
-        return await callGroq(messages as any);
+        return data.response || getFallbackResponse(newMessage, goal);
     } catch (error) {
         console.error("Chat error:", error);
         return getFallbackResponse(newMessage, goal);
@@ -300,7 +165,30 @@ function getFallbackResponse(message: string, goal: Goal): string {
 }
 
 // ============================================
-// ONBOARDING
+// CURRICULUM GENERATOR
+// ============================================
+
+export async function getGoalCurriculum(goal: Goal): Promise<Chapter[]> { 
+    try {
+        const data = await callAI('curriculum', {
+            goal: { title: goal.title, category: goal.category }
+        });
+
+        if (data.chapters && Array.isArray(data.chapters) && data.chapters.length > 0) {
+            console.log('✅ Curriculum generated:', data.chapters.length, 'phases');
+            return data.chapters;
+        }
+        
+        console.warn('⚠️ No curriculum returned');
+        return [];
+    } catch (e) {
+        console.error("Curriculum generation failed:", e);
+        return [];
+    }
+}
+
+// ============================================
+// ONBOARDING - KEPT LOCAL (no AI needed)
 // ============================================
 
 export async function getNextOnboardingQuestion(
@@ -320,27 +208,24 @@ export async function getNextOnboardingQuestion(
 }
 
 // ============================================
-// GOAL ANALYZER
+// GOAL ANALYZER - Uses generic completion endpoint
 // ============================================
 
 export async function analyzeGoal(
     history: {question: string, answer: string}[]
 ): Promise<any> { 
-    if (!GROQ_API_KEY) {
-        return getDefaultGoalAnalysis(history);
-    }
-    
     try {
         const historyStr = history.map(h => `Q: ${h.question}\nA: ${h.answer}`).join('\n');
         
-        const response = await callGroq([
-            {
-                role: 'system',
-                content: 'You are a goal strategist. Analyze the user interview and create a personalized goal plan. Return ONLY valid JSON.'
-            },
-            {
-                role: 'user',
-                content: `Based on this interview, create a compelling goal plan:
+        const data = await callAI('completion', {
+            messages: [
+                {
+                    role: 'system',
+                    content: 'You are a goal strategist. Analyze the user interview and create a personalized goal plan. Return ONLY valid JSON.'
+                },
+                {
+                    role: 'user',
+                    content: `Based on this interview, create a compelling goal plan:
 
 ${historyStr}
 
@@ -354,11 +239,19 @@ Return ONLY this JSON:
   "userProfile": "Brief 3-5 word description of this person",
   "dailyQuestions": ["Personalized check-in question 1", "Personalized check-in question 2"]
 }`
-            }
-        ], true);
+                }
+            ],
+            jsonMode: true
+        });
 
-        const parsed = safeParseJSON(response, null);
-        return parsed || getDefaultGoalAnalysis(history);
+        if (data.content) {
+            try {
+                return JSON.parse(data.content);
+            } catch {
+                return getDefaultGoalAnalysis(history);
+            }
+        }
+        return getDefaultGoalAnalysis(history);
     } catch (e) {
         console.error("Goal analysis failed:", e);
         return getDefaultGoalAnalysis(history);
@@ -379,108 +272,7 @@ function getDefaultGoalAnalysis(history: {question: string, answer: string}[]): 
 }
 
 // ============================================
-// CURRICULUM GENERATOR
-// ============================================
-
-export async function getGoalCurriculum(goal: Goal): Promise<Chapter[]> { 
-    if (!GROQ_API_KEY) {
-        console.log('⚠️ No API key for curriculum');
-        return [];
-    }
-    
-    try {
-        const response = await callGroq([
-            {
-                role: 'system',
-                content: `You are an expert curriculum designer. Create a structured learning path with practical, actionable lessons. Each lesson should teach something specific and useful.`
-            },
-            {
-                role: 'user',
-                content: `Create a 4-phase learning curriculum for: "${goal.title}"
-
-Each phase should have exactly 3 lessons. Make lessons specific and practical.
-
-Return ONLY this JSON:
-{"chapters": [
-  {
-    "id": "ch-1",
-    "title": "Phase 1: Foundation",
-    "lessons": [
-      {"id": "l1", "title": "Specific Lesson Title", "duration": "10 min", "isLocked": false, "description": "What you'll learn and be able to do after this lesson"},
-      {"id": "l2", "title": "Specific Lesson Title", "duration": "12 min", "isLocked": false, "description": "What you'll learn and be able to do after this lesson"},
-      {"id": "l3", "title": "Specific Lesson Title", "duration": "10 min", "isLocked": false, "description": "What you'll learn and be able to do after this lesson"}
-    ],
-    "quiz": []
-  },
-  {
-    "id": "ch-2", 
-    "title": "Phase 2: Building Skills",
-    "lessons": [
-      {"id": "l4", "title": "Specific Lesson Title", "duration": "15 min", "isLocked": false, "description": "Description"},
-      {"id": "l5", "title": "Specific Lesson Title", "duration": "12 min", "isLocked": false, "description": "Description"},
-      {"id": "l6", "title": "Specific Lesson Title", "duration": "10 min", "isLocked": false, "description": "Description"}
-    ],
-    "quiz": []
-  },
-  {
-    "id": "ch-3",
-    "title": "Phase 3: Advanced Techniques",
-    "lessons": [
-      {"id": "l7", "title": "Specific Lesson Title", "duration": "15 min", "isLocked": false, "description": "Description"},
-      {"id": "l8", "title": "Specific Lesson Title", "duration": "12 min", "isLocked": false, "description": "Description"},
-      {"id": "l9", "title": "Specific Lesson Title", "duration": "15 min", "isLocked": false, "description": "Description"}
-    ],
-    "quiz": []
-  },
-  {
-    "id": "ch-4",
-    "title": "Phase 4: Mastery & Beyond",
-    "lessons": [
-      {"id": "l10", "title": "Specific Lesson Title", "duration": "10 min", "isLocked": false, "description": "Description"},
-      {"id": "l11", "title": "Specific Lesson Title", "duration": "12 min", "isLocked": false, "description": "Description"},
-      {"id": "l12", "title": "Specific Lesson Title", "duration": "10 min", "isLocked": false, "description": "Description"}
-    ],
-    "quiz": []
-  }
-]}`
-            }
-        ], true);
-
-        console.log('🤖 Curriculum response received');
-
-        let chapters: any[] = [];
-        
-        try {
-            const parsed = JSON.parse(response);
-            if (Array.isArray(parsed)) {
-                chapters = parsed;
-            } else if (parsed.chapters && Array.isArray(parsed.chapters)) {
-                chapters = parsed.chapters;
-            }
-        } catch {
-            const arrayMatch = response.match(/\[[\s\S]*\]/);
-            if (arrayMatch) {
-                try {
-                    chapters = JSON.parse(arrayMatch[0]);
-                } catch {}
-            }
-        }
-        
-        if (Array.isArray(chapters) && chapters.length > 0) {
-            console.log('✅ Curriculum generated:', chapters.length, 'phases');
-            return chapters;
-        }
-        
-        console.warn('⚠️ Invalid curriculum format');
-        return [];
-    } catch (e) {
-        console.error("Curriculum generation failed:", e);
-        return [];
-    }
-}
-
-// ============================================
-// LESSON CONTENT GENERATOR - FIXED
+// LESSON CONTENT GENERATOR
 // ============================================
 
 export async function generateLessonContent(
@@ -488,35 +280,19 @@ export async function generateLessonContent(
     goal: Goal,
     chapterTitle: string
 ): Promise<LessonContent | null> {
-    if (!GROQ_API_KEY) {
-        console.log('⚠️ No API key for lesson content');
-        return getDefaultLessonContent(lesson, goal);
-    }
-
     try {
-        console.log('📚 Generating lesson content for:', lesson.title);
-        
-        const response = await callGroq([
-            {
-                role: 'system',
-                content: `You are an expert educator creating detailed, actionable lesson content. 
+        const data = await callAI('completion', {
+            messages: [
+                {
+                    role: 'system',
+                    content: `You are an expert educator creating detailed, actionable lesson content. 
 Your lessons should be practical, engaging, and directly applicable.
 Write in a conversational but professional tone.
-Include specific examples, tools, and techniques the learner can use immediately.
-Each subsection should have 2-3 substantial paragraphs with real, actionable information.
-
-IMPORTANT: For the actionable_task field, format each step on a NEW LINE like this:
-"Step 1: Do this thing.
-
-Step 2: Do this next thing.
-
-Step 3: Finally do this."
-
-Use double line breaks between steps for readability.`
-            },
-            {
-                role: 'user',
-                content: `Create detailed lesson content for:
+Include specific examples, tools, and techniques the learner can use immediately.`
+                },
+                {
+                    role: 'user',
+                    content: `Create detailed lesson content for:
 
 GOAL: "${goal.title}" (${goal.category})
 CHAPTER: "${chapterTitle}"
@@ -524,42 +300,34 @@ LESSON: "${lesson.title}"
 DESCRIPTION: "${lesson.description}"
 DURATION: ${lesson.duration}
 
-Return ONLY valid JSON in this exact format:
+Return ONLY valid JSON:
 {
   "lesson_title": "${lesson.title}",
   "difficulty_level": "Beginner" or "Intermediate" or "Advanced",
   "estimated_read_time": "${lesson.duration}",
-  "core_concept": "One powerful sentence summarizing the key insight of this lesson (make it memorable and impactful)",
+  "core_concept": "One powerful sentence summarizing the key insight",
   "subsections": [
-    {
-      "title": "Understanding the Fundamentals",
-      "content": "Write 2-3 detailed paragraphs explaining the core concepts. Include specific examples, real-world applications, and clear explanations. Make it educational but engaging."
-    },
-    {
-      "title": "Practical Application",
-      "content": "Write 2-3 detailed paragraphs on how to actually apply this knowledge. Include step-by-step guidance, specific tools or methods to use, and common mistakes to avoid."
-    },
-    {
-      "title": "Taking It Further",
-      "content": "Write 2-3 detailed paragraphs on advanced tips, optimization strategies, and how to build on this foundation. Include resources for deeper learning."
-    }
+    {"title": "Understanding the Fundamentals", "content": "2-3 detailed paragraphs..."},
+    {"title": "Practical Application", "content": "2-3 detailed paragraphs..."},
+    {"title": "Taking It Further", "content": "2-3 detailed paragraphs..."}
   ],
-  "the_1_percent_secret": "A powerful insider tip or uncommon strategy that separates experts from beginners. Something that most people don't know but makes a huge difference.",
-  "actionable_task": "Step 1: [First specific action to take].\\n\\nStep 2: [Second specific action].\\n\\nStep 3: [Third specific action to complete the task]."
+  "the_1_percent_secret": "A powerful insider tip most people don't know",
+  "actionable_task": "Step 1: ...\\n\\nStep 2: ...\\n\\nStep 3: ..."
 }`
-            }
-        ], true);
+                }
+            ],
+            jsonMode: true,
+            maxTokens: 4096
+        });
 
-        console.log('🤖 Lesson content response received');
-        
-        const parsed = safeParseJSON(response, null);
-        
-        if (parsed && parsed.core_concept && parsed.subsections && Array.isArray(parsed.subsections)) {
-            console.log('✅ Lesson content generated successfully');
-            return parsed as LessonContent;
+        if (data.content) {
+            try {
+                const parsed = JSON.parse(data.content);
+                if (parsed.core_concept && parsed.subsections) {
+                    return parsed as LessonContent;
+                }
+            } catch {}
         }
-        
-        console.warn('⚠️ Invalid lesson content format, using default');
         return getDefaultLessonContent(lesson, goal);
     } catch (e) {
         console.error("Lesson content generation failed:", e);
@@ -576,24 +344,24 @@ function getDefaultLessonContent(lesson: { id: string; title: string; descriptio
         subsections: [
             {
                 title: "Understanding the Basics",
-                content: `${lesson.description}\n\nThis foundational knowledge is essential for your journey toward ${goal.title}. Take time to understand these concepts deeply, as they will serve as building blocks for everything that follows.\n\nThe key is to start with clarity. Before diving into action, make sure you understand the "why" behind each step. This understanding will help you adapt and problem-solve when challenges arise.`
+                content: `${lesson.description}\n\nThis foundational knowledge is essential for your journey toward ${goal.title}. Take time to understand these concepts deeply, as they will serve as building blocks for everything that follows.`
             },
             {
                 title: "Putting It Into Practice",
-                content: `Now that you understand the theory, it's time to apply it. The best learning happens through doing, so don't just read—take action.\n\nStart small and build momentum. Even 10 minutes of focused practice is better than hours of passive consumption. Track your progress and celebrate small wins along the way.\n\nRemember: consistency beats intensity. It's better to practice a little bit every day than to burn out with marathon sessions.`
+                content: `Now that you understand the theory, it's time to apply it. The best learning happens through doing, so don't just read—take action.\n\nStart small and build momentum. Even 10 minutes of focused practice is better than hours of passive consumption.`
             },
             {
                 title: "Building Momentum",
-                content: `As you continue practicing, you'll start to see patterns and develop intuition. This is when real mastery begins to emerge.\n\nLook for opportunities to apply what you've learned in different contexts. The more you practice, the more natural these skills will become.\n\nDon't be afraid to make mistakes—they're essential for learning. Each error is feedback that helps you improve.`
+                content: `As you continue practicing, you'll start to see patterns and develop intuition. This is when real mastery begins to emerge.\n\nLook for opportunities to apply what you've learned in different contexts.`
             }
         ],
-        the_1_percent_secret: `The most successful people in ${goal.category} don't just learn—they teach. Try explaining what you've learned to someone else (or even to yourself out loud). This "teaching effect" dramatically improves retention and understanding.`,
+        the_1_percent_secret: `The most successful people in ${goal.category} don't just learn—they teach. Try explaining what you've learned to someone else.`,
         actionable_task: `Step 1: Open your notes app or grab a piece of paper.\n\nStep 2: Write down the 3 most important things you learned from this lesson.\n\nStep 3: For each point, write one specific action you can take this week to apply it.`
     };
 }
 
 // ============================================
-// CONTENT SAFETY
+// CONTENT SAFETY - KEPT LOCAL
 // ============================================
 
 export async function checkContentSafety(text: string): Promise<{isSafe: boolean, reason?: string}> { 
@@ -603,7 +371,7 @@ export async function checkContentSafety(text: string): Promise<{isSafe: boolean
 }
 
 // ============================================
-// DEEP INSIGHTS
+// DEEP INSIGHTS - KEPT LOCAL
 // ============================================
 
 export async function generateDeepInsights(user: UserState): Promise<DeepInsight | null> {
@@ -644,7 +412,7 @@ export async function generateDeepInsights(user: UserState): Promise<DeepInsight
 }
 
 // ============================================
-// PLACEHOLDER FUNCTIONS
+// PLACEHOLDER FUNCTIONS - UNCHANGED
 // ============================================
 
 export async function getSocialMarketplace(): Promise<Course[]> { return []; }
@@ -677,7 +445,7 @@ export async function calculateBudgetSplit(amount: number, goal: any, profile: a
 }
 
 // ============================================
-// LESSON TASK GENERATOR - NEW!
+// LESSON TASK GENERATOR
 // ============================================
 
 export async function generateLessonTasks(
@@ -685,24 +453,18 @@ export async function generateLessonTasks(
     goal: Goal,
     lessonContent: LessonContent
 ): Promise<Task[]> {
-    if (!GROQ_API_KEY) {
-        console.log('⚠️ No API key for lesson tasks');
-        return getDefaultLessonTasks(lesson, goal);
-    }
-
     try {
-        console.log('📝 Generating tasks for lesson:', lesson.title);
-        
-        const response = await callGroq([
-            {
-                role: 'system',
-                content: `You are a task coach creating practical tasks based on lesson content.
+        const data = await callAI('completion', {
+            messages: [
+                {
+                    role: 'system',
+                    content: `You are a task coach creating practical tasks based on lesson content.
 Each task should directly apply what was taught in the lesson.
 Make tasks specific, actionable, and achievable in the given time.`
-            },
-            {
-                role: 'user',
-                content: `Create 2 practical tasks based on this lesson:
+                },
+                {
+                    role: 'user',
+                    content: `Create 2 practical tasks based on this lesson:
 
 LESSON: "${lesson.title}"
 KEY CONCEPT: "${lessonContent.core_concept}"
@@ -711,59 +473,44 @@ ACTION ITEM FROM LESSON: "${lessonContent.actionable_task}"
 GOAL CONTEXT: "${goal.title}" (${goal.category})
 
 Create 2 tasks:
-- Task 1: A quick application task (10-15 min, EASY) - directly applies the lesson
-- Task 2: A deeper practice task (20-30 min, MEDIUM) - extends the learning
+- Task 1: A quick application task (10-15 min, EASY)
+- Task 2: A deeper practice task (20-30 min, MEDIUM)
 
 Return ONLY valid JSON:
 {"tasks": [
-  {"title": "Quick task title", "description": "Detailed steps to complete this task based on the lesson...", "estimatedTimeMinutes": 12, "difficulty": "EASY"},
-  {"title": "Practice task title", "description": "Detailed steps for deeper practice...", "estimatedTimeMinutes": 25, "difficulty": "MEDIUM"}
+  {"title": "Quick task title", "description": "Detailed steps...", "estimatedTimeMinutes": 12, "difficulty": "EASY"},
+  {"title": "Practice task title", "description": "Detailed steps...", "estimatedTimeMinutes": 25, "difficulty": "MEDIUM"}
 ]}`
-            }
-        ], true);
-
-        let tasks: any[] = [];
-        
-        try {
-            const parsed = JSON.parse(response);
-            if (Array.isArray(parsed)) {
-                tasks = parsed;
-            } else if (parsed.tasks && Array.isArray(parsed.tasks)) {
-                tasks = parsed.tasks;
-            }
-        } catch {
-            const arrayMatch = response.match(/\[[\s\S]*?\]/);
-            if (arrayMatch) {
-                try {
-                    tasks = JSON.parse(arrayMatch[0]);
-                } catch {
-                    console.warn('Failed to parse lesson tasks');
                 }
-            }
+            ],
+            jsonMode: true
+        });
+
+        if (data.content) {
+            try {
+                const parsed = JSON.parse(data.content);
+                const tasks = parsed.tasks || parsed;
+                
+                if (Array.isArray(tasks) && tasks.length > 0) {
+                    return tasks.map((t: any, i: number) => ({
+                        id: `lesson-task-${lesson.id}-${i}-${Date.now()}`,
+                        dayNumber: 0,
+                        title: t.title || `Lesson Task ${i + 1}`,
+                        description: t.description || 'Complete this task',
+                        estimatedTimeMinutes: parseInt(t.estimatedTimeMinutes) || 15,
+                        difficulty: t.difficulty === 'EASY' || t.difficulty === 'Easy' ? Difficulty.EASY 
+                                  : t.difficulty === 'HARD' || t.difficulty === 'Hard' ? Difficulty.HARD 
+                                  : Difficulty.MEDIUM,
+                        videoRequirements: 'None',
+                        creditsReward: 0,
+                        status: TaskStatus.PENDING,
+                        sourceLessonId: lesson.id,
+                        isLessonTask: true
+                    }));
+                }
+            } catch {}
         }
-
-        if (!Array.isArray(tasks) || tasks.length === 0) {
-            return getDefaultLessonTasks(lesson, goal);
-        }
-
-        console.log('✅ Generated', tasks.length, 'lesson tasks');
-
-        return tasks.map((t: any, i: number) => ({
-            id: `lesson-task-${lesson.id}-${i}-${Date.now()}`,
-            dayNumber: 0, // Lesson tasks don't have a day number
-            title: t.title || `Lesson Task ${i + 1}`,
-            description: t.description || 'Complete this task',
-            estimatedTimeMinutes: parseInt(t.estimatedTimeMinutes) || 15,
-            difficulty: t.difficulty === 'EASY' || t.difficulty === 'Easy' ? Difficulty.EASY 
-                      : t.difficulty === 'HARD' || t.difficulty === 'Hard' ? Difficulty.HARD 
-                      : Difficulty.MEDIUM,
-            videoRequirements: 'None',
-            creditsReward: 0,
-            status: TaskStatus.PENDING,
-            sourceLessonId: lesson.id,
-            isLessonTask: true
-        }));
-
+        return getDefaultLessonTasks(lesson, goal);
     } catch (e) {
         console.error("Lesson task generation failed:", e);
         return getDefaultLessonTasks(lesson, goal);
@@ -801,4 +548,3 @@ function getDefaultLessonTasks(lesson: { id: string; title: string; description:
         }
     ];
 }
-

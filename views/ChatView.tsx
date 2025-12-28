@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { AppView, ChatMessage, ChatAttachment } from '../types';
@@ -19,24 +18,56 @@ export default function ChatView() {
     const [chatInput, setChatInput] = useState('');
     const [isChatLoading, setIsChatLoading] = useState(false);
     const [chatAttachment, setChatAttachment] = useState<ChatAttachment | undefined>(undefined);
-    const [isChatRecording, setIsChatRecording] = useState(false);
-    const chatRecorderRef = useRef<MediaRecorder | null>(null);
-    const chatAudioChunksRef = useRef<Blob[]>([]);
+    const [isSpeaking, setIsSpeaking] = useState(false);
     const chatEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const chatContainerRef = useRef<HTMLDivElement>(null);
 
     // Scroll to bottom on new messages
     useEffect(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [user.chatHistory, isChatLoading, chatAttachment]);
+        // Use a small timeout to ensure DOM is updated
+        setTimeout(() => {
+            if (chatContainerRef.current) {
+                chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+            }
+        }, 100);
+    }, [user.chatHistory, isChatLoading]);
 
     // Auto-resize textarea
     useEffect(() => {
         if (textareaRef.current) {
             textareaRef.current.style.height = 'auto';
-            textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+            textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 100) + 'px';
         }
     }, [chatInput]);
+
+    // Text-to-Speech function
+    const speakText = (text: string) => {
+        if ('speechSynthesis' in window) {
+            // Cancel any ongoing speech
+            window.speechSynthesis.cancel();
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 1;
+            utterance.pitch = 1;
+            utterance.volume = 1;
+            
+            utterance.onstart = () => setIsSpeaking(true);
+            utterance.onend = () => setIsSpeaking(false);
+            utterance.onerror = () => setIsSpeaking(false);
+            
+            window.speechSynthesis.speak(utterance);
+        } else {
+            alert('Text-to-speech is not supported in this browser.');
+        }
+    };
+
+    const stopSpeaking = () => {
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+            setIsSpeaking(false);
+        }
+    };
 
     const handleSendMessage = async () => {
         if (!chatInput.trim() && !chatAttachment) return;
@@ -61,76 +92,82 @@ export default function ChatView() {
         setChatAttachment(undefined);
         setIsChatLoading(true);
 
-        const aiResponseText = await getChatResponse(user.goal, user.chatHistory, newMessage.text, user.userProfile, user.dailyTasks, user.connectedApps, newMessage.attachment, user.extraLogs);
-        const aiMessage: ChatMessage = { id: (Date.now() + 1).toString(), role: 'ai', text: aiResponseText, timestamp: Date.now() };
+        const aiResponseText = await getChatResponse(
+            user.goal, 
+            user.chatHistory, 
+            newMessage.text, 
+            user.userProfile, 
+            user.dailyTasks, 
+            user.connectedApps, 
+            newMessage.attachment, 
+            user.extraLogs
+        );
+        
+        const aiMessage: ChatMessage = { 
+            id: (Date.now() + 1).toString(), 
+            role: 'ai', 
+            text: aiResponseText, 
+            timestamp: Date.now() 
+        };
 
         setUser(prev => ({ ...prev, chatHistory: [...prev.chatHistory, aiMessage] }));
         setIsChatLoading(false);
     };
 
-    const handleStartChatRecording = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            chatAudioChunksRef.current = [];
-            const recorder = new MediaRecorder(stream);
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files?.[0]) {
+            const file = e.target.files[0];
+            const maxSize = 10 * 1024 * 1024; // 10MB
             
-            recorder.ondataavailable = (e) => {
-                if(e.data.size > 0) chatAudioChunksRef.current.push(e.data);
-            };
+            if (file.size > maxSize) {
+                alert('File too large. Max 10MB.');
+                return;
+            }
             
-            recorder.onstop = async () => {
-                const blob = new Blob(chatAudioChunksRef.current, { type: 'audio/webm' });
-                const base64 = await blobToBase64(blob);
-                setChatAttachment({ type: 'audio', mimeType: 'audio/webm', data: base64 });
-                stream.getTracks().forEach(t => t.stop());
-                
-                // Auto-send audio
-                const newMessage: ChatMessage = {
-                    id: Date.now().toString(),
-                    role: 'user',
-                    text: "Audio Message",
-                    timestamp: Date.now(),
-                    attachment: { type: 'audio', mimeType: 'audio/webm', data: base64 }
-                };
-                setUser(prev => ({ ...prev, chatHistory: [...prev.chatHistory, newMessage] }));
-                setChatAttachment(undefined);
-                setIsChatLoading(true);
-                const aiResponseText = await getChatResponse(user.goal!, user.chatHistory, "Audio Message", user.userProfile, user.dailyTasks, user.connectedApps, newMessage.attachment, user.extraLogs);
-                setUser(prev => ({ ...prev, chatHistory: [...prev.chatHistory, { id: Date.now().toString(), role: 'ai', text: aiResponseText, timestamp: Date.now() }] }));
-                setIsChatLoading(false);
-            };
+            const base64 = await blobToBase64(file);
+            let type: 'image' | 'pdf' | 'file' = 'file';
             
-            recorder.start();
-            chatRecorderRef.current = recorder;
-            setIsChatRecording(true);
-        } catch (e) {
-            alert("Microphone access failed.");
+            if (file.type.startsWith('image')) type = 'image';
+            else if (file.type === 'application/pdf') type = 'pdf';
+            
+            setChatAttachment({ 
+                type, 
+                mimeType: file.type, 
+                data: base64,
+                fileName: file.name
+            });
         }
     };
 
     return (
         <div className="flex flex-col h-full bg-[#FAFAFA] relative">
-            {/* Header */}
-            <div className="flex-shrink-0 px-6 py-4 pt-safe bg-white/80 backdrop-blur-md border-b border-gray-100 flex items-center justify-between z-20 sticky top-0">
-                 <div className="flex items-center gap-4 mt-2">
-                     <div className="relative">
-                         <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
-                             <Icons.Bot className="w-5 h-5 text-white"/>
+            {/* Header - Fixed */}
+            <div className="flex-shrink-0 px-6 py-4 pt-safe bg-white/80 backdrop-blur-md border-b border-gray-100 z-20">
+                 <div className="flex items-center justify-between mt-2">
+                     <div className="flex items-center gap-4">
+                         <div className="relative">
+                             <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
+                                 <Icons.Bot className="w-5 h-5 text-white"/>
+                             </div>
+                             <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-[#DFF3E4] border-2 border-white rounded-full"></div>
                          </div>
-                         <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-[#DFF3E4] border-2 border-white rounded-full"></div>
+                         <div>
+                             <h1 className="text-lg font-bold text-primary tracking-tight leading-none">The Guide</h1>
+                             <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider mt-0.5">Success Architect</p>
+                         </div>
                      </div>
-                     <div>
-                         <h1 className="text-lg font-bold text-primary tracking-tight leading-none">The Guide</h1>
-                         <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider mt-0.5">Success Architect</p>
-                     </div>
+                     <button className="p-2 text-gray-400 hover:text-primary transition-colors">
+                         <Icons.Settings className="w-5 h-5" />
+                     </button>
                  </div>
-                 <button className="p-2 text-gray-400 hover:text-primary transition-colors mt-2">
-                     <Icons.Settings className="w-5 h-5" />
-                 </button>
             </div>
             
-            {/* Chat Body */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-28 scroll-smooth">
+            {/* Chat Body - Scrollable with proper padding for input */}
+            <div 
+                ref={chatContainerRef}
+                className="flex-1 overflow-y-auto p-4 space-y-6 scroll-smooth"
+                style={{ paddingBottom: '140px' }} // Space for input area
+            >
                 {user.chatHistory.length === 0 && (
                     <div className="flex flex-col items-center justify-center text-center mt-20 opacity-0 animate-fade-in" style={{animationDelay: '0.2s'}}>
                         <div className="w-24 h-24 bg-gradient-to-br from-primary/5 to-secondary/5 rounded-full flex items-center justify-center mb-6 border border-white shadow-xl">
@@ -152,11 +189,37 @@ export default function ChatView() {
                         }`}>
                             {msg.attachment && (
                                 <div className="mb-3 rounded-lg overflow-hidden border border-white/10 bg-black/50">
-                                    {msg.attachment.type === 'image' && <img src={`data:${msg.attachment.mimeType};base64,${msg.attachment.data}`} className="w-full max-h-48 object-cover" />}
-                                    {msg.attachment.type === 'audio' && <audio controls src={`data:${msg.attachment.mimeType};base64,${msg.attachment.data}`} className="w-full h-8" />}
+                                    {msg.attachment.type === 'image' && (
+                                        <img 
+                                            src={`data:${msg.attachment.mimeType};base64,${msg.attachment.data}`} 
+                                            className="w-full max-h-48 object-cover" 
+                                            alt="Attachment"
+                                        />
+                                    )}
+                                    {msg.attachment.type === 'pdf' && (
+                                        <div className="p-3 flex items-center gap-2 text-white">
+                                            <Icons.FileText className="w-5 h-5" />
+                                            <span className="text-sm">{msg.attachment.fileName || 'PDF Document'}</span>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                             <p className="text-[15px] leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                            
+                            {/* Text-to-Speech button for AI messages */}
+                            {msg.role === 'ai' && (
+                                <button 
+                                    onClick={() => isSpeaking ? stopSpeaking() : speakText(msg.text)}
+                                    className="absolute -bottom-3 right-2 p-1.5 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors opacity-0 group-hover:opacity-100"
+                                >
+                                    {isSpeaking ? (
+                                        <Icons.Pause className="w-3 h-3 text-gray-600" />
+                                    ) : (
+                                        <Icons.PlayCircle className="w-3 h-3 text-gray-600" />
+                                    )}
+                                </button>
+                            )}
+                            
                             <span className={`text-[9px] font-bold absolute -bottom-5 ${msg.role === 'user' ? 'right-0 text-gray-300' : 'left-0 text-gray-400'} opacity-0 group-hover:opacity-100 transition-opacity`}>
                                 {new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                             </span>
@@ -179,63 +242,61 @@ export default function ChatView() {
                 <div ref={chatEndRef}></div>
             </div>
 
-            {/* Floating Input Area - Compact Version */}
-            <div className="absolute bottom-[5.5rem] left-0 right-0 px-4 py-2 z-30 mb-safe">
-                <div className="bg-white/90 backdrop-blur-xl border border-white/40 shadow-xl shadow-primary/5 rounded-[1.5rem] p-1.5 flex items-end gap-2 transition-all focus-within:bg-white focus-within:shadow-primary/10">
-                     {/* Attachment Toggle */}
-                     <button 
-                         onClick={() => document.getElementById('chat-upload')?.click()}
-                         className={`p-2 rounded-full flex-shrink-0 transition-colors ${chatAttachment ? 'bg-secondary text-white' : 'text-gray-400 hover:text-primary hover:bg-gray-50'}`}
-                    >
-                        {chatAttachment ? <Icons.Check className="w-4 h-4"/> : <Icons.Paperclip className="w-4 h-4"/>}
-                        <input id="chat-upload" type="file" className="hidden" onChange={async (e) => {
-                             if(e.target.files?.[0]) {
-                                 const f = e.target.files[0];
-                                 const base64 = await blobToBase64(f);
-                                 setChatAttachment({ type: f.type.startsWith('image') ? 'image' : 'pdf', mimeType: f.type, data: base64 });
-                             }
-                        }} />
-                    </button>
+            {/* Fixed Input Area at Bottom */}
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-white via-white to-transparent pt-4 pb-safe z-30" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 90px)' }}>
+                <div className="px-4">
+                    <div className="bg-white border border-gray-200 shadow-xl shadow-primary/5 rounded-[1.5rem] p-1.5 flex items-end gap-2">
+                         {/* Attachment Toggle */}
+                         <button 
+                             onClick={() => document.getElementById('chat-upload')?.click()}
+                             className={`p-2 rounded-full flex-shrink-0 transition-colors ${chatAttachment ? 'bg-secondary text-white' : 'text-gray-400 hover:text-primary hover:bg-gray-50'}`}
+                        >
+                            {chatAttachment ? <Icons.Check className="w-4 h-4"/> : <Icons.Paperclip className="w-4 h-4"/>}
+                            <input 
+                                id="chat-upload" 
+                                type="file" 
+                                className="hidden" 
+                                accept="image/*,.pdf,.doc,.docx,.txt"
+                                onChange={handleFileUpload} 
+                            />
+                        </button>
 
-                    {/* Text Area */}
-                    <div className="flex-1 py-2">
-                        {chatAttachment && (
-                            <div className="text-[10px] font-bold text-secondary mb-0.5 flex items-center gap-1">
-                                <Icons.Paperclip className="w-3 h-3"/> Media Attached
-                                <button onClick={() => setChatAttachment(undefined)} className="ml-2 text-gray-400 hover:text-red-500"><Icons.X className="w-3 h-3"/></button>
-                            </div>
-                        )}
-                        <textarea 
-                            ref={textareaRef}
-                            value={chatInput} 
-                            onChange={e => setChatInput(e.target.value)} 
-                            placeholder="Message The Guide..." 
-                            className="w-full bg-transparent border-none focus:outline-none max-h-24 resize-none text-sm placeholder:text-gray-400 leading-relaxed" 
-                            rows={1}
-                            style={{ minHeight: '20px' }}
-                            onKeyDown={(e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
-                        />
-                    </div>
+                        {/* Text Area */}
+                        <div className="flex-1 py-2">
+                            {chatAttachment && (
+                                <div className="text-[10px] font-bold text-secondary mb-0.5 flex items-center gap-1">
+                                    <Icons.Paperclip className="w-3 h-3"/> 
+                                    {chatAttachment.type === 'image' ? 'Image' : chatAttachment.type === 'pdf' ? 'PDF' : 'File'} Attached
+                                    <button onClick={() => setChatAttachment(undefined)} className="ml-2 text-gray-400 hover:text-red-500">
+                                        <Icons.X className="w-3 h-3"/>
+                                    </button>
+                                </div>
+                            )}
+                            <textarea 
+                                ref={textareaRef}
+                                value={chatInput} 
+                                onChange={e => setChatInput(e.target.value)} 
+                                placeholder="Message The Guide..." 
+                                className="w-full bg-transparent border-none focus:outline-none max-h-24 resize-none text-sm placeholder:text-gray-400 leading-relaxed" 
+                                rows={1}
+                                style={{ minHeight: '20px' }}
+                                onKeyDown={(e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
+                            />
+                        </div>
 
-                    {/* Action Button (Send or Record) */}
-                    {chatInput.trim() || chatAttachment ? (
+                        {/* Send Button */}
                         <button 
                             onClick={handleSendMessage} 
-                            className="p-2 bg-primary text-white rounded-full shadow-md hover:scale-105 transition-all flex-shrink-0 mb-0.5"
+                            disabled={!chatInput.trim() && !chatAttachment}
+                            className={`p-2 rounded-full shadow-md transition-all flex-shrink-0 mb-0.5 ${
+                                chatInput.trim() || chatAttachment 
+                                    ? 'bg-primary text-white hover:scale-105' 
+                                    : 'bg-gray-100 text-gray-300 cursor-not-allowed'
+                            }`}
                         >
-                            <Icons.Send className="w-4 h-4 translate-x-0.5 translate-y-0.5"/>
+                            <Icons.Send className="w-4 h-4"/>
                         </button>
-                    ) : (
-                        <button 
-                            onMouseDown={handleStartChatRecording} 
-                            onMouseUp={() => { if(chatRecorderRef.current) { chatRecorderRef.current.stop(); setIsChatRecording(false); } }}
-                            onTouchStart={handleStartChatRecording}
-                            onTouchEnd={() => { if(chatRecorderRef.current) { chatRecorderRef.current.stop(); setIsChatRecording(false); } }}
-                            className={`p-2 rounded-full transition-all flex-shrink-0 mb-0.5 ${isChatRecording ? 'bg-red-500 text-white shadow-lg shadow-red-500/30 scale-110' : 'bg-gray-100 text-gray-400 hover:text-primary hover:bg-gray-200'}`}
-                        >
-                            <Icons.Mic className="w-4 h-4"/>
-                        </button>
-                    )}
+                    </div>
                 </div>
             </div>
         </div>

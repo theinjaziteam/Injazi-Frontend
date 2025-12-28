@@ -3,9 +3,20 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { AppView, COUNTRIES } from '../types';
 import { Icons } from '../components/UIComponents';
-import { api } from '../services/api';
+import emailjs from '@emailjs/browser';
+
+// EmailJS Configuration - Move these to environment variables in production
+const EMAILJS_SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID || 'your_service_id';
+const EMAILJS_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID || 'your_template_id';
+const EMAILJS_PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY || 'your_public_key';
+const EMAILJS_RESET_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_RESET_TEMPLATE_ID || 'your_reset_template_id';
+
+const API_URL = import.meta.env.VITE_API_URL || 'https://injazi-backend.onrender.com';
 
 type AuthMode = 'login' | 'register' | 'verify' | 'forgot' | 'reset';
+
+// Initialize EmailJS
+emailjs.init(EMAILJS_PUBLIC_KEY);
 
 export default function LoginView() {
     const { setIsAuthenticated, setView, setUser } = useApp();
@@ -32,6 +43,13 @@ export default function LoginView() {
     // Reset Code
     const [resetCode, setResetCode] = useState(['', '', '', '', '', '']);
     const resetCodeRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+    // Store data for verification/reset flows
+    const [pendingUserData, setPendingUserData] = useState<{
+        email: string;
+        name: string;
+        code: string;
+    } | null>(null);
 
     // Country Dropdown State
     const [showCountrySuggestions, setShowCountrySuggestions] = useState(false);
@@ -78,6 +96,134 @@ export default function LoginView() {
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
+    // ============================================
+    // EMAIL SENDING FUNCTIONS
+    // ============================================
+
+    const sendVerificationEmail = async (toEmail: string, toName: string, code: string): Promise<boolean> => {
+        try {
+            console.log('📧 Sending verification email to:', toEmail);
+            
+            const result = await emailjs.send(
+                EMAILJS_SERVICE_ID,
+                EMAILJS_TEMPLATE_ID,
+                {
+                    to_email: toEmail,
+                    to_name: toName || 'User',
+                    verification_code: code,
+                    app_name: 'InJazi',
+                    subject: 'Your InJazi Verification Code'
+                }
+            );
+            
+            console.log('✅ Email sent successfully:', result.status);
+            return true;
+        } catch (error) {
+            console.error('❌ Failed to send email:', error);
+            return false;
+        }
+    };
+
+    const sendPasswordResetEmail = async (toEmail: string, toName: string, code: string): Promise<boolean> => {
+        try {
+            console.log('📧 Sending password reset email to:', toEmail);
+            
+            const result = await emailjs.send(
+                EMAILJS_SERVICE_ID,
+                EMAILJS_RESET_TEMPLATE_ID || EMAILJS_TEMPLATE_ID, // Fallback to main template
+                {
+                    to_email: toEmail,
+                    to_name: toName || 'User',
+                    verification_code: code,
+                    app_name: 'InJazi',
+                    subject: 'Reset Your InJazi Password'
+                }
+            );
+            
+            console.log('✅ Reset email sent successfully:', result.status);
+            return true;
+        } catch (error) {
+            console.error('❌ Failed to send reset email:', error);
+            return false;
+        }
+    };
+
+    // ============================================
+    // API FUNCTIONS
+    // ============================================
+
+    const apiRegister = async (data: { email: string; password: string; name: string; country?: string }) => {
+        const response = await fetch(`${API_URL}/api/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        const result = await response.json();
+        if (!response.ok) throw result;
+        return result;
+    };
+
+    const apiLogin = async (data: { email: string; password: string }) => {
+        const response = await fetch(`${API_URL}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        const result = await response.json();
+        if (!response.ok) throw result;
+        if (result.token) localStorage.setItem('injazi_token', result.token);
+        return result;
+    };
+
+    const apiVerify = async (email: string, code: string) => {
+        const response = await fetch(`${API_URL}/api/auth/verify`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, code })
+        });
+        const result = await response.json();
+        if (!response.ok) throw result;
+        if (result.token) localStorage.setItem('injazi_token', result.token);
+        return result;
+    };
+
+    const apiResendCode = async (email: string) => {
+        const response = await fetch(`${API_URL}/api/auth/resend`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+        });
+        const result = await response.json();
+        if (!response.ok) throw result;
+        return result;
+    };
+
+    const apiForgotPassword = async (email: string) => {
+        const response = await fetch(`${API_URL}/api/auth/forgot-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+        });
+        const result = await response.json();
+        if (!response.ok) throw result;
+        return result;
+    };
+
+    const apiResetPassword = async (email: string, code: string, newPassword: string) => {
+        const response = await fetch(`${API_URL}/api/auth/reset-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, code, newPassword })
+        });
+        const result = await response.json();
+        if (!response.ok) throw result;
+        return result;
+    };
+
+    // ============================================
+    // CODE INPUT HANDLERS
+    // ============================================
+
     const handleCodeChange = (index: number, value: string, isReset: boolean = false) => {
         const codes = isReset ? [...resetCode] : [...verificationCode];
         const refs = isReset ? resetCodeRefs : codeInputRefs;
@@ -107,57 +253,92 @@ export default function LoginView() {
         }
     };
 
-   const handleAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    clearMessages();
-    
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-        setError("Please enter a valid email address.");
-        return;
-    }
-    
-    if (mode === 'register' && (!name || !country || !privacyAccepted)) {
-        setError("Please fill all required fields and accept privacy policy.");
-        return;
-    }
+    // ============================================
+    // AUTH HANDLERS
+    // ============================================
 
-    if (password.length < 6) {
-        setError("Password must be at least 6 characters.");
-        return;
-    }
-    
-    setIsLoading(true);
+    const handleAuth = async (e: React.FormEvent) => {
+        e.preventDefault();
+        clearMessages();
+        
+        // Email validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            setError("Please enter a valid email address.");
+            return;
+        }
+        
+        if (mode === 'register' && (!name || !country || !privacyAccepted)) {
+            setError("Please fill all required fields and accept privacy policy.");
+            return;
+        }
+
+        if (password.length < 6) {
+            setError("Password must be at least 6 characters.");
+            return;
+        }
+        
+        setIsLoading(true);
         
         try {
-            const result = await api.auth({
-                email,
-                password,
-                name: mode === 'register' ? name : undefined,
-                country: mode === 'register' ? country : undefined,
-                isRegister: mode === 'register'
-            });
+            if (mode === 'register') {
+                // REGISTER FLOW
+                const result = await apiRegister({
+                    email: email.toLowerCase().trim(),
+                    password,
+                    name: name.trim(),
+                    country
+                });
 
-            console.log("✅ Auth result:", result);
+                console.log("📝 Registration result:", result);
 
-            // Registration - go to verify
-            if (mode === 'register' || result.requiresVerification) {
-                setSuccess('Verification code sent to your email!');
-                setCooldown(300); // 5 minutes
-                setMode('verify');
-                setIsLoading(false);
-                return;
+                // Backend returns the verification code - we need to send it via email
+                if (result.success && result.code) {
+                    // Send verification email via EmailJS
+                    const emailSent = await sendVerificationEmail(
+                        result.email,
+                        result.name,
+                        result.code
+                    );
+
+                    if (emailSent) {
+                        setPendingUserData({
+                            email: result.email,
+                            name: result.name,
+                            code: result.code // Store for debugging only - remove in production
+                        });
+                        setSuccess('Verification code sent to your email!');
+                        setCooldown(300); // 5 minutes
+                        setMode('verify');
+                    } else {
+                        setError('Failed to send verification email. Please try again.');
+                    }
+                }
+            } else {
+                // LOGIN FLOW
+                const result = await apiLogin({
+                    email: email.toLowerCase().trim(),
+                    password
+                });
+
+                console.log("🔐 Login result:", result);
+
+                // Check if user needs to verify email first
+                if (result.requiresVerification) {
+                    setError('Please verify your email first.');
+                    // Optionally switch to verify mode
+                    setMode('verify');
+                    return;
+                }
+
+                // Login success
+                setUser(result.user);
+                setIsAuthenticated(true);
+                setView(result.user.goal ? AppView.DASHBOARD : AppView.ONBOARDING);
             }
-
-            // Login success - user is verified
-            setUser(result.user);
-            setIsAuthenticated(true);
-            setView(result.user.goal ? AppView.DASHBOARD : AppView.ONBOARDING);
 
         } catch (error: any) {
             console.error("Auth Failed:", error);
-            // Check if there's a cooldown in the error
             if (error.cooldownRemaining) {
                 setCooldown(error.cooldownRemaining);
             }
@@ -170,29 +351,27 @@ export default function LoginView() {
     const handleVerifyEmail = async () => {
         clearMessages();
         const code = verificationCode.join('');
-        if (code.length !== 6) { setError('Please enter the complete 6-digit code'); return; }
+        if (code.length !== 6) { 
+            setError('Please enter the complete 6-digit code'); 
+            return; 
+        }
         
         setIsLoading(true);
         try {
-            const result = await api.verifyEmail(email, code);
+            const result = await apiVerify(email.toLowerCase().trim(), code);
             setSuccess('Email verified successfully!');
             
-            // The verify endpoint now returns the user and token
+            // The verify endpoint returns the user and token
             if (result.user && result.token) {
-                setUser(result.user);
-                setIsAuthenticated(true);
-                setView(result.user.goal ? AppView.DASHBOARD : AppView.ONBOARDING);
-            } else {
-                // Fallback - login after verification
-                await new Promise(r => setTimeout(r, 500));
-                const loginResult = await api.auth({ email, password, isRegister: false });
-                setUser(loginResult.user);
-                setIsAuthenticated(true);
-                setView(loginResult.user.goal ? AppView.DASHBOARD : AppView.ONBOARDING);
+                setTimeout(() => {
+                    setUser(result.user);
+                    setIsAuthenticated(true);
+                    setView(result.user.goal ? AppView.DASHBOARD : AppView.ONBOARDING);
+                }, 500);
             }
         } catch (err: any) {
             if (err.message?.includes('expired')) {
-                setError('Code expired. Please register again.');
+                setError('Code expired. Please request a new one.');
                 setCooldown(0);
             } else if (err.message?.includes('Invalid')) {
                 setError('Invalid code. Please check and try again.');
@@ -213,11 +392,25 @@ export default function LoginView() {
         clearMessages();
         setIsLoading(true);
         try {
-            const result = await api.resendVerification(email);
-            setSuccess('New verification code sent!');
-            setCooldown(result.cooldownRemaining || 300); // 5 minutes
-            setVerificationCode(['', '', '', '', '', '']);
-            setTimeout(() => codeInputRefs.current[0]?.focus(), 100);
+            const result = await apiResendCode(email.toLowerCase().trim());
+            
+            // Send new code via email
+            if (result.success && result.code) {
+                const emailSent = await sendVerificationEmail(
+                    result.email,
+                    result.name,
+                    result.code
+                );
+
+                if (emailSent) {
+                    setSuccess('New verification code sent!');
+                    setCooldown(result.cooldownRemaining || 300);
+                    setVerificationCode(['', '', '', '', '', '']);
+                    setTimeout(() => codeInputRefs.current[0]?.focus(), 100);
+                } else {
+                    setError('Failed to send email. Please try again.');
+                }
+            }
         } catch (err: any) {
             if (err.cooldownRemaining) {
                 setCooldown(err.cooldownRemaining);
@@ -230,18 +423,46 @@ export default function LoginView() {
 
     const handleForgotPassword = async () => {
         clearMessages();
-        if (!email) { setError('Please enter your email first'); return; }
+        if (!email) { 
+            setError('Please enter your email first'); 
+            return; 
+        }
+        
         setIsLoading(true);
         try {
-            await api.forgotPassword(email);
-            setSuccess('If this email exists, a reset code was sent.');
-            setCooldown(300);
-            setMode('reset');
+            const result = await apiForgotPassword(email.toLowerCase().trim());
+            
+            // Send reset code via email if we got one
+            if (result.success && result.code) {
+                const emailSent = await sendPasswordResetEmail(
+                    result.email,
+                    result.name,
+                    result.code
+                );
+
+                if (emailSent) {
+                    setSuccess('Password reset code sent to your email.');
+                    setCooldown(300);
+                    setMode('reset');
+                } else {
+                    // Still show success for security (don't reveal if email exists)
+                    setSuccess('If this email exists, a reset code was sent.');
+                    setMode('reset');
+                }
+            } else {
+                // Generic success message for security
+                setSuccess('If this email exists, a reset code was sent.');
+                setMode('reset');
+            }
         } catch (err: any) {
             if (err.cooldownRemaining) {
                 setCooldown(err.cooldownRemaining);
+                setError(`Please wait ${Math.ceil(err.cooldownRemaining / 60)} minutes before requesting again.`);
+            } else {
+                // Generic message for security
+                setSuccess('If this email exists, a reset code was sent.');
+                setMode('reset');
             }
-            setError(err.message || 'Failed to send reset code');
         } finally {
             setIsLoading(false);
         }
@@ -250,12 +471,18 @@ export default function LoginView() {
     const handleResetPassword = async () => {
         clearMessages();
         const code = resetCode.join('');
-        if (code.length !== 6) { setError('Please enter the complete 6-digit code'); return; }
-        if (newPassword.length < 6) { setError('Password must be at least 6 characters'); return; }
+        if (code.length !== 6) { 
+            setError('Please enter the complete 6-digit code'); 
+            return; 
+        }
+        if (newPassword.length < 6) { 
+            setError('Password must be at least 6 characters'); 
+            return; 
+        }
         
         setIsLoading(true);
         try {
-            await api.resetPassword(email, code, newPassword);
+            await apiResetPassword(email.toLowerCase().trim(), code, newPassword);
             setSuccess('Password reset successfully! You can now log in.');
             setMode('login');
             setPassword('');
@@ -268,6 +495,10 @@ export default function LoginView() {
             setIsLoading(false);
         }
     };
+
+    // ============================================
+    // RENDER FUNCTIONS
+    // ============================================
 
     const renderCodeInputs = (codes: string[], refs: React.MutableRefObject<(HTMLInputElement | null)[]>, isReset: boolean = false) => (
         <div className="flex justify-center gap-2">
@@ -318,14 +549,15 @@ export default function LoginView() {
                     {/* Email */}
                     <div className="relative group">
                         <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-[#DFF3E4] transition-colors">
-                            <Icons.User className="w-5 h-5" />
+                            <Icons.Mail className="w-5 h-5" />
                         </div>
                         <input 
                             type="email" 
                             value={email} 
-                            onChange={e => setEmail(e.target.value.toLowerCase().trim())} 
+                            onChange={e => setEmail(e.target.value)} 
                             className="w-full bg-black/20 border border-white/5 rounded-2xl py-4 pl-12 pr-4 text-white placeholder-white/20 focus:outline-none focus:bg-black/30 focus:border-[#3423A6]/50 transition-all font-medium"
                             placeholder="Email Address"
+                            autoComplete="email"
                             required 
                         />
                     </div>
@@ -343,6 +575,7 @@ export default function LoginView() {
                                     onChange={e => setName(e.target.value)} 
                                     className="w-full bg-black/20 border border-white/5 rounded-2xl py-4 pl-12 pr-4 text-white placeholder-white/20 focus:outline-none focus:bg-black/30 focus:border-[#3423A6]/50 transition-all font-medium"
                                     placeholder="Full Name"
+                                    autoComplete="name"
                                     required 
                                 />
                             </div>
@@ -366,6 +599,7 @@ export default function LoginView() {
                                     }}
                                     className="w-full bg-black/20 border border-white/5 rounded-2xl py-4 pl-12 pr-4 text-white placeholder-white/20 focus:outline-none focus:bg-black/30 focus:border-[#3423A6]/50 transition-all font-medium"
                                     placeholder="Country"
+                                    autoComplete="off"
                                     required 
                                 />
                                 {showCountrySuggestions && filteredCountries.length > 0 && (
@@ -402,6 +636,7 @@ export default function LoginView() {
                             onChange={e => setPassword(e.target.value)} 
                             className="w-full bg-black/20 border border-white/5 rounded-2xl py-4 pl-12 pr-4 text-white placeholder-white/20 focus:outline-none focus:bg-black/30 focus:border-[#3423A6]/50 transition-all font-medium"
                             placeholder="Password"
+                            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                             required 
                         />
                     </div>
@@ -412,7 +647,8 @@ export default function LoginView() {
                             <button
                                 type="button"
                                 onClick={handleForgotPassword}
-                                className="text-[#DFF3E4]/60 text-xs hover:text-[#DFF3E4] transition-colors"
+                                disabled={isLoading}
+                                className="text-[#DFF3E4]/60 text-xs hover:text-[#DFF3E4] transition-colors disabled:opacity-50"
                             >
                                 Forgot password?
                             </button>
@@ -426,11 +662,11 @@ export default function LoginView() {
                                 type="checkbox" 
                                 checked={privacyAccepted} 
                                 onChange={e => setPrivacyAccepted(e.target.checked)}
-                                className="mt-1 w-5 h-5 accent-[#3423A6]" 
+                                className="mt-1 w-5 h-5 accent-[#3423A6] cursor-pointer" 
                                 required
                             />
                             <p className="text-white/50 text-[10px] leading-tight font-medium">
-                                I accept the <span className="text-[#DFF3E4] underline cursor-pointer">Privacy Policies</span> and Architecture Protocols.
+                                I accept the <span className="text-[#DFF3E4] underline cursor-pointer">Privacy Policy</span> and <span className="text-[#DFF3E4] underline cursor-pointer">Terms of Service</span>.
                             </p>
                         </div>
                     )}
@@ -445,7 +681,7 @@ export default function LoginView() {
                         <Icons.RefreshCw className="w-5 h-5 animate-spin" />
                     ) : (
                         <>
-                            <span className="relative z-10">{mode === 'login' ? 'Authenticate' : 'Initialize'}</span>
+                            <span className="relative z-10">{mode === 'login' ? 'Log In' : 'Create Account'}</span>
                             <Icons.ArrowRight className="w-5 h-5 relative z-10 group-hover:translate-x-1 transition-transform" />
                         </>
                     )}
@@ -467,7 +703,7 @@ export default function LoginView() {
 
             <div className="text-center">
                 <div className="w-16 h-16 bg-[#3423A6]/30 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Icons.Shield className="w-8 h-8 text-[#DFF3E4]" />
+                    <Icons.Mail className="w-8 h-8 text-[#DFF3E4]" />
                 </div>
                 <h2 className="text-xl font-bold text-white mb-2">Verify Your Email</h2>
                 <p className="text-white/50 text-sm">
@@ -506,6 +742,13 @@ export default function LoginView() {
                     </button>
                 )}
             </div>
+
+            {/* Debug info - remove in production */}
+            {pendingUserData?.code && import.meta.env.DEV && (
+                <div className="mt-4 p-3 bg-yellow-500/20 rounded-xl text-yellow-300 text-xs text-center">
+                    <p className="font-bold">DEV MODE - Code: {pendingUserData.code}</p>
+                </div>
+            )}
         </div>
     );
 
@@ -544,6 +787,7 @@ export default function LoginView() {
                     onChange={e => setNewPassword(e.target.value)} 
                     className="w-full bg-black/20 border border-white/5 rounded-2xl py-4 pl-12 pr-4 text-white placeholder-white/20 focus:outline-none focus:bg-black/30 focus:border-[#3423A6]/50 transition-all font-medium"
                     placeholder="New Password (min 6 chars)"
+                    autoComplete="new-password"
                     minLength={6}
                 />
             </div>
@@ -578,6 +822,10 @@ export default function LoginView() {
         </div>
     );
 
+    // ============================================
+    // MAIN RENDER
+    // ============================================
+
     return (
         <div className="relative h-full w-full bg-[#171738] overflow-hidden flex flex-col items-center justify-center p-6 animate-fade-in font-sans">
             {/* Background Elements */}
@@ -592,7 +840,7 @@ export default function LoginView() {
                 <div className="mb-10 text-center relative group">
                     <h1 className="text-6xl font-black text-white tracking-tighter mb-2 font-display">INJAZI</h1>
                     <div className="h-1 w-16 bg-[#3423A6] mx-auto rounded-full mb-3 shadow-[0_0_15px_rgba(52,35,166,0.8)]"></div>
-                    <p className="text-[#DFF3E4] font-bold tracking-[0.25em] text-[10px] uppercase opacity-70">Success Architecture AI</p>
+                    <p className="text-[#DFF3E4] font-bold tracking-[0.25em] text-[10px] uppercase opacity-70">Goal Achievement Platform</p>
                 </div>
 
                 {/* Main Card */}
@@ -600,7 +848,7 @@ export default function LoginView() {
                     
                     {/* Error/Success Messages */}
                     {(error || success) && (
-                        <div className={`mx-4 mt-4 p-3 rounded-xl text-sm font-medium ${
+                        <div className={`mx-4 mt-4 p-3 rounded-xl text-sm font-medium animate-fade-in ${
                             error 
                                 ? 'bg-red-500/20 border border-red-500/30 text-red-300' 
                                 : 'bg-green-500/20 border border-green-500/30 text-green-300'
@@ -612,8 +860,13 @@ export default function LoginView() {
                     {/* Render appropriate form based on mode */}
                     {(mode === 'login' || mode === 'register') && renderAuthForm()}
                     {mode === 'verify' && renderVerifyForm()}
-                    {mode === 'reset' && renderResetForm()}
+                    {(mode === 'forgot' || mode === 'reset') && renderResetForm()}
                 </div>
+
+                {/* Footer */}
+                <p className="mt-6 text-white/30 text-[10px] text-center">
+                    By continuing, you agree to our Terms of Service
+                </p>
             </div>
         </div>
     );

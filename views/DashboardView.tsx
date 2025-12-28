@@ -24,14 +24,12 @@ export default function DashboardView() {
     const adgemTransactions = (user as any).adgemTransactions || [];
     const currentGoal = user.goal || { title: "Loading...", category: "General", durationDays: 30, mode: "Standard" };
 
-    // Separate daily tasks from lesson tasks
     const pendingDailyTasks = dailyTasks.filter(t => 
         t.status !== TaskStatus.APPROVED && 
         t.status !== TaskStatus.COMPLETED &&
         !t.isLessonTask
     );
 
-    // Fetch AdGem offers when section expands
     useEffect(() => {
         if (isEarnExpanded && user.email && adgemOffers.length === 0) {
             fetchAdgemOffers();
@@ -40,7 +38,6 @@ export default function DashboardView() {
 
     const fetchAdgemOffers = async () => {
         if (isLoadingOffers) return;
-        
         setIsLoadingOffers(true);
         try {
             const response = await api.getAdgemOffers(user.email);
@@ -54,7 +51,6 @@ export default function DashboardView() {
         }
     };
 
-    // Get lesson name for a task
     const getLessonNameForTask = (task: Task): string | null => {
         if (!task.sourceLessonId || !lessons) return null;
         for (const chapter of lessons) {
@@ -156,24 +152,22 @@ export default function DashboardView() {
     const AgentAlertCard: React.FC<{ alert: AgentAlert; onClick?: () => void }> = ({ alert, onClick }) => (
         <div 
             onClick={onClick} 
-            className={`rounded-2xl mb-4 border-l-4 p-4 flex items-center justify-between cursor-pointer transition-all bg-white shadow-md ${
-                alert.severity === 'high' 
-                    ? 'border-red-500' 
-                    : 'border-blue-500'
-            } hover:bg-slate-50`}
+            className={`rounded-2xl mb-4 border-l-4 p-4 flex items-center justify-between cursor-pointer transition-all theme-bg-card theme-shadow-card ${
+                alert.severity === 'high' ? 'border-red-500' : 'border-blue-500'
+            } theme-bg-hover`}
         >
             <div className="flex items-center gap-3 overflow-hidden">
                 <Icons.AlertTriangle className={`w-5 h-5 flex-shrink-0 ${alert.severity === 'high' ? 'text-red-500' : 'text-blue-500'}`}/>
-                <h3 className="font-bold text-primary text-sm truncate">{alert.title}</h3>
+                <h3 className="font-bold theme-text-on-card text-sm truncate">{alert.title}</h3>
             </div>
-            <Icons.ChevronRight className="w-4 h-4 text-slate-400 flex-shrink-0" />
+            <Icons.ChevronRight className="w-4 h-4 theme-text-muted flex-shrink-0" />
         </div>
     );
 
     return (
         <div className="h-full overflow-y-auto pb-safe scroll-smooth">
-            <div className="min-h-full pb-28 animate-fade-in bg-slate-50">
-                {/* Header - Brand colors */}
+            <div className="min-h-full pb-28 animate-fade-in theme-bg-page">
+                {/* Header - Brand colors (always dark primary) */}
                 <div className="bg-primary text-white px-6 pt-safe pt-12 pb-16 rounded-b-[3rem] relative overflow-hidden shadow-2xl">
                     <div className="flex justify-between items-center relative z-20 mb-6 mt-4">
                         <h2 className="text-xl font-black tracking-tighter">INJAZI</h2>
@@ -253,17 +247,17 @@ export default function DashboardView() {
                     ))}
 
                     {/* Active Daily Missions Card */}
-                    <Card className="p-0 overflow-hidden border border-slate-200 shadow-lg bg-white">
-                        <div className="p-6">
+                    <Card className="p-0 overflow-hidden theme-border-card theme-shadow-card">
+                        <div className="p-6 theme-bg-card">
                             <div className="flex justify-between items-center mb-4">
-                                <h3 className="font-bold text-primary text-lg">Daily Missions</h3>
+                                <h3 className="font-bold theme-text-on-card text-lg">Daily Missions</h3>
                                 <Badge color="bg-secondary text-white">{pendingDailyTasks.length} ACTIVE</Badge>
                             </div>
                             
                             {pendingDailyTasks.length === 0 ? (
                                 <div className="text-center py-6">
                                     <Icons.Check className="w-10 h-10 text-green-500 mx-auto mb-2" />
-                                    <p className="text-slate-500 text-sm">All daily tasks complete!</p>
+                                    <p className="theme-text-muted text-sm">All daily tasks complete!</p>
                                 </div>
                             ) : (
                                 <div className="space-y-3 mb-6">
@@ -271,11 +265,11 @@ export default function DashboardView() {
                                        <div 
                                            key={task.id} 
                                            onClick={() => handleTaskSelect(task.id)} 
-                                           className="p-4 rounded-xl flex justify-between items-center cursor-pointer transition-all group bg-slate-50 border border-slate-200 hover:bg-slate-100 hover:border-secondary/30 shadow-sm"
+                                           className="p-4 rounded-xl flex justify-between items-center cursor-pointer transition-all group theme-item-bg theme-border theme-shadow-sm hover:theme-bg-hover"
                                        >
                                            <div>
                                                <div className="text-[9px] font-black uppercase text-secondary tracking-widest mb-1">Daily Task</div>
-                                               <h4 className="font-bold text-primary text-sm group-hover:text-secondary transition-colors">{task.title}</h4>
+                                               <h4 className="font-bold theme-item-text text-sm group-hover:text-secondary transition-colors">{task.title}</h4>
                                            </div>
                                            <div className="flex items-center gap-3">
                                                {(task.timeLeft !== undefined && task.timeLeft > 0 && task.timeLeft < ((task.estimatedTimeMinutes || 20) * 60)) && (
@@ -283,7 +277,7 @@ export default function DashboardView() {
                                                        {calculateRealTimeRemaining(task)}
                                                    </Badge>
                                                )}
-                                               <Icons.ChevronRight className="w-5 h-5 text-slate-400"/>
+                                               <Icons.ChevronRight className="w-5 h-5 theme-text-muted"/>
                                            </div>
                                        </div>
                                    ))}
@@ -296,10 +290,10 @@ export default function DashboardView() {
                         </div>
                     </Card>
 
-                    {/* Earn Credits Section - AdGem Offers */}
-                    <div className="rounded-[2rem] border border-slate-200 shadow-lg overflow-hidden transition-all duration-300 bg-white">
+                    {/* Earn Credits Section */}
+                    <div className="rounded-[2rem] theme-border-card theme-shadow-card overflow-hidden transition-all duration-300 theme-bg-card">
                         <div 
-                            className="p-6 flex items-center justify-between cursor-pointer transition-colors hover:bg-slate-50"
+                            className="p-6 flex items-center justify-between cursor-pointer transition-colors hover:theme-bg-hover"
                             onClick={() => setIsEarnExpanded(!isEarnExpanded)}
                         >
                             <div className="flex items-center gap-3">
@@ -307,48 +301,44 @@ export default function DashboardView() {
                                     <Icons.Coins className="w-6 h-6 text-yellow-900" />
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-black text-primary">Earn Credits</h3>
-                                    <p className="text-xs text-slate-500">Complete offers to earn rewards</p>
+                                    <h3 className="text-lg font-black theme-text-on-card">Earn Credits</h3>
+                                    <p className="text-xs theme-text-muted">Complete offers to earn rewards</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-3">
                                 <div className="text-right">
-                                    <span className="text-lg font-black text-primary">{user.credits}</span>
-                                    <span className="text-xs text-slate-500 ml-1">CR</span>
+                                    <span className="text-lg font-black theme-text-on-card">{user.credits}</span>
+                                    <span className="text-xs theme-text-muted ml-1">CR</span>
                                 </div>
-                                <Icons.ChevronDown className={`w-5 h-5 text-slate-400 transition-transform duration-300 ${isEarnExpanded ? 'rotate-180' : ''}`} />
+                                <Icons.ChevronDown className={`w-5 h-5 theme-text-muted transition-transform duration-300 ${isEarnExpanded ? 'rotate-180' : ''}`} />
                             </div>
                         </div>
                         
                         {isEarnExpanded && (
                             <div className="px-6 pb-6 animate-slide-up">
-                                {/* Loading State */}
                                 {isLoadingOffers && (
                                     <div className="py-8 text-center">
                                         <div className="w-10 h-10 border-4 border-secondary border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-                                        <p className="text-sm text-slate-500">Loading offers...</p>
+                                        <p className="text-sm theme-text-muted">Loading offers...</p>
                                     </div>
                                 )}
 
-                                {/* Offers List */}
                                 {!isLoadingOffers && adgemOffers.length > 0 && (
                                     <div className="space-y-3">
                                         {adgemOffers.map(offer => (
                                             <div 
                                                 key={offer.id} 
                                                 onClick={() => handleOfferClick(offer)}
-                                                className="p-4 rounded-2xl flex items-center gap-4 cursor-pointer transition-all group bg-slate-50 border border-slate-200 hover:bg-slate-100 hover:border-secondary/30 shadow-sm"
+                                                className="p-4 rounded-2xl flex items-center gap-4 cursor-pointer transition-all group theme-item-bg theme-border theme-shadow-sm hover:theme-bg-hover"
                                             >
-                                                {/* App Icon */}
-                                                <div className="w-14 h-14 rounded-xl bg-slate-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                                <div className="w-14 h-14 rounded-xl theme-bg-surface flex items-center justify-center overflow-hidden flex-shrink-0">
                                                     {offer.icon ? (
                                                         <img src={offer.icon} alt={offer.name} className="w-full h-full object-cover" />
                                                     ) : (
-                                                        <Icons.Gift className="w-6 h-6 text-slate-400" />
+                                                        <Icons.Gift className="w-6 h-6 theme-text-muted" />
                                                     )}
                                                 </div>
                                                 
-                                                {/* Content */}
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-2 mb-1">
                                                         <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded ${getDifficultyColor(offer.completionDifficulty)}`}>
@@ -360,41 +350,38 @@ export default function DashboardView() {
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <h4 className="font-bold text-primary text-sm leading-tight group-hover:text-secondary transition-colors truncate">
+                                                    <h4 className="font-bold theme-item-text text-sm leading-tight group-hover:text-secondary transition-colors truncate">
                                                         {offer.name}
                                                     </h4>
-                                                    <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">
+                                                    <p className="text-xs theme-text-muted mt-0.5 line-clamp-1">
                                                         {offer.shortDescription || offer.description}
                                                     </p>
                                                 </div>
                                                 
-                                                {/* Credits */}
                                                 <div className="text-right flex-shrink-0">
                                                     <div className="bg-yellow-400 text-yellow-900 px-3 py-1.5 rounded-xl">
                                                         <span className="font-black text-sm">+{offer.amount}</span>
                                                     </div>
-                                                    <span className="text-[9px] text-slate-500 mt-1 block">credits</span>
+                                                    <span className="text-[9px] theme-text-muted mt-1 block">credits</span>
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
                                 )}
 
-                                {/* Empty State */}
                                 {!isLoadingOffers && adgemOffers.length === 0 && (
                                     <div className="py-8 text-center">
-                                        <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                                            <Icons.Gift className="w-8 h-8 text-slate-400" />
+                                        <div className="w-16 h-16 theme-bg-surface rounded-2xl flex items-center justify-center mx-auto mb-3">
+                                            <Icons.Gift className="w-8 h-8 theme-text-muted" />
                                         </div>
-                                        <p className="text-sm text-slate-600 font-medium">No offers available</p>
-                                        <p className="text-xs text-slate-500 mt-1">Check back later for new offers</p>
+                                        <p className="text-sm theme-text-secondary font-medium">No offers available</p>
+                                        <p className="text-xs theme-text-muted mt-1">Check back later for new offers</p>
                                     </div>
                                 )}
 
-                                {/* Completed Transactions */}
                                 {adgemTransactions.length > 0 && (
-                                    <div className="mt-6 pt-4 border-t border-slate-200">
-                                        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
+                                    <div className="mt-6 pt-4 border-t theme-border">
+                                        <h4 className="text-xs font-bold theme-text-muted uppercase tracking-wider mb-3">
                                             Recently Completed ({adgemTransactions.length})
                                         </h4>
                                         <div className="space-y-2">
@@ -415,7 +402,6 @@ export default function DashboardView() {
                                     </div>
                                 )}
 
-                                {/* Refresh Button */}
                                 <button 
                                     onClick={(e) => { e.stopPropagation(); fetchAdgemOffers(); }}
                                     disabled={isLoadingOffers}
@@ -431,13 +417,13 @@ export default function DashboardView() {
                 {/* Check-in Modal */}
                 {showCheckIn && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-6 animate-fade-in">
-                        <div className="bg-white rounded-[2rem] w-full max-w-md p-8 shadow-2xl animate-scale-in">
-                            <h2 className="text-2xl font-bold text-primary mb-2">Daily Check-in</h2>
-                            <p className="text-sm text-slate-600 mb-6">What did you accomplish today?</p>
+                        <div className="theme-bg-card rounded-[2rem] w-full max-w-md p-8 theme-shadow-xl animate-scale-in">
+                            <h2 className="text-2xl font-bold theme-text-on-card mb-2">Daily Check-in</h2>
+                            <p className="text-sm theme-text-secondary mb-6">What did you accomplish today?</p>
                             <textarea 
                                 value={checkInText} 
                                 onChange={(e) => setCheckInText(e.target.value)} 
-                                className="w-full h-32 p-4 bg-slate-50 rounded-xl border border-slate-200 mb-6 focus:outline-none focus:border-secondary text-primary placeholder:text-slate-400" 
+                                className="w-full h-32 p-4 theme-bg-input rounded-xl theme-border mb-6 focus:outline-none focus:border-secondary theme-text-primary" 
                                 placeholder="I researched 3 competitors..." 
                             />
                             <Button onClick={submitDailyCheckIn} isLoading={isProcessingCheckIn} disabled={!checkInText.trim()}>
@@ -445,7 +431,7 @@ export default function DashboardView() {
                             </Button>
                             <button 
                                 onClick={() => setShowCheckIn(false)} 
-                                className="w-full mt-4 text-xs font-bold text-slate-500 uppercase tracking-widest hover:text-secondary transition-colors"
+                                className="w-full mt-4 text-xs font-bold theme-text-muted uppercase tracking-widest hover:text-secondary transition-colors"
                             >
                                 Cancel
                             </button>

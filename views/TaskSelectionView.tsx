@@ -68,29 +68,29 @@ export default function TaskSelectionView() {
 
     return (
         <div className="h-full overflow-y-auto pb-safe scroll-smooth">
-            <div className="min-h-full bg-white flex flex-col animate-fade-in pb-20">
+            <div className="min-h-full flex flex-col animate-fade-in pb-20 theme-transition theme-bg-page">
                 {/* Header */}
-                <div className="p-6 pt-safe border-b border-gray-100 flex items-center gap-4 bg-white sticky top-0 z-10">
-                    <button onClick={() => setView(AppView.DASHBOARD)} className="p-2 hover:bg-gray-100 rounded-full transition-colors mt-2">
-                        <Icons.ChevronLeft className="w-6 h-6 text-primary"/>
+                <div className="p-6 pt-safe border-b flex items-center gap-4 sticky top-0 z-10 theme-border theme-bg-card">
+                    <button onClick={() => setView(AppView.DASHBOARD)} className="p-2 hover:theme-bg-hover rounded-full transition-colors mt-2">
+                        <Icons.ChevronLeft className="w-6 h-6 theme-text-primary"/>
                     </button>
-                    <h1 className="text-2xl font-black text-primary mt-2 uppercase tracking-tighter">All Tasks</h1>
+                    <h1 className="text-2xl font-black theme-text-primary mt-2 uppercase tracking-tighter">All Tasks</h1>
                 </div>
 
                 <div className="p-6 space-y-8">
                     {/* Daily Missions */}
                     <section>
                         <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">Daily Missions</h2>
+                            <h2 className="text-xs font-black theme-text-muted uppercase tracking-[0.2em]">Daily Missions</h2>
                             {completedDailyCount > 0 && (
                                 <span className="text-xs font-bold text-green-600">{completedDailyCount} done</span>
                             )}
                         </div>
                         
                         {dailyTasks.length === 0 ? (
-                            <Card className="p-6 text-center border-dashed border-2 border-gray-200 bg-gray-50/50">
+                            <Card className="p-6 text-center border-dashed border-2 theme-border theme-bg-surface">
                                 <Icons.Check className="w-10 h-10 text-green-500 mx-auto mb-2" />
-                                <p className="text-gray-500 text-sm">All daily tasks complete!</p>
+                                <p className="theme-text-muted text-sm">All daily tasks complete!</p>
                             </Card>
                         ) : (
                             <div className="space-y-3">
@@ -98,7 +98,7 @@ export default function TaskSelectionView() {
                                     <Card 
                                         key={task.id} 
                                         onClick={() => handleTaskSelect(task.id)} 
-                                        className="p-5 flex justify-between items-center hover:border-primary/20 hover:shadow-md transition-all active:scale-[0.99]"
+                                        className="p-5 flex justify-between items-center hover:theme-shadow-md transition-all active:scale-[0.99]"
                                     >
                                         <div className="flex-1">
                                             <div className="flex items-center gap-2 mb-2">
@@ -109,10 +109,10 @@ export default function TaskSelectionView() {
                                                     </span>
                                                 )}
                                             </div>
-                                            <h4 className="font-black text-primary text-lg leading-tight uppercase">{task.title}</h4>
-                                            <p className="text-xs text-gray-400 font-medium mt-1">{task.estimatedTimeMinutes} Minutes</p>
+                                            <h4 className="font-black theme-text-primary text-lg leading-tight uppercase">{task.title}</h4>
+                                            <p className="text-xs theme-text-muted font-medium mt-1">{task.estimatedTimeMinutes} Minutes</p>
                                         </div>
-                                        <Icons.ChevronRight className="w-6 h-6 text-gray-300" />
+                                        <Icons.ChevronRight className="w-6 h-6 theme-text-muted" />
                                     </Card>
                                 ))}
                             </div>
@@ -164,18 +164,18 @@ export default function TaskSelectionView() {
                     {(completedDailyCount > 0 || completedLessonCount > 0) && (
                         <button 
                             onClick={() => setView(AppView.TASK_HISTORY)}
-                            className="w-full py-4 px-6 bg-gray-50 hover:bg-gray-100 rounded-2xl border border-gray-200 flex items-center justify-between transition-colors group"
+                            className="w-full py-4 px-6 theme-bg-surface hover:theme-bg-hover rounded-2xl border theme-border flex items-center justify-between transition-colors group"
                         >
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
                                     <Icons.Check className="w-5 h-5 text-green-600" />
                                 </div>
                                 <div className="text-left">
-                                    <p className="font-bold text-primary text-sm">View Completed Tasks</p>
-                                    <p className="text-xs text-gray-400">{completedDailyCount + completedLessonCount} tasks finished</p>
+                                    <p className="font-bold theme-text-primary text-sm">View Completed Tasks</p>
+                                    <p className="text-xs theme-text-muted">{completedDailyCount + completedLessonCount} tasks finished</p>
                                 </div>
                             </div>
-                            <Icons.ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-gray-400 transition-colors" />
+                            <Icons.ChevronRight className="w-5 h-5 theme-text-muted group-hover:theme-text-secondary transition-colors" />
                         </button>
                     )}
 
@@ -186,8 +186,8 @@ export default function TaskSelectionView() {
                                 <Icons.BookOpen className="w-6 h-6 text-secondary" />
                             </div>
                             <div>
-                                <h3 className="font-bold text-primary mb-1">Want more tasks?</h3>
-                                <p className="text-sm text-gray-500 mb-3">
+                                <h3 className="font-bold theme-text-primary mb-1">Want more tasks?</h3>
+                                <p className="text-sm theme-text-muted mb-3">
                                     Start lessons from your curriculum to unlock related tasks.
                                 </p>
                                 <Button 

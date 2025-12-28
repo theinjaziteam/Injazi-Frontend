@@ -45,9 +45,9 @@ export default function StatsView() {
                         );
                     })}
                 </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center rounded-full bg-white m-[30%] shadow-inner">
-                    <span className="text-[10px] font-bold text-gray-400">Total</span>
-                    <span className="text-xs font-black text-primary">${total}</span>
+                <div className="absolute inset-0 flex flex-col items-center justify-center rounded-full theme-bg-card m-[30%] shadow-inner">
+                    <span className="text-[10px] font-bold theme-text-muted">Total</span>
+                    <span className="text-xs font-black theme-text-primary">${total}</span>
                 </div>
             </div>
         );
@@ -85,7 +85,7 @@ export default function StatsView() {
             d.setDate(d.getDate() + i);
             const isSelected = i === 0;
             days.push(
-                <div key={i} onClick={() => setSelectedDate(d.getTime())} className={`flex flex-col items-center justify-center w-12 h-16 rounded-2xl transition-all cursor-pointer ${isSelected ? 'bg-primary text-white shadow-lg shadow-primary/30 scale-110' : 'bg-white text-gray-400 border border-gray-100'}`}>
+                <div key={i} onClick={() => setSelectedDate(d.getTime())} className={`flex flex-col items-center justify-center w-12 h-16 rounded-2xl transition-all cursor-pointer ${isSelected ? 'theme-brand-primary text-white shadow-lg scale-110' : 'theme-bg-card theme-text-muted border theme-border'}`}>
                     <span className="text-[10px] font-bold uppercase">{d.toLocaleDateString('en-US', { weekday: 'short' })}</span>
                     <span className="text-lg font-black">{d.getDate()}</span>
                     {isSelected && <div className="w-1 h-1 bg-white rounded-full mt-1"></div>}
@@ -99,8 +99,8 @@ export default function StatsView() {
         const relevantApps = user.connectedApps.filter(app => app.isConnected);
         
         if (relevantApps.length === 0) return (
-            <div className="text-center p-8 bg-gray-50 rounded-3xl border border-dashed border-gray-200">
-                <p className="text-gray-400 text-sm mb-4">No apps connected.</p>
+            <div className="text-center p-8 theme-bg-surface rounded-3xl border border-dashed theme-border">
+                <p className="theme-text-muted text-sm mb-4">No apps connected.</p>
                 <Button onClick={() => setView(AppView.SETTINGS)} variant="outline" className="text-xs h-10 w-auto px-6">Connect Apps</Button>
             </div>
         );
@@ -110,18 +110,18 @@ export default function StatsView() {
                 {relevantApps.map(app => (
                     <Card key={app.id} className="p-5">
                         <div className="flex items-center gap-3 mb-4">
-                            <div className="p-2 bg-gray-100 rounded-xl"><Icons.Activity className="w-5 h-5 text-primary"/></div>
+                            <div className="p-2 theme-bg-surface rounded-xl"><Icons.Activity className="w-5 h-5 theme-text-primary"/></div>
                             <div>
-                                <h4 className="font-bold text-primary">{app.name}</h4>
-                                <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Connected</span>
+                                <h4 className="font-bold theme-text-primary">{app.name}</h4>
+                                <span className="text-[10px] theme-text-muted uppercase font-bold tracking-wider">Connected</span>
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             {app.metrics.map(metric => (
                                 <div key={metric.id}>
-                                    <div className="text-xs text-gray-400 mb-1">{metric.name}</div>
+                                    <div className="text-xs theme-text-muted mb-1">{metric.name}</div>
                                     <div className="flex items-end gap-2 mb-2">
-                                        <span className="text-xl font-black text-primary">{metric.value}{metric.unit}</span>
+                                        <span className="text-xl font-black theme-text-primary">{metric.value}{metric.unit}</span>
                                         <span className={`text-[10px] font-bold mb-1 ${metric.status === 'good' ? 'text-green-500' : 'text-red-500'}`}>
                                             {metric.status === 'good' ? '▲' : '▼'}
                                         </span>
@@ -138,19 +138,19 @@ export default function StatsView() {
 
     return (
         <div className="h-full overflow-y-auto pb-safe scroll-smooth">
-            <div className="min-h-full bg-white pb-28 flex flex-col animate-fade-in">
+            <div className="min-h-full pb-28 flex flex-col animate-fade-in theme-transition theme-bg-page">
                 {/* Header */}
-                <div className="p-6 pt-safe border-b border-gray-100 bg-white sticky top-0 z-20">
+                <div className="p-6 pt-safe border-b sticky top-0 z-20 theme-border theme-bg-card">
                     <div className="flex justify-between items-center mb-4 mt-2">
-                        <h1 className="text-2xl font-bold text-primary">Analytics</h1>
-                        <button onClick={() => setView(AppView.DASHBOARD)} className="p-2 bg-gray-50 rounded-full"><Icons.X className="w-5 h-5 text-gray-400"/></button>
+                        <h1 className="text-2xl font-bold theme-text-primary">Analytics</h1>
+                        <button onClick={() => setView(AppView.DASHBOARD)} className="p-2 theme-bg-surface rounded-full"><Icons.X className="w-5 h-5 theme-text-muted"/></button>
                     </div>
                     {renderCalendarStrip()}
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-6 space-y-8">
                     {/* Main Insight */}
-                    <Card className="bg-primary text-white p-6 shadow-2xl shadow-primary/20 border-none">
+                    <Card className="theme-brand-primary text-white p-6 shadow-2xl border-none">
                         <h3 className="text-white/60 text-xs font-bold uppercase tracking-wider mb-1">Deep Insight</h3>
                         <p className="text-lg font-medium leading-relaxed mb-4">"{insights?.trend || "Analyzing data..."}"</p>
                         <div className="flex gap-4">
@@ -168,7 +168,7 @@ export default function StatsView() {
                     {/* Budget Allocation (If Money Goal) */}
                     {user.goal?.category === 'Money & Career' && budgetData && (
                         <div>
-                            <h3 className="font-bold text-primary mb-4 flex items-center gap-2"><Icons.PieChart className="w-5 h-5"/> Portfolio Allocation</h3>
+                            <h3 className="font-bold theme-text-primary mb-4 flex items-center gap-2"><Icons.PieChart className="w-5 h-5"/> Portfolio Allocation</h3>
                             <Card className="p-6 flex items-center gap-8">
                                 <DonutChart data={[
                                     { value: budgetData.lowRisk.amount, color: '#10B981' },
@@ -177,16 +177,16 @@ export default function StatsView() {
                                 ]} />
                                 <div className="space-y-3 flex-1">
                                     <div className="flex items-center justify-between text-xs">
-                                        <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-green-500"></span> Low Risk</span>
-                                        <span className="font-bold">{budgetData.lowRisk.percent}%</span>
+                                        <span className="flex items-center gap-2 theme-text-secondary"><span className="w-2 h-2 rounded-full bg-green-500"></span> Low Risk</span>
+                                        <span className="font-bold theme-text-primary">{budgetData.lowRisk.percent}%</span>
                                     </div>
                                     <div className="flex items-center justify-between text-xs">
-                                        <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-amber-500"></span> Medium</span>
-                                        <span className="font-bold">{budgetData.mediumRisk.percent}%</span>
+                                        <span className="flex items-center gap-2 theme-text-secondary"><span className="w-2 h-2 rounded-full bg-amber-500"></span> Medium</span>
+                                        <span className="font-bold theme-text-primary">{budgetData.mediumRisk.percent}%</span>
                                     </div>
                                     <div className="flex items-center justify-between text-xs">
-                                        <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-red-500"></span> High Yield</span>
-                                        <span className="font-bold">{budgetData.highYield.percent}%</span>
+                                        <span className="flex items-center gap-2 theme-text-secondary"><span className="w-2 h-2 rounded-full bg-red-500"></span> High Yield</span>
+                                        <span className="font-bold theme-text-primary">{budgetData.highYield.percent}%</span>
                                     </div>
                                 </div>
                             </Card>
@@ -195,22 +195,22 @@ export default function StatsView() {
 
                     {/* Connected Apps */}
                     <div>
-                        <h3 className="font-bold text-primary mb-4 flex items-center gap-2"><Icons.Cpu className="w-5 h-5"/> Connected Integrations</h3>
+                        <h3 className="font-bold theme-text-primary mb-4 flex items-center gap-2"><Icons.Cpu className="w-5 h-5"/> Connected Integrations</h3>
                         {renderConnectedApps()}
                     </div>
 
                      {/* Reminders / Future */}
                      <div>
-                        <h3 className="font-bold text-primary mb-4 flex items-center gap-2"><Icons.Clock className="w-5 h-5"/> Future Milestones</h3>
+                        <h3 className="font-bold theme-text-primary mb-4 flex items-center gap-2"><Icons.Clock className="w-5 h-5"/> Future Milestones</h3>
                         <div className="space-y-3">
-                            <div className="flex gap-4 items-start p-4 bg-gray-50 rounded-2xl border border-gray-100 opacity-50">
+                            <div className="flex gap-4 items-start p-4 theme-bg-surface rounded-2xl border theme-border opacity-50">
                                 <div className="w-12 text-center">
-                                    <span className="block text-xs font-bold text-gray-400">DEC</span>
-                                    <span className="block text-xl font-black text-gray-300">15</span>
+                                    <span className="block text-xs font-bold theme-text-muted">DEC</span>
+                                    <span className="block text-xl font-black theme-text-muted">15</span>
                                 </div>
                                 <div>
-                                    <h4 className="font-bold text-gray-400">Quarterly Review</h4>
-                                    <p className="text-xs text-gray-400">Scheduled automated audit.</p>
+                                    <h4 className="font-bold theme-text-muted">Quarterly Review</h4>
+                                    <p className="text-xs theme-text-muted">Scheduled automated audit.</p>
                                 </div>
                             </div>
                         </div>

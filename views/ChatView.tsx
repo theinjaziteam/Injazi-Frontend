@@ -132,20 +132,20 @@ export default function ChatView() {
     };
 
     return (
-        <div className="flex flex-col h-full bg-white">
+        <div className="flex flex-col h-full theme-transition theme-bg-page">
             {/* Header */}
-            <div className="flex-shrink-0 px-5 py-4 pt-safe border-b border-gray-100">
+            <div className="flex-shrink-0 px-5 py-4 pt-safe border-b theme-border theme-bg-card">
                 <div className="flex items-center justify-between mt-2">
                     <div className="flex items-center gap-3">
-                        <div className="w-11 h-11 bg-primary rounded-2xl flex items-center justify-center">
+                        <div className="w-11 h-11 theme-brand-primary rounded-2xl flex items-center justify-center">
                             <Icons.Bot className="w-5 h-5 text-white"/>
                         </div>
                         <div>
-                            <h1 className="text-base font-bold text-primary leading-tight">The Guide</h1>
+                            <h1 className="text-base font-bold theme-text-primary leading-tight">The Guide</h1>
                             <p className="text-[10px] text-secondary font-semibold uppercase tracking-wider">Success Architect</p>
                         </div>
                     </div>
-                    <button className="p-2 text-gray-300 hover:text-primary transition-colors rounded-full hover:bg-gray-50">
+                    <button className="p-2 theme-text-muted hover:theme-text-primary transition-colors rounded-full hover:theme-bg-hover">
                         <Icons.Settings className="w-5 h-5" />
                     </button>
                 </div>
@@ -159,11 +159,11 @@ export default function ChatView() {
                 {/* Empty State - Compact */}
                 {user.chatHistory.length === 0 && (
                     <div className="flex flex-col items-center justify-center h-full text-center px-6">
-                        <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-5">
-                            <Icons.Bot className="w-9 h-9 text-gray-300" />
+                        <div className="w-20 h-20 theme-bg-surface rounded-full flex items-center justify-center mb-5">
+                            <Icons.Bot className="w-9 h-9 theme-text-muted" />
                         </div>
-                        <p className="text-lg font-bold text-primary mb-2">Ready to assist.</p>
-                        <p className="text-sm text-gray-400 leading-relaxed">
+                        <p className="text-lg font-bold theme-text-primary mb-2">Ready to assist.</p>
+                        <p className="text-sm theme-text-muted leading-relaxed">
                             I'm analyzing your goal: <span className="text-secondary font-semibold">"{user.goal?.title}"</span>.
                             <br />Ask me anything about your strategy or tasks.
                         </p>
@@ -177,8 +177,8 @@ export default function ChatView() {
                             <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                 <div className={`max-w-[80%] p-3.5 rounded-2xl relative group ${
                                     msg.role === 'user' 
-                                    ? 'bg-primary text-white rounded-br-md' 
-                                    : 'bg-gray-100 text-gray-700 rounded-bl-md'
+                                    ? 'theme-brand-primary text-white rounded-br-md' 
+                                    : 'theme-bg-surface theme-text-secondary rounded-bl-md'
                                 }`}>
                                     {msg.attachment && (
                                         <div className="mb-2 rounded-lg overflow-hidden">
@@ -203,12 +203,12 @@ export default function ChatView() {
                                     {msg.role === 'ai' && (
                                         <button 
                                             onClick={() => isSpeaking ? stopSpeaking() : speakText(msg.text)}
-                                            className="absolute -bottom-2 right-2 p-1 bg-white rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                                            className="absolute -bottom-2 right-2 p-1 theme-bg-card rounded-full theme-shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
                                         >
                                             {isSpeaking ? (
-                                                <Icons.Pause className="w-3 h-3 text-gray-500" />
+                                                <Icons.Pause className="w-3 h-3 theme-text-muted" />
                                             ) : (
-                                                <Icons.PlayCircle className="w-3 h-3 text-gray-500" />
+                                                <Icons.PlayCircle className="w-3 h-3 theme-text-muted" />
                                             )}
                                         </button>
                                     )}
@@ -219,11 +219,11 @@ export default function ChatView() {
                         {/* Loading indicator */}
                         {isChatLoading && (
                             <div className="flex justify-start">
-                                <div className="bg-gray-100 text-gray-500 rounded-2xl rounded-bl-md p-3.5 flex items-center gap-2">
+                                <div className="theme-bg-surface theme-text-muted rounded-2xl rounded-bl-md p-3.5 flex items-center gap-2">
                                     <div className="flex gap-1">
-                                        <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></span>
-                                        <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></span>
-                                        <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></span>
+                                        <span className="w-1.5 h-1.5 theme-bg-hover rounded-full animate-bounce" style={{animationDelay: '0ms'}}></span>
+                                        <span className="w-1.5 h-1.5 theme-bg-hover rounded-full animate-bounce" style={{animationDelay: '150ms'}}></span>
+                                        <span className="w-1.5 h-1.5 theme-bg-hover rounded-full animate-bounce" style={{animationDelay: '300ms'}}></span>
                                     </div>
                                 </div>
                             </div>
@@ -233,13 +233,13 @@ export default function ChatView() {
             </div>
 
             {/* Input Area - Fixed at bottom, no extra space */}
-            <div className="flex-shrink-0 px-4 pb-safe border-t border-gray-100 bg-white" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 100px)' }}>
+            <div className="flex-shrink-0 px-4 pb-safe border-t theme-border theme-bg-card" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 100px)' }}>
                 <div className="py-3">
-                    <div className="bg-gray-50 border border-gray-200 rounded-2xl p-1.5 flex items-end gap-2">
+                    <div className="rounded-2xl p-1.5 flex items-end gap-2 theme-bg-surface border theme-border">
                         {/* Attachment */}
                         <button 
                             onClick={() => document.getElementById('chat-upload')?.click()}
-                            className={`p-2.5 rounded-xl flex-shrink-0 transition-colors ${chatAttachment ? 'bg-secondary text-white' : 'text-gray-400 hover:text-primary hover:bg-white'}`}
+                            className={`p-2.5 rounded-xl flex-shrink-0 transition-colors ${chatAttachment ? 'bg-secondary text-white' : 'theme-text-muted hover:theme-text-primary hover:theme-bg-card'}`}
                         >
                             {chatAttachment ? <Icons.Check className="w-4 h-4"/> : <Icons.Paperclip className="w-4 h-4"/>}
                             <input 
@@ -257,7 +257,7 @@ export default function ChatView() {
                                 <div className="text-[10px] font-semibold text-secondary mb-1 flex items-center gap-1">
                                     <Icons.Paperclip className="w-3 h-3"/> 
                                     {chatAttachment.type === 'image' ? 'Image' : 'PDF'} attached
-                                    <button onClick={() => setChatAttachment(undefined)} className="ml-1 text-gray-400 hover:text-red-500">
+                                    <button onClick={() => setChatAttachment(undefined)} className="ml-1 theme-text-muted hover:text-red-500">
                                         <Icons.X className="w-3 h-3"/>
                                     </button>
                                 </div>
@@ -267,7 +267,7 @@ export default function ChatView() {
                                 value={chatInput} 
                                 onChange={e => setChatInput(e.target.value)} 
                                 placeholder="Message The Guide..." 
-                                className="w-full bg-transparent border-none focus:outline-none resize-none text-sm placeholder:text-gray-400 leading-relaxed" 
+                                className="w-full bg-transparent border-none focus:outline-none resize-none text-sm placeholder:theme-text-muted leading-relaxed theme-text-primary" 
                                 rows={1}
                                 style={{ minHeight: '22px', maxHeight: '80px' }}
                                 onKeyDown={(e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
@@ -280,8 +280,8 @@ export default function ChatView() {
                             disabled={!chatInput.trim() && !chatAttachment}
                             className={`p-2.5 rounded-xl transition-all flex-shrink-0 ${
                                 chatInput.trim() || chatAttachment 
-                                    ? 'bg-primary text-white' 
-                                    : 'bg-gray-200 text-gray-400'
+                                    ? 'theme-brand-primary text-white' 
+                                    : 'theme-bg-hover theme-text-muted'
                             }`}
                         >
                             <Icons.Send className="w-4 h-4"/>

@@ -67,7 +67,7 @@ export default function ShopView() {
     };
 
     return (
-        <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
+        <div className="h-full flex flex-col overflow-hidden theme-transition theme-bg-page">
             {/* ===== FIXED HEADER with Safe Area ===== */}
             <div className="flex-shrink-0 bg-[#171738] pt-safe rounded-b-[2rem] shadow-xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-[#3423A6] rounded-full blur-[80px] opacity-20 translate-x-1/2 -translate-y-1/2"></div>
@@ -107,13 +107,13 @@ export default function ShopView() {
             </div>
 
             {/* ===== TAB NAVIGATION - Fixed ===== */}
-            <div className="flex-shrink-0 flex px-5 py-3 gap-3 bg-gray-50">
+            <div className="flex-shrink-0 flex px-5 py-3 gap-3 theme-bg-page">
                 <button 
                     onClick={() => setShopTab('credits')}
                     className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all ${
                         shopTab === 'credits' 
                             ? 'bg-[#171738] text-white shadow-lg' 
-                            : 'bg-white text-gray-400 hover:bg-gray-100'
+                            : 'theme-bg-card theme-text-muted hover:theme-bg-hover'
                     }`}
                 >
                     Get Credits
@@ -123,7 +123,7 @@ export default function ShopView() {
                     className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all ${
                         shopTab === 'marketplace' 
                             ? 'bg-[#171738] text-white shadow-lg' 
-                            : 'bg-white text-gray-400 hover:bg-gray-100'
+                            : 'theme-bg-card theme-text-muted hover:theme-bg-hover'
                     }`}
                 >
                     Marketplace
@@ -137,21 +137,21 @@ export default function ShopView() {
                         {/* Redeem Button */}
                         <div 
                             onClick={() => setShowRedeem(true)}
-                            className="bg-white border-2 border-[#DFF3E4] p-4 rounded-2xl flex items-center justify-between cursor-pointer hover:shadow-lg transition-all group"
+                            className="theme-bg-card border-2 border-[#DFF3E4] p-4 rounded-2xl flex items-center justify-between cursor-pointer hover:theme-shadow-lg transition-all group"
                         >
                             <div className="flex items-center gap-3">
                                 <div className="w-11 h-11 bg-[#DFF3E4] rounded-full flex items-center justify-center text-[#171738] group-hover:scale-110 transition-transform">
                                     <Icons.RefreshCw className="w-5 h-5"/>
                                 </div>
                                 <div>
-                                    <h3 className="font-bold text-[#171738] text-sm">Liquidate Holdings</h3>
-                                    <p className="text-[10px] text-gray-500">Convert Credits → Cash</p>
+                                    <h3 className="font-bold theme-text-primary text-sm">Liquidate Holdings</h3>
+                                    <p className="text-[10px] theme-text-muted">Convert Credits → Cash</p>
                                 </div>
                             </div>
-                            <Icons.ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-[#171738]"/>
+                            <Icons.ChevronRight className="w-5 h-5 theme-text-muted group-hover:theme-text-primary"/>
                         </div>
 
-                        <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-5 mb-2 ml-1">Purchase Allocations</h3>
+                        <h3 className="text-[10px] font-black theme-text-muted uppercase tracking-widest mt-5 mb-2 ml-1">Purchase Allocations</h3>
                         
                         {/* Buy Tiers */}
                         {buyTiers.map((tier) => (
@@ -159,8 +159,8 @@ export default function ShopView() {
                                 key={tier.id}
                                 onClick={() => handleBuy(tier)}
                                 disabled={isProcessing}
-                                className={`relative w-full bg-white p-4 rounded-2xl text-left border-2 transition-all hover:shadow-lg active:scale-[0.98] flex items-center justify-between ${
-                                    tier.popular ? 'border-[#3423A6]' : 'border-transparent'
+                                className={`relative w-full theme-bg-card p-4 rounded-2xl text-left border-2 transition-all hover:theme-shadow-lg active:scale-[0.98] flex items-center justify-between ${
+                                    tier.popular ? 'border-[#3423A6]' : 'border-transparent theme-border'
                                 }`}
                             >
                                 {tier.popular && (
@@ -169,12 +169,12 @@ export default function ShopView() {
                                     </div>
                                 )}
                                 <div>
-                                    <div className="text-xl font-black text-[#171738]">{tier.credits.toLocaleString()}</div>
-                                    <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Credits</div>
+                                    <div className="text-xl font-black theme-text-primary">{tier.credits.toLocaleString()}</div>
+                                    <div className="text-[9px] font-bold theme-text-muted uppercase tracking-wider">Credits</div>
                                 </div>
                                 <div className="flex items-center gap-3">
                                     <div className="text-lg font-bold text-[#3423A6]">${tier.price}</div>
-                                    <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-white shadow-lg shadow-primary/30">
+                                    <div className="w-10 h-10 theme-brand-primary rounded-full flex items-center justify-center text-white shadow-lg">
                                         <Icons.Plus className="w-5 h-5"/>
                                     </div>
                                 </div>
@@ -183,11 +183,11 @@ export default function ShopView() {
                     </div>
                 ) : (
                     <div className="flex-1 flex flex-col items-center justify-center py-10 animate-fade-in">
-                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                            <Icons.Shop className="w-7 h-7 text-gray-300"/>
+                        <div className="w-16 h-16 theme-bg-surface rounded-full flex items-center justify-center mb-4">
+                            <Icons.Shop className="w-7 h-7 theme-text-muted"/>
                         </div>
-                        <h3 className="text-gray-400 font-bold text-sm">Marketplace Coming Soon</h3>
-                        <p className="text-xs text-gray-300 mt-1">Browse courses, assets, and more.</p>
+                        <h3 className="theme-text-muted font-bold text-sm">Marketplace Coming Soon</h3>
+                        <p className="text-xs theme-text-muted mt-1">Browse courses, assets, and more.</p>
                     </div>
                 )}
             </div>
@@ -195,28 +195,28 @@ export default function ShopView() {
             {/* ===== MODALS ===== */}
             {showRedeem && (
                 <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm animate-fade-in">
-                    <div className="bg-white w-full max-w-lg rounded-t-[2rem] p-6 shadow-2xl animate-slide-up safe-bottom">
-                        <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5"/>
+                    <div className="theme-bg-card w-full max-w-lg rounded-t-[2rem] p-6 theme-shadow-xl animate-slide-up safe-bottom">
+                        <div className="w-10 h-1 theme-bg-surface rounded-full mx-auto mb-5"/>
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-lg font-black text-[#171738]">Cash Out</h2>
-                            <button onClick={() => setShowRedeem(false)} className="p-2 bg-gray-100 rounded-full">
-                                <Icons.X className="w-4 h-4"/>
+                            <h2 className="text-lg font-black theme-text-primary">Cash Out</h2>
+                            <button onClick={() => setShowRedeem(false)} className="p-2 theme-bg-surface rounded-full">
+                                <Icons.X className="w-4 h-4 theme-text-muted"/>
                             </button>
                         </div>
                         
-                        <div className="bg-gray-50 p-5 rounded-2xl mb-5 text-center">
+                        <div className="theme-bg-surface p-5 rounded-2xl mb-5 text-center">
                             <input 
                                 type="number" 
                                 value={customRedeem}
                                 onChange={(e) => setCustomRedeem(e.target.value)}
                                 placeholder="3000"
-                                className="w-full bg-transparent text-center text-3xl font-black text-[#171738] outline-none placeholder:text-gray-200"
+                                className="w-full bg-transparent text-center text-3xl font-black theme-text-primary outline-none placeholder:theme-text-muted"
                             />
-                            <div className="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-widest">Credits to Convert</div>
+                            <div className="text-[10px] font-bold theme-text-muted mt-1 uppercase tracking-widest">Credits to Convert</div>
                         </div>
 
                         <div className="flex justify-between items-center px-2 mb-6">
-                            <span className="text-sm font-medium text-gray-400">You'll Receive</span>
+                            <span className="text-sm font-medium theme-text-muted">You'll Receive</span>
                             <span className="text-xl font-black text-green-600">
                                 ${customRedeem ? (parseInt(customRedeem) / 3000).toFixed(2) : '0.00'}
                             </span>
@@ -230,7 +230,7 @@ export default function ShopView() {
                             Confirm Transfer
                         </Button>
                         
-                        <p className="text-center text-[9px] text-gray-300 mt-3 font-medium">
+                        <p className="text-center text-[9px] theme-text-muted mt-3 font-medium">
                             Minimum 3,000 CR required
                         </p>
                     </div>

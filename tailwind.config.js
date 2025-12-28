@@ -33,6 +33,17 @@ export default {
                 // Border
                 border: 'var(--color-border)',
                 'border-strong': 'var(--color-border-strong)',
+                
+                // Navigation
+                'nav-bg': 'var(--color-nav-bg)',
+                'nav-text': 'var(--color-nav-text)',
+                'nav-text-active': 'var(--color-nav-text-active)',
+                'nav-border': 'var(--color-nav-border)',
+                
+                // Card colors
+                'card-bg': 'var(--color-card-bg)',
+                'card-border': 'var(--color-card-border)',
+                'card-text': 'var(--color-card-text)',
             },
             boxShadow: {
                 'sm': 'var(--shadow-sm)',
@@ -44,6 +55,12 @@ export default {
                 sans: ['Inter', 'system-ui', 'sans-serif'],
                 serif: ['Merriweather', 'serif'],
                 display: ['Playfair Display', 'serif'],
+            },
+            animation: {
+                'fade-in': 'fade-in 0.3s ease-out',
+                'slide-up': 'slide-up 0.4s ease-out',
+                'scale-in': 'scale-in 0.2s ease-out',
+                'pulse-subtle': 'pulse-subtle 2s ease-in-out infinite',
             },
         },
     },

@@ -22,30 +22,30 @@ export default function TaskHistoryView() {
     };
 
     return (
-        <div className="h-full overflow-y-auto pb-safe scroll-smooth bg-gray-50">
+        <div className="h-full overflow-y-auto pb-safe scroll-smooth theme-transition theme-bg-page">
             <div className="min-h-full flex flex-col animate-fade-in">
                 {/* Header */}
-                <div className="p-6 pt-safe border-b border-gray-200 flex items-center gap-4 bg-white sticky top-0 z-10">
-                    <button onClick={() => setView(AppView.TASK_SELECTION)} className="p-2 hover:bg-gray-100 rounded-full transition-colors mt-2">
-                        <Icons.ChevronLeft className="w-6 h-6 text-primary"/>
+                <div className="p-6 pt-safe border-b flex items-center gap-4 sticky top-0 z-10 theme-border theme-bg-card">
+                    <button onClick={() => setView(AppView.TASK_SELECTION)} className="p-2 hover:theme-bg-hover rounded-full transition-colors mt-2">
+                        <Icons.ChevronLeft className="w-6 h-6 theme-text-primary"/>
                     </button>
                     <div className="mt-2">
-                        <h1 className="text-2xl font-black text-primary uppercase tracking-tight">Completed Tasks</h1>
-                        <p className="text-xs text-gray-400">{historyTasks.length} task{historyTasks.length !== 1 ? 's' : ''} finished</p>
+                        <h1 className="text-2xl font-black theme-text-primary uppercase tracking-tight">Completed Tasks</h1>
+                        <p className="text-xs theme-text-muted">{historyTasks.length} task{historyTasks.length !== 1 ? 's' : ''} finished</p>
                     </div>
                 </div>
 
                 <div className="flex-1 p-6">
                     {historyTasks.length === 0 ? (
-                        <div className="text-center py-20 text-gray-400">
-                            <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <Icons.Check className="w-10 h-10 text-gray-400" />
+                        <div className="text-center py-20 theme-text-muted">
+                            <div className="w-20 h-20 theme-bg-surface rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Icons.Check className="w-10 h-10 theme-text-muted" />
                             </div>
                             <p className="font-medium">No completed tasks yet</p>
                             <p className="text-sm mt-1">Complete your first mission!</p>
                             <button 
                                 onClick={() => setView(AppView.TASK_SELECTION)} 
-                                className="mt-4 px-6 py-2 bg-primary text-white rounded-full text-sm font-bold"
+                                className="mt-4 px-6 py-2 theme-brand-primary text-white rounded-full text-sm font-bold"
                             >
                                 View Missions
                             </button>
@@ -55,7 +55,7 @@ export default function TaskHistoryView() {
                             {historyTasks.map((task, index) => (
                                 <div 
                                     key={task.id} 
-                                    className="p-4 bg-white rounded-2xl border-2 border-gray-200 shadow-sm"
+                                    className="p-4 theme-bg-card rounded-2xl border-2 theme-border theme-shadow-sm"
                                     style={{ animationDelay: `${index * 50}ms` }}
                                 >
                                     <div className="flex items-center gap-4">
@@ -73,15 +73,15 @@ export default function TaskHistoryView() {
                                         
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 mb-0.5">
-                                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                                                <span className="text-[10px] font-bold theme-text-muted uppercase tracking-wider">
                                                     Day {task.dayNumber}
                                                 </span>
-                                                <span className="text-[10px] text-gray-300">•</span>
-                                                <span className="text-[10px] text-gray-400">
+                                                <span className="text-[10px] theme-text-muted">•</span>
+                                                <span className="text-[10px] theme-text-muted">
                                                     {task.estimatedTimeMinutes} min
                                                 </span>
                                             </div>
-                                            <h4 className="font-bold text-primary line-clamp-1">{task.title}</h4>
+                                            <h4 className="font-bold theme-text-primary line-clamp-1">{task.title}</h4>
                                         </div>
                                         
                                         <span className={`text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wide ${

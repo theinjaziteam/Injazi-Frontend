@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTheme } from '../contexts/ThemeContext';
 
 // --- Icons ---
 export const Icons = {
@@ -15,11 +16,11 @@ export const Icons = {
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z"/></svg>
   ),
   Mail: (props: any) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
-),
-ArrowLeft: (props: any) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
-),
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+  ),
+  ArrowLeft: (props: any) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+  ),
   Send: (props: any) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
   ),
@@ -40,6 +41,9 @@ ArrowLeft: (props: any) => (
   ),
   Sun: (props: any) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+  ),
+  Moon: (props: any) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
   ),
   Grid: (props: any) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
@@ -192,12 +196,12 @@ ArrowLeft: (props: any) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
   ),
   
-  // --- ADDED PAUSE ICON HERE ---
   Pause: (props: any) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
   )
 };
 
+// Theme-aware Button component
 export const Button: React.FC<{
   onClick: () => void;
   children: React.ReactNode;
@@ -229,23 +233,36 @@ export const Button: React.FC<{
   );
 };
 
-export const Card: React.FC<{ children: React.ReactNode; className?: string; onClick?: () => void; isSelected?: boolean }> = ({ children, className = '', onClick, isSelected = false }) => (
-  <div 
-    onClick={onClick} 
-    className={`
-      relative bg-white rounded-3xl transition-all duration-300
-      ${isSelected 
-        ? 'ring-2 ring-primary shadow-xl shadow-primary/10 z-10 scale-[1.01]' 
-        : 'border border-accent shadow-sm hover:shadow-md hover:-translate-y-1'
-      }
-      ${className} 
-      ${onClick ? 'cursor-pointer' : ''}
-    `}
-  >
-    {children}
-  </div>
-);
+// Theme-aware Card component
+export const Card: React.FC<{ 
+  children: React.ReactNode; 
+  className?: string; 
+  onClick?: () => void; 
+  isSelected?: boolean;
+  themed?: boolean;
+}> = ({ children, className = '', onClick, isSelected = false, themed = true }) => {
+  // Card uses CSS variables for consistent theming
+  const baseClasses = 'relative rounded-3xl transition-all duration-300 theme-bg-card border theme-border-card theme-shadow-card';
 
+  return (
+    <div 
+      onClick={onClick} 
+      className={`
+        ${baseClasses}
+        ${isSelected 
+          ? 'ring-2 ring-primary shadow-xl z-10 scale-[1.01]' 
+          : 'hover:theme-shadow-md hover:-translate-y-1'
+        }
+        ${className} 
+        ${onClick ? 'cursor-pointer' : ''}
+      `}
+    >
+      {children}
+    </div>
+  );
+};
+
+// Badge component
 export const Badge: React.FC<{ children: React.ReactNode; color?: string }> = ({ children, color }) => {
   const appliedColor = color || 'bg-accent text-secondary';
   return (
@@ -255,16 +272,44 @@ export const Badge: React.FC<{ children: React.ReactNode; color?: string }> = ({
   );
 };
 
-export const Toggle: React.FC<{ checked: boolean; onChange: (checked: boolean) => void }> = ({ checked, onChange }) => (
-  <button 
-    onClick={() => onChange(!checked)} 
-    className={`w-12 h-6 rounded-full p-1 transition-colors duration-200 ease-in-out ${checked ? 'bg-primary' : 'bg-gray-200'}`}
-  >
-    <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-200 ease-in-out ${checked ? 'translate-x-6' : 'translate-x-0'}`} />
-  </button>
-);
+// Theme-aware Toggle component
+export const Toggle: React.FC<{ checked: boolean; onChange: (checked: boolean) => void }> = ({ checked, onChange }) => {
+  const { isLight } = useTheme();
+  
+  return (
+    <button 
+      onClick={() => onChange(!checked)} 
+      className={`w-12 h-6 rounded-full p-1 transition-colors duration-200 ease-in-out ${
+        checked 
+          ? 'bg-primary' 
+          : isLight ? 'bg-gray-300' : 'bg-gray-600'
+      }`}
+    >
+      <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-200 ease-in-out ${checked ? 'translate-x-6' : 'translate-x-0'}`} />
+    </button>
+  );
+};
 
-// Find the BottomNav export and replace with:
+// Theme Toggle Button component
+export const ThemeToggle: React.FC<{ className?: string }> = ({ className = '' }) => {
+  const { theme, toggleTheme, isLight } = useTheme();
+  
+  return (
+    <button 
+      onClick={toggleTheme}
+      className={`p-2 rounded-full transition-all duration-200 ${
+        isLight 
+          ? 'bg-gray-100 hover:bg-gray-200 text-gray-700' 
+          : 'bg-white/10 hover:bg-white/20 text-white'
+      } ${className}`}
+      aria-label={`Switch to ${isLight ? 'dark' : 'light'} mode`}
+    >
+      {isLight ? <Icons.Moon className="w-5 h-5" /> : <Icons.Sun className="w-5 h-5" />}
+    </button>
+  );
+};
+
+// Theme-aware Bottom Navigation
 export const BottomNav: React.FC<{
   activeTab: string;
   onTabChange: (tab: string) => void;
@@ -278,8 +323,14 @@ export const BottomNav: React.FC<{
   ];
 
   return (
-    <div className="flex-shrink-0 bg-primary border-t border-white/10 pb-safe" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 12px)' }}>
-      <div className="flex justify-around items-center h-16 px-4 bg-primary">
+    <div 
+      className="flex-shrink-0 border-t pb-safe theme-transition theme-nav-bg" 
+      style={{ 
+        paddingBottom: 'max(env(safe-area-inset-bottom), 12px)',
+        borderColor: 'var(--color-nav-border)'
+      }}
+    >
+      <div className="flex justify-around items-center h-16 px-4 theme-nav-bg">
         {tabs.map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -289,8 +340,8 @@ export const BottomNav: React.FC<{
               onClick={() => onTabChange(tab.id)}
               className={`flex flex-col items-center justify-center gap-1 py-2 px-4 rounded-xl transition-all ${
                 isActive 
-                  ? 'text-white' 
-                  : 'text-white/40 hover:text-white/70'
+                  ? 'theme-nav-text-active'
+                  : 'theme-nav-text hover:opacity-80'
               }`}
             >
               <Icon className={`w-5 h-5 transition-transform ${isActive ? 'scale-110' : ''}`} />
@@ -298,12 +349,64 @@ export const BottomNav: React.FC<{
                 {tab.label}
               </span>
               {isActive && (
-                <div className="absolute bottom-1 w-1 h-1 bg-accent rounded-full" />
+                <div className="absolute bottom-1 w-1 h-1 rounded-full bg-accent" />
               )}
             </button>
           );
         })}
       </div>
     </div>
+  );
+};
+
+// Theme-aware Input component
+export const Input: React.FC<{
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  type?: string;
+  className?: string;
+  disabled?: boolean;
+}> = ({ value, onChange, placeholder, type = 'text', className = '', disabled = false }) => {
+  const { isLight } = useTheme();
+  
+  return (
+    <input
+      type={type}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      disabled={disabled}
+      className={`w-full p-4 rounded-xl font-medium transition-all duration-200 outline-none ${
+        isLight 
+          ? 'bg-gray-50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20'
+          : 'bg-white/5 border border-white/10 text-white placeholder-white/40 focus:border-accent focus:ring-2 focus:ring-accent/20'
+      } ${className}`}
+    />
+  );
+};
+
+// Theme-aware TextArea component
+export const TextArea: React.FC<{
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  className?: string;
+  rows?: number;
+}> = ({ value, onChange, placeholder, className = '', rows = 4 }) => {
+  const { isLight } = useTheme();
+  
+  return (
+    <textarea
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      rows={rows}
+      className={`w-full p-4 rounded-xl font-medium transition-all duration-200 outline-none resize-none ${
+        isLight 
+          ? 'bg-gray-50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:border-primary'
+          : 'bg-white/5 border border-white/10 text-white placeholder-white/40 focus:border-accent'
+      } ${className}`}
+    />
   );
 };

@@ -257,35 +257,46 @@ export const Toggle: React.FC<{ checked: boolean; onChange: (checked: boolean) =
   </button>
 );
 
+// Find the BottomNav export and replace with:
 export const BottomNav: React.FC<{
   activeTab: string;
   onTabChange: (tab: string) => void;
 }> = ({ activeTab, onTabChange }) => {
   const tabs = [
-    { id: 'dashboard', Icon: Icons.Home, label: 'Home' },
-    { id: 'social', Icon: Icons.Users, label: 'Social' }, 
-    { id: 'chat', Icon: Icons.Bot, label: 'Guide' },
-    { id: 'stats', Icon: Icons.BarChart, label: 'Stats' },
-    { id: 'shop', Icon: Icons.Shop, label: 'Shop' },
+    { id: 'dashboard', icon: Icons.Home, label: 'Home' },
+    { id: 'social', icon: Icons.BookOpen, label: 'Learn' },
+    { id: 'chat', icon: Icons.MessageCircle, label: 'Guide' },
+    { id: 'stats', icon: Icons.Activity, label: 'Stats' },
+    { id: 'shop', icon: Icons.Shop, label: 'Shop' },
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex justify-between items-center z-50 px-2 pb-safe shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-      {tabs.map(t => {
-        const isActive = activeTab === t.id;
-        return (
-          <button
-            key={t.id}
-            onClick={(e) => { e.stopPropagation(); onTabChange(t.id); }}
-            className={`flex-1 flex flex-col items-center justify-center py-3 relative transition-all duration-200 group`}
-          >
-            <div className={`p-2 rounded-full transition-all duration-300 ${isActive ? 'bg-primary/10 text-primary translate-y-[-2px]' : 'text-gray-400 group-hover:text-primary'}`}>
-              <t.Icon className={`w-6 h-6 ${isActive ? 'fill-primary/20' : ''}`} />
-            </div>
-            {isActive && <div className="w-1 h-1 bg-primary rounded-full mt-1"></div>}
-          </button>
-        );
-      })}
+    <div className="flex-shrink-0 bg-primary border-t border-white/10 pb-safe" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 12px)' }}>
+      <div className="flex justify-around items-center h-16 px-4 bg-primary">
+        {tabs.map(tab => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => onTabChange(tab.id)}
+              className={`flex flex-col items-center justify-center gap-1 py-2 px-4 rounded-xl transition-all ${
+                isActive 
+                  ? 'text-white' 
+                  : 'text-white/40 hover:text-white/70'
+              }`}
+            >
+              <Icon className={`w-5 h-5 transition-transform ${isActive ? 'scale-110' : ''}`} />
+              <span className={`text-[9px] font-bold uppercase tracking-wider ${isActive ? 'opacity-100' : 'opacity-60'}`}>
+                {tab.label}
+              </span>
+              {isActive && (
+                <div className="absolute bottom-1 w-1 h-1 bg-accent rounded-full" />
+              )}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 };

@@ -107,21 +107,28 @@ export default function LoginView() {
         }
     };
 
-    const handleAuth = async (e: React.FormEvent) => {
-        e.preventDefault();
-        clearMessages();
-        
-        if (mode === 'register' && (!name || !country || !privacyAccepted)) {
-            setError("Please fill all required fields and accept privacy policy.");
-            return;
-        }
+   const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    clearMessages();
+    
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        setError("Please enter a valid email address.");
+        return;
+    }
+    
+    if (mode === 'register' && (!name || !country || !privacyAccepted)) {
+        setError("Please fill all required fields and accept privacy policy.");
+        return;
+    }
 
-        if (mode === 'register' && password.length < 6) {
-            setError("Password must be at least 6 characters.");
-            return;
-        }
-        
-        setIsLoading(true);
+    if (password.length < 6) {
+        setError("Password must be at least 6 characters.");
+        return;
+    }
+    
+    setIsLoading(true);
         
         try {
             const result = await api.auth({

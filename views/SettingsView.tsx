@@ -1,11 +1,15 @@
+// views/SettingsView.tsx
 import React, { useState } from 'react';
 import { useApp } from '../contexts/AppContext';
+import { useTheme } from '../hooks/useTheme';
 import { AppView, COUNTRIES } from '../types';
 import { Icons, Button, Toggle, Card, Badge } from '../components/UIComponents';
-import { api } from '../services/api'; // <--- IMPORT API
+import { api } from '../services/api';
 
 export default function SettingsView() {
     const { user, setUser, setView, setIsAuthenticated } = useApp();
+    const { colors, mode, toggle, isLight } = useTheme();
+    
     const [editMode, setEditMode] = useState(false);
     const [name, setName] = useState(user.name);
     const [email, setEmail] = useState(user.email);
@@ -15,20 +19,13 @@ export default function SettingsView() {
     const [showPrivacy, setShowPrivacy] = useState(false);
     const [showPlans, setShowPlans] = useState(false);
 
-    // --- HELPER: FORCE DB SAVE ---
     const updateAndSave = async (updates: Partial<typeof user>) => {
         const updatedUser = { ...user, ...updates };
-        
-        // 1. Update UI immediately
         setUser(updatedUser);
-        
-        // 2. Force Save to Database
         try {
-            console.log("💾 Saving Settings...");
             await api.sync(updatedUser);
         } catch (e) {
             console.error("Settings Save Failed", e);
-            alert("Could not save settings. Check connection.");
         }
     };
 
@@ -38,15 +35,12 @@ export default function SettingsView() {
     };
 
     const handlePlanSelect = (planId: string, isPremium: boolean) => {
-        // Force save the plan change
         updateAndSave({
             activePlanId: planId,
             isPremium: isPremium,
             maxGoalSlots: planId === 'free' ? 3 : 99,
         });
-        
         setShowPlans(false);
-        alert(`Plan Update: Authorization complete for the ${planId.toUpperCase()} tier.`);
     };
 
     const toggleAppConnection = (appId: string) => {
@@ -57,219 +51,317 @@ export default function SettingsView() {
     };
 
     return (
-        <div className="h-full overflow-y-auto pb-safe scroll-smooth">
-            <div className="min-h-full bg-white flex flex-col animate-fade-in pb-20">
+        <div className="h-full overflow-y-auto pb-safe" style={{ backgroundColor: colors.bgPrimary }}>
+            <div className="min-h-full flex flex-col pb-20">
                 {/* Header */}
-                <div className="p-6 pt-safe border-b border-gray-100 flex items-center gap-4 bg-white sticky top-0 z-30">
-                    <button onClick={() => setView(AppView.DASHBOARD)} className="p-2 mt-2 hover:bg-gray-100 rounded-full transition-colors">
-                        <Icons.ChevronLeft className="w-6 h-6 text-primary"/>
+                <div 
+                    className="p-6 pt-safe border-b flex items-center gap-4 sticky top-0 z-30"
+                    style={{ backgroundColor: colors.bgPrimary, borderColor: colors.cardBorder }}
+                >
+                    <button 
+                        onClick={() => setView(AppView.DASHBOARD)} 
+                        className="p-2 mt-2 rounded-full transition-colors"
+                        style={{ backgroundColor: colors.bgSecondary }}
+                    >
+                        <Icons.ChevronLeft className="w-6 h-6" style={{ color: colors.textPrimary }}/>
                     </button>
-                    <h1 className="text-2xl font-black text-primary mt-2 uppercase tracking-tighter">Identity</h1>
+                    <h1 className="text-2xl font-black mt-2 uppercase tracking-tighter" style={{ color: colors.textPrimary }}>
+                        Settings
+                    </h1>
                 </div>
 
                 <div className="p-6 space-y-8">
+                    {/* Appearance Section - NEW */}
+                    <section>
+                        <h2 className="text-lg font-black mb-4 flex items-center gap-2" style={{ color: colors.textPrimary }}>
+                            <Icons.Sun className="w-5 h-5" style={{ color: colors.bgAccentStrong }}/> Appearance
+                        </h2>
+                        <div 
+                            className="p-5 rounded-2xl flex items-center justify-between"
+                            style={{ backgroundColor: colors.cardBg, border: `1px solid ${colors.cardBorder}` }}
+                        >
+                            <div className="flex items-center gap-4">
+                                <div 
+                                    className="p-3 rounded-xl"
+                                    style={{ backgroundColor: colors.bgSecondary }}
+                                >
+                                    {isLight ? (
+                                        <Icons.Sun className="w-5 h-5" style={{ color: colors.textSecondary }} />
+                                    ) : (
+                                        <Icons.Sun className="w-5 h-5" style={{ color: colors.textSecondary }} />
+                                    )}
+                                </div>
+                                <div>
+                                    <span className="font-bold block" style={{ color: colors.textPrimary }}>
+                                        {isLight ? 'Light Mode' : 'Dark Mode'}
+                                    </span>
+                                    <span className="text-xs" style={{ color: colors.textMuted }}>
+                                        {isLight ? 'Easy on the eyes during the day' : 'Perfect for night owls'}
+                                    </span>
+                                </div>
+                            </div>
+                            <Toggle checked={!isLight} onChange={toggle} />
+                        </div>
+                    </section>
+
                     {/* Wallet Section */}
                     <section className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
-                            {/* Explicitly style credit box to prevent white/empty display */}
-                            <div className="p-5 bg-primary text-white rounded-3xl shadow-xl shadow-primary/20 relative overflow-hidden group">
+                            <div 
+                                className="p-5 rounded-3xl shadow-xl relative overflow-hidden"
+                                style={{ backgroundColor: colors.bgAccentStrong }}
+                            >
                                 <div className="relative z-10">
-                                    <span className="text-[10px] font-bold text-white/50 uppercase tracking-widest">Architect Credits</span>
-                                    <div className="text-2xl font-black mt-1 group-hover:scale-105 transition-transform origin-left text-white">{(user.credits || 0).toLocaleString()}</div>
+                                    <span className="text-[10px] font-bold text-white/50 uppercase tracking-widest">Credits</span>
+                                    <div className="text-2xl font-black mt-1 text-white">{(user.credits || 0).toLocaleString()}</div>
                                 </div>
                                 <Icons.Coins className="absolute -bottom-4 -right-4 w-16 h-16 text-white/10 rotate-12" />
                             </div>
-                            <div className="p-5 bg-emerald-600 text-white rounded-3xl shadow-xl shadow-emerald-500/20 relative overflow-hidden group">
+                            <div className="p-5 bg-emerald-600 text-white rounded-3xl shadow-xl relative overflow-hidden">
                                 <div className="relative z-10">
-                                    <span className="text-[10px] font-bold text-white/50 uppercase tracking-widest">Global Balance</span>
-                                    <div className="text-2xl font-black mt-1 group-hover:scale-105 transition-transform origin-left text-white">${(user.realMoneyBalance || 0).toFixed(2)}</div>
+                                    <span className="text-[10px] font-bold text-white/50 uppercase tracking-widest">Balance</span>
+                                    <div className="text-2xl font-black mt-1 text-white">${(user.realMoneyBalance || 0).toFixed(2)}</div>
                                 </div>
                                 <Icons.TrendingUp className="absolute -bottom-4 -right-4 w-16 h-16 text-white/10 -rotate-12" />
                             </div>
                         </div>
-                        <Card className={`p-6 border-2 transition-all duration-300 ${user.isPremium ? 'border-secondary bg-secondary/5' : 'border-gray-100'}`}>
+                        
+                        <div 
+                            className="p-6 rounded-2xl"
+                            style={{ 
+                                backgroundColor: colors.cardBg, 
+                                border: `2px solid ${user.isPremium ? colors.bgAccentStrong : colors.cardBorder}` 
+                            }}
+                        >
                             <div className="flex justify-between items-start mb-6">
                                 <div>
-                                    <div className="text-[10px] font-bold text-secondary uppercase tracking-[0.2em] mb-1">Active Membership</div>
-                                    <h3 className="text-xl font-black text-primary">
-                                        {user.activePlanId === 'creator' ? 'Creator Architect' : user.activePlanId === 'premium' ? 'Premium Architect' : 'Free Standard'}
+                                    <div className="text-[10px] font-bold uppercase tracking-[0.2em] mb-1" style={{ color: colors.bgAccentStrong }}>
+                                        Active Plan
+                                    </div>
+                                    <h3 className="text-xl font-black" style={{ color: colors.textPrimary }}>
+                                        {user.activePlanId === 'creator' ? 'Creator' : user.activePlanId === 'premium' ? 'Premium' : 'Free'}
                                     </h3>
                                 </div>
-                                {user.isPremium && <Badge color="bg-secondary text-white">PRO</Badge>}
+                                {user.isPremium && <Badge color="bg-[#A7B0F4] text-white">PRO</Badge>}
                             </div>
-                            <Button onClick={() => setShowPlans(true)} variant="outline" className="border-secondary text-secondary py-3 text-xs h-10 w-auto px-6">Manage Membership</Button>
-                        </Card>
-                    </section>
-
-                    {/* Identity Section */}
-                    <section>
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-lg font-black text-primary flex items-center gap-2"><Icons.User className="w-5 h-5 text-secondary"/> Profile Identity</h2>
-                            <button onClick={() => editMode ? handleSaveProfile() : setEditMode(true)} className="text-xs font-black text-secondary uppercase tracking-widest">
-                                {editMode ? 'Confirm' : 'Modify'}
+                            <button 
+                                onClick={() => setShowPlans(true)} 
+                                className="px-6 py-3 rounded-xl text-sm font-bold border-2 transition-all active:scale-[0.98]"
+                                style={{ borderColor: colors.bgAccentStrong, color: colors.bgAccentStrong }}
+                            >
+                                Manage Plan
                             </button>
                         </div>
-                        <Card className="p-6">
+                    </section>
+
+                    {/* Profile Section */}
+                    <section>
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-lg font-black flex items-center gap-2" style={{ color: colors.textPrimary }}>
+                                <Icons.User className="w-5 h-5" style={{ color: colors.bgAccentStrong }}/> Profile
+                            </h2>
+                            <button 
+                                onClick={() => editMode ? handleSaveProfile() : setEditMode(true)} 
+                                className="text-xs font-black uppercase tracking-widest"
+                                style={{ color: colors.bgAccentStrong }}
+                            >
+                                {editMode ? 'Save' : 'Edit'}
+                            </button>
+                        </div>
+                        <div 
+                            className="p-6 rounded-2xl"
+                            style={{ backgroundColor: colors.cardBg, border: `1px solid ${colors.cardBorder}` }}
+                        >
                             <div className="space-y-6">
                                 <div>
-                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Full Name</label>
-                                    {editMode ? <input value={name} onChange={e => setName(e.target.value)} className="w-full mt-2 p-3 bg-gray-50 rounded-xl border border-gray-100 font-bold" /> : <div className="text-primary font-black text-lg mt-1">{user.name}</div>}
-                                </div>
-                                <div>
-                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Account Identity (Email)</label>
-                                    {editMode ? <input value={email} onChange={e => setEmail(e.target.value)} className="w-full mt-2 p-3 bg-gray-50 rounded-xl border border-gray-100 font-bold" /> : <div className="text-primary font-bold mt-1">{user.email}</div>}
-                                </div>
-                                <div>
-                                    <div className="flex justify-between items-center">
-                                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Access Passcode</label>
-                                        {editMode && (
-                                            <button onClick={() => setShowPwd(!showPwd)} className="text-[9px] font-black text-secondary uppercase tracking-widest flex items-center gap-1">
-                                                {showPwd ? 'Hide' : 'Show'}
-                                            </button>
-                                        )}
-                                    </div>
+                                    <label className="text-[9px] font-black uppercase tracking-widest" style={{ color: colors.textMuted }}>Name</label>
                                     {editMode ? (
-                                        <input type={showPwd ? "text" : "password"} value={pwd} onChange={e => setPwd(e.target.value)} className="w-full mt-2 p-3 bg-gray-50 rounded-xl border border-gray-100 font-bold" />
+                                        <input 
+                                            value={name} 
+                                            onChange={e => setName(e.target.value)} 
+                                            className="w-full mt-2 p-3 rounded-xl border font-bold"
+                                            style={{ backgroundColor: colors.bgPrimary, borderColor: colors.cardBorder, color: colors.textPrimary }}
+                                        />
                                     ) : (
-                                        <div className="text-primary mt-1">••••••••</div>
+                                        <div className="text-lg font-black mt-1" style={{ color: colors.textPrimary }}>{user.name}</div>
                                     )}
                                 </div>
-                                <div className="pt-4 border-t border-gray-50 grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-[9px] font-black uppercase tracking-widest" style={{ color: colors.textMuted }}>Email</label>
+                                    {editMode ? (
+                                        <input 
+                                            value={email} 
+                                            onChange={e => setEmail(e.target.value)} 
+                                            className="w-full mt-2 p-3 rounded-xl border font-bold"
+                                            style={{ backgroundColor: colors.bgPrimary, borderColor: colors.cardBorder, color: colors.textPrimary }}
+                                        />
+                                    ) : (
+                                        <div className="font-bold mt-1" style={{ color: colors.textPrimary }}>{user.email}</div>
+                                    )}
+                                </div>
+                                <div className="pt-4 grid grid-cols-2 gap-4" style={{ borderTop: `1px solid ${colors.cardBorder}` }}>
                                     <div>
-                                        <label className="text-[8px] font-black text-gray-400 uppercase">Geo Location</label>
-                                        <div className="text-xs font-bold text-primary">{user.country}</div>
+                                        <label className="text-[8px] font-black uppercase" style={{ color: colors.textMuted }}>Country</label>
+                                        <div className="text-xs font-bold" style={{ color: colors.textPrimary }}>{user.country}</div>
                                     </div>
                                     <div>
-                                        <label className="text-[8px] font-black text-gray-400 uppercase">Architecture Date</label>
-                                        <div className="text-xs font-bold text-primary">{new Date(user.createdAt).toLocaleDateString()}</div>
+                                        <label className="text-[8px] font-black uppercase" style={{ color: colors.textMuted }}>Joined</label>
+                                        <div className="text-xs font-bold" style={{ color: colors.textPrimary }}>{new Date(user.createdAt).toLocaleDateString()}</div>
                                     </div>
                                 </div>
                             </div>
-                        </Card>
+                        </div>
                     </section>
 
-                    {/* Bridge Integrations */}
+                    {/* Connected Apps */}
                     <section>
-                        <h2 className="text-lg font-black text-primary mb-4 flex items-center gap-2"><Icons.Link className="w-5 h-5 text-secondary"/> Bridge Hub</h2>
+                        <h2 className="text-lg font-black mb-4 flex items-center gap-2" style={{ color: colors.textPrimary }}>
+                            <Icons.Link className="w-5 h-5" style={{ color: colors.bgAccentStrong }}/> Connected Apps
+                        </h2>
                         <div className="space-y-3">
                             {user.connectedApps.map(app => (
-                                <Card key={app.id} className="p-4 flex items-center justify-between">
+                                <div 
+                                    key={app.id} 
+                                    className="p-4 rounded-2xl flex items-center justify-between"
+                                    style={{ backgroundColor: colors.cardBg, border: `1px solid ${colors.cardBorder}` }}
+                                >
                                     <div className="flex items-center gap-4">
-                                        <div className={`p-3 rounded-2xl ${app.isConnected ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'bg-gray-100 text-gray-300'}`}>
+                                        <div 
+                                            className="p-3 rounded-xl"
+                                            style={{ 
+                                                backgroundColor: app.isConnected ? colors.bgAccentStrong : colors.bgSecondary,
+                                                color: app.isConnected ? '#FFFFFF' : colors.textMuted
+                                            }}
+                                        >
                                             <Icons.Activity className="w-5 h-5"/>
                                         </div>
                                         <div>
-                                            <span className="font-bold text-primary block">{app.name}</span>
-                                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{app.isConnected ? 'Sync Active' : 'Offline'}</span>
+                                            <span className="font-bold block" style={{ color: colors.textPrimary }}>{app.name}</span>
+                                            <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: colors.textMuted }}>
+                                                {app.isConnected ? 'Connected' : 'Offline'}
+                                            </span>
                                         </div>
                                     </div>
                                     <Toggle checked={app.isConnected} onChange={() => toggleAppConnection(app.id)} />
-                                </Card>
+                                </div>
                             ))}
                         </div>
                     </section>
 
-                    {/* Legal & Safety */}
+                    {/* Privacy & Legal */}
                     <section>
-                        <h2 className="text-lg font-black text-primary mb-4 flex items-center gap-2"><Icons.Shield className="w-5 h-5 text-secondary"/> Protocol Safety</h2>
+                        <h2 className="text-lg font-black mb-4 flex items-center gap-2" style={{ color: colors.textPrimary }}>
+                            <Icons.Shield className="w-5 h-5" style={{ color: colors.bgAccentStrong }}/> Privacy
+                        </h2>
                         <div className="space-y-3">
-                            <button onClick={() => setShowPrivacy(true)} className="w-full text-left p-5 bg-gray-50 rounded-3xl font-black text-xs text-primary flex justify-between items-center transition-all active:scale-[0.98]">
-                                Global Privacy Protocol <Icons.ChevronRight className="w-4 h-4 opacity-30"/>
+                            <button 
+                                onClick={() => setShowPrivacy(true)} 
+                                className="w-full text-left p-5 rounded-2xl font-bold text-xs flex justify-between items-center active:scale-[0.98] transition-all"
+                                style={{ backgroundColor: colors.bgSecondary, color: colors.textPrimary }}
+                            >
+                                Privacy Policy <Icons.ChevronRight className="w-4 h-4 opacity-30"/>
                             </button>
-                            <div className="w-full text-left p-5 bg-gray-50 rounded-3xl font-black text-xs text-primary flex justify-between items-center transition-all opacity-50">
-                                Terms of Architecture <Icons.ChevronRight className="w-4 h-4 opacity-30"/>
+                            <div 
+                                className="w-full text-left p-5 rounded-2xl font-bold text-xs flex justify-between items-center opacity-50"
+                                style={{ backgroundColor: colors.bgSecondary, color: colors.textPrimary }}
+                            >
+                                Terms of Service <Icons.ChevronRight className="w-4 h-4 opacity-30"/>
                             </div>
                         </div>
                     </section>
 
-                    <button onClick={() => setIsAuthenticated(false)} className="w-full flex items-center justify-center gap-2 text-red-500 font-black text-sm py-5 hover:bg-red-50 rounded-3xl transition-all">
-                        <Icons.LogOut className="w-5 h-5"/> Terminate Identity Session
+                    {/* Logout */}
+                    <button 
+                        onClick={() => setIsAuthenticated(false)} 
+                        className="w-full flex items-center justify-center gap-2 text-red-500 font-black text-sm py-5 hover:bg-red-50 rounded-2xl transition-all"
+                    >
+                        <Icons.LogOut className="w-5 h-5"/> Sign Out
                     </button>
                 </div>
             </div>
 
             {/* Plans Modal */}
             {showPlans && (
-                <div className="fixed inset-0 z-[110] bg-primary/95 backdrop-blur-2xl flex items-center justify-center p-6 animate-fade-in">
-                    <Card className="p-8 w-full max-w-sm bg-white border-none shadow-[0_40px_100px_rgba(0,0,0,0.5)] rounded-[3rem] relative overflow-hidden flex flex-col max-h-[85vh]">
-                        <button onClick={() => setShowPlans(false)} className="absolute top-6 right-6 p-2 bg-gray-100 rounded-full z-20"><Icons.X className="w-4 h-4"/></button>
-                        <h2 className="text-3xl font-black text-primary mb-6 uppercase tracking-tighter text-center">Architect Plans</h2>
+                <div className="fixed inset-0 z-[110] flex items-center justify-center p-6" style={{ backgroundColor: colors.overlay }}>
+                    <div 
+                        className="p-8 w-full max-w-sm rounded-3xl relative overflow-hidden flex flex-col max-h-[85vh]"
+                        style={{ backgroundColor: colors.cardBg }}
+                    >
+                        <button 
+                            onClick={() => setShowPlans(false)} 
+                            className="absolute top-6 right-6 p-2 rounded-full z-20"
+                            style={{ backgroundColor: colors.bgSecondary }}
+                        >
+                            <Icons.X className="w-4 h-4" style={{ color: colors.textPrimary }}/>
+                        </button>
+                        <h2 className="text-2xl font-black mb-6 text-center" style={{ color: colors.textPrimary }}>Plans</h2>
                         
-                        <div className="flex-1 overflow-y-auto pr-1 space-y-4 no-scrollbar">
+                        <div className="flex-1 overflow-y-auto space-y-4">
                             {[
-                                { 
-                                    id: 'free', 
-                                    name: 'Free Plan', 
-                                    price: 'Free', 
-                                    features: ['3 Goals Max', '3 AI Tasks/Day', 'Daily Questions', 'Social Tab Access', 'Basic Analytics', 'Ad Supported', 'Upload Short Videos'],
-                                    isCurrent: user.activePlanId === 'free',
-                                    isPremium: false
-                                },
-                                { 
-                                    id: 'premium', 
-                                    name: 'Premium Plan', 
-                                    price: '$9.99/mo', 
-                                    features: ['Unlimited Goals', 'Remove All Ads', 'Advanced AI Coaching', 'Deep Strategy & Reviews', 'Premium Lessons', 'Detailed Analytics', 'Custom Themes'],
-                                    isCurrent: user.activePlanId === 'premium',
-                                    isPremium: true
-                                },
-                                { 
-                                    id: 'creator', 
-                                    name: 'Creator Plan', 
-                                    price: '$19.99/mo', 
-                                    features: ['Everything in Premium', 'Upload & Sell Courses', 'Run Ads for Your Content', 'Creator Profile Page', 'Marketplace Promotion', 'Sales Analytics'],
-                                    isCurrent: user.activePlanId === 'creator',
-                                    isPremium: true
-                                }
-                            ].map((plan, i) => (
-                                <div key={i} className={`p-6 rounded-[2.5rem] border-2 transition-all flex flex-col ${plan.isCurrent ? 'bg-primary text-white border-primary shadow-xl shadow-primary/20' : 'bg-gray-50 border-gray-100'}`}>
+                                { id: 'free', name: 'Free', price: 'Free', features: ['3 Goals', 'Basic AI', 'Ads'], isCurrent: user.activePlanId === 'free', isPremium: false },
+                                { id: 'premium', name: 'Premium', price: '$9.99/mo', features: ['Unlimited Goals', 'No Ads', 'Advanced AI'], isCurrent: user.activePlanId === 'premium', isPremium: true },
+                                { id: 'creator', name: 'Creator', price: '$19.99/mo', features: ['Everything in Premium', 'Sell Courses', 'Analytics'], isCurrent: user.activePlanId === 'creator', isPremium: true }
+                            ].map((plan) => (
+                                <div 
+                                    key={plan.id} 
+                                    className="p-6 rounded-2xl border-2 transition-all"
+                                    style={{ 
+                                        backgroundColor: plan.isCurrent ? colors.bgAccentStrong : colors.bgPrimary,
+                                        borderColor: plan.isCurrent ? colors.bgAccentStrong : colors.cardBorder,
+                                        color: plan.isCurrent ? '#FFFFFF' : colors.textPrimary
+                                    }}
+                                >
                                     <div className="flex justify-between items-center mb-3">
-                                        <h4 className="font-black text-sm uppercase tracking-widest">{plan.name}</h4>
-                                        <span className={`font-black text-base ${plan.isCurrent ? 'text-accent' : 'text-primary'}`}>{plan.price}</span>
+                                        <h4 className="font-black text-sm uppercase">{plan.name}</h4>
+                                        <span className="font-black">{plan.price}</span>
                                     </div>
-                                    <ul className="space-y-2 mb-6">
+                                    <ul className="space-y-2 mb-4">
                                         {plan.features.map((feat, idx) => (
-                                            <li key={idx} className="flex items-start gap-2 text-[10px] font-bold opacity-80 uppercase tracking-tight leading-none">
-                                                <Icons.Check className="w-3 h-3 flex-shrink-0 mt-[-1px]"/> {feat}
+                                            <li key={idx} className="flex items-center gap-2 text-xs font-bold opacity-80">
+                                                <Icons.Check className="w-3 h-3"/> {feat}
                                             </li>
                                         ))}
                                     </ul>
                                     {!plan.isCurrent && (
-                                        <Button 
+                                        <button 
                                             onClick={() => handlePlanSelect(plan.id, plan.isPremium)} 
-                                            variant={plan.id === 'creator' ? 'secondary' : 'primary'} 
-                                            className="py-3 text-[10px] h-10 rounded-2xl shadow-none font-black uppercase tracking-widest"
+                                            className="w-full py-3 rounded-xl font-bold text-sm text-white"
+                                            style={{ backgroundColor: colors.bgAccentStrong }}
                                         >
-                                            Authorize {plan.id === 'free' ? 'Downgrade' : 'Upgrade'}
-                                        </Button>
+                                            {plan.id === 'free' ? 'Downgrade' : 'Upgrade'}
+                                        </button>
                                     )}
-                                    {plan.isCurrent && <div className="text-center text-[10px] font-black uppercase tracking-widest text-accent py-2">Active Protocol</div>}
+                                    {plan.isCurrent && (
+                                        <div className="text-center text-xs font-bold uppercase py-2 opacity-80">Current Plan</div>
+                                    )}
                                 </div>
                             ))}
                         </div>
-                    </Card>
+                    </div>
                 </div>
             )}
 
             {/* Privacy Modal */}
             {showPrivacy && (
-              <div className="fixed inset-0 z-[100] bg-white p-8 pt-safe overflow-y-auto animate-slide-up">
-                <div className="flex justify-between items-center mb-10 mt-2">
-                  <h2 className="text-3xl font-black text-primary uppercase tracking-tighter">Global Protocol</h2>
-                  <button onClick={() => setShowPrivacy(false)} className="p-3 bg-gray-100 rounded-full"><Icons.X/></button>
+                <div className="fixed inset-0 z-[100] p-8 pt-safe overflow-y-auto" style={{ backgroundColor: colors.bgPrimary }}>
+                    <div className="flex justify-between items-center mb-10 mt-2">
+                        <h2 className="text-2xl font-black" style={{ color: colors.textPrimary }}>Privacy Policy</h2>
+                        <button onClick={() => setShowPrivacy(false)} className="p-3 rounded-full" style={{ backgroundColor: colors.bgSecondary }}>
+                            <Icons.X style={{ color: colors.textPrimary }}/>
+                        </button>
+                    </div>
+                    <div className="space-y-6" style={{ color: colors.textSecondary }}>
+                        <p>InJazi protects your data with industry-standard encryption.</p>
+                        <div className="p-6 rounded-2xl" style={{ backgroundColor: colors.bgSecondary }}>
+                            <h4 className="font-black text-xs uppercase mb-3" style={{ color: colors.textPrimary }}>Data Protection</h4>
+                            <p className="text-sm">Your goals and progress are encrypted and never shared with third parties.</p>
+                        </div>
+                        <div className="p-6 rounded-2xl" style={{ backgroundColor: colors.bgSecondary }}>
+                            <h4 className="font-black text-xs uppercase mb-3" style={{ color: colors.textPrimary }}>Your Rights</h4>
+                            <p className="text-sm">You can export or delete your data at any time from your account settings.</p>
+                        </div>
+                    </div>
                 </div>
-                <div className="prose prose-sm text-gray-600 space-y-6 font-medium leading-relaxed">
-                  <p>InJazi leverages sovereign encryption to safeguard your success data. We understand the high-leverage nature of your architecture.</p>
-                  <div className="p-8 bg-gray-50 rounded-[2.5rem] border-2 border-gray-50">
-                    <h4 className="font-black text-primary mb-3 text-xs uppercase tracking-[0.2em]">I. Data Sovereignity</h4>
-                    <p>Your goal inputs and video proofs are analyzed by ephemeral AI instances. We do not persist raw biometric data beyond the verification cycle.</p>
-                  </div>
-                  <div className="p-8 bg-gray-50 rounded-[2.5rem] border-2 border-gray-50">
-                    <h4 className="font-black text-primary mb-3 text-xs uppercase tracking-[0.2em]">II. Financial Integrity</h4>
-                    <p>All credit redemptions are processed via Tier-1 liquidity providers. We maintain a 1:1 reserve for all redeemable architect capital.</p>
-                  </div>
-                </div>
-              </div>
             )}
         </div>
     );

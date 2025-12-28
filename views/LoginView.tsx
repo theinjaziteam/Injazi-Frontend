@@ -52,7 +52,7 @@ const COUNTRIES = [
   { code: 'TR', name: 'Turkey', flag: '🇹🇷' },
   { code: 'RU', name: 'Russia', flag: '🇷🇺' },
   { code: 'UA', name: 'Ukraine', flag: '🇺🇦' },
-  { code: 'PL', name: 'Palestine', flag: '🇮🇱' },
+  { code: 'PS', name: 'Palestine', flag: '🇵🇸' },
   { code: 'KE', name: 'Kenya', flag: '🇰🇪' },
   { code: 'GH', name: 'Ghana', flag: '🇬🇭' },
   { code: 'MA', name: 'Morocco', flag: '🇲🇦' },
@@ -99,6 +99,16 @@ export const LoginView: React.FC = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Auto-focus first code input when entering verify mode
+  useEffect(() => {
+    if (mode === 'verify') {
+      setTimeout(() => codeInputRefs.current[0]?.focus(), 100);
+    }
+    if (mode === 'reset') {
+      setTimeout(() => resetCodeRefs.current[0]?.focus(), 100);
+    }
+  }, [mode]);
 
   const filteredCountries = COUNTRIES.filter(c =>
     c.name.toLowerCase().includes(countrySearch.toLowerCase()) ||
@@ -166,7 +176,18 @@ export const LoginView: React.FC = () => {
     setLoading(true);
 
     try {
+      // Validation for registration
       if (mode === 'register') {
+        if (!name.trim()) {
+          setError('Please enter your name');
+          setLoading(false);
+          return;
+        }
+        if (!country) {
+          setError('Please select your country');
+          setLoading(false);
+          return;
+        }
         if (!privacyAccepted) {
           setError('Please accept the Privacy Policy');
           setLoading(false);
@@ -179,7 +200,7 @@ export const LoginView: React.FC = () => {
         }
       }
 
-      // Use object format to match your api.ts
+      // Call API
       const result = await api.auth({
         email,
         password,
@@ -188,21 +209,40 @@ export const LoginView: React.FC = () => {
         isRegister: mode === 'register'
       });
 
-      // Check if email verification is required
-      if (result.requiresVerification && !result.user?.isEmailVerified) {
-        setSuccess('Verification code sent to your email!');
+      console.log('🔐 Auth result:', result);
+
+      // REGISTRATION - Always require verification
+      if (mode === 'register') {
+        setSuccess('Verification code sent to your email! Check your inbox (and spam folder).');
         setMode('verify');
         setLoading(false);
         return;
       }
 
-      // User is verified or verification not required
+      // LOGIN - Check if user needs verification
+      if (result.requiresVerification || result.user?.isEmailVerified === false) {
+        setError('Please verify your email first.');
+        setMode('verify');
+        // Request a new verification code
+        try {
+          await api.resendVerification(email);
+          setSuccess('A new verification code has been sent to your email.');
+          setError('');
+        } catch (resendErr) {
+          console.error('Failed to resend verification:', resendErr);
+        }
+        setLoading(false);
+        return;
+      }
+
+      // User is verified - proceed to app
       setUser(result.user as User);
       setIsAuthenticated(true);
       setView(result.user?.goal ? AppView.DASHBOARD : AppView.ONBOARDING);
 
     } catch (err: any) {
-      setError(err.message || 'Authentication failed');
+      console.error('Auth error:', err);
+      setError(err.message || 'Authentication failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -220,17 +260,31 @@ export const LoginView: React.FC = () => {
     setLoading(true);
 
     try {
-      await api.verifyEmail(email, code);
-      setSuccess('Email verified successfully!');
+      const verifyResult = await api.verifyEmail(email, code);
+      console.log('✅ Verify result:', verifyResult);
+      
+      setSuccess('Email verified successfully! Logging you in...');
+      
+      // Small delay for UX
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       // Now log in the user
       const result = await api.auth({ email, password, isRegister: false });
+      console.log('🔐 Login after verify:', result);
+      
       setUser(result.user as User);
       setIsAuthenticated(true);
       setView(result.user?.goal ? AppView.DASHBOARD : AppView.ONBOARDING);
 
     } catch (err: any) {
-      setError(err.message || 'Verification failed');
+      console.error('Verification error:', err);
+      if (err.message?.includes('expired')) {
+        setError('Code expired. Please request a new one.');
+      } else if (err.message?.includes('Invalid')) {
+        setError('Invalid code. Please check and try again.');
+      } else {
+        setError(err.message || 'Verification failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -242,11 +296,12 @@ export const LoginView: React.FC = () => {
 
     try {
       await api.resendVerification(email);
-      setSuccess('New verification code sent!');
+      setSuccess('New verification code sent! Check your email.');
       setVerificationCode(['', '', '', '', '', '']);
-      codeInputRefs.current[0]?.focus();
+      setTimeout(() => codeInputRefs.current[0]?.focus(), 100);
     } catch (err: any) {
-      setError(err.message || 'Failed to resend code');
+      console.error('Resend error:', err);
+      setError(err.message || 'Failed to resend code. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -256,7 +311,7 @@ export const LoginView: React.FC = () => {
     clearMessages();
     
     if (!email) {
-      setError('Please enter your email first');
+      setError('Please enter your email address first');
       return;
     }
 
@@ -264,10 +319,11 @@ export const LoginView: React.FC = () => {
 
     try {
       await api.forgotPassword(email);
-      setSuccess('If this email exists, a reset code was sent.');
+      setSuccess('If this email exists, a reset code has been sent. Check your inbox.');
       setMode('reset');
     } catch (err: any) {
-      setError(err.message || 'Failed to send reset code');
+      console.error('Forgot password error:', err);
+      setError(err.message || 'Failed to send reset code. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -291,13 +347,20 @@ export const LoginView: React.FC = () => {
 
     try {
       await api.resetPassword(email, code, newPassword);
-      setSuccess('Password reset successfully! You can now log in.');
+      setSuccess('Password reset successfully! You can now log in with your new password.');
       setMode('login');
       setPassword('');
       setNewPassword('');
       setResetCode(['', '', '', '', '', '']);
     } catch (err: any) {
-      setError(err.message || 'Failed to reset password');
+      console.error('Reset password error:', err);
+      if (err.message?.includes('expired')) {
+        setError('Code expired. Please request a new one.');
+      } else if (err.message?.includes('Invalid')) {
+        setError('Invalid code. Please check and try again.');
+      } else {
+        setError(err.message || 'Failed to reset password. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -391,14 +454,14 @@ export const LoginView: React.FC = () => {
           <div className="p-6 pt-2">
             {/* Messages */}
             {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-red-700">
-                <AlertCircle className="w-5 h-5 flex-shrink-0" />
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2 text-red-700">
+                <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
                 <span className="text-sm">{error}</span>
               </div>
             )}
             {success && (
-              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-xl flex items-center gap-2 text-green-700">
-                <Check className="w-5 h-5 flex-shrink-0" />
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-xl flex items-start gap-2 text-green-700">
+                <Check className="w-5 h-5 flex-shrink-0 mt-0.5" />
                 <span className="text-sm">{success}</span>
               </div>
             )}
@@ -432,7 +495,7 @@ export const LoginView: React.FC = () => {
                     <input
                       type="email"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      onChange={(e) => setEmail(e.target.value.toLowerCase().trim())}
                       placeholder="your@email.com"
                       className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                       required
@@ -477,7 +540,7 @@ export const LoginView: React.FC = () => {
                           <div className="max-h-48 overflow-y-auto">
                             {filteredCountries.map((c) => (
                               <button
-                                key={c.code}
+                                key={c.code + c.name}
                                 type="button"
                                 onClick={() => {
                                   setCountry(c.name);
@@ -519,6 +582,9 @@ export const LoginView: React.FC = () => {
                       {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                     </button>
                   </div>
+                  {mode === 'register' && (
+                    <p className="text-xs text-gray-400 mt-1">Minimum 6 characters</p>
+                  )}
                 </div>
 
                 {/* Forgot Password Link */}
@@ -527,7 +593,8 @@ export const LoginView: React.FC = () => {
                     <button
                       type="button"
                       onClick={handleForgotPassword}
-                      className="text-sm text-primary hover:text-secondary transition-colors"
+                      disabled={loading}
+                      className="text-sm text-primary hover:text-secondary transition-colors disabled:opacity-50"
                     >
                       Forgot password?
                     </button>
@@ -586,10 +653,18 @@ export const LoginView: React.FC = () => {
             {/* Email Verification */}
             {mode === 'verify' && (
               <div className="space-y-6">
-                <p className="text-gray-600 text-center">
-                  We sent a 6-digit code to<br />
-                  <span className="font-semibold text-gray-900">{email}</span>
-                </p>
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Mail className="w-8 h-8 text-primary" />
+                  </div>
+                  <p className="text-gray-600">
+                    We sent a 6-digit code to<br />
+                    <span className="font-semibold text-gray-900">{email}</span>
+                  </p>
+                  <p className="text-xs text-gray-400 mt-2">
+                    Check your spam folder if you don't see it
+                  </p>
+                </div>
 
                 {renderCodeInputs(verificationCode, codeInputRefs, false)}
 
@@ -624,10 +699,15 @@ export const LoginView: React.FC = () => {
             {/* Reset Password */}
             {mode === 'reset' && (
               <div className="space-y-6">
-                <p className="text-gray-600 text-center">
-                  Enter the 6-digit code sent to<br />
-                  <span className="font-semibold text-gray-900">{email}</span>
-                </p>
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Lock className="w-8 h-8 text-red-500" />
+                  </div>
+                  <p className="text-gray-600">
+                    Enter the 6-digit code sent to<br />
+                    <span className="font-semibold text-gray-900">{email}</span>
+                  </p>
+                </div>
 
                 {renderCodeInputs(resetCode, resetCodeRefs, true)}
 
@@ -651,6 +731,7 @@ export const LoginView: React.FC = () => {
                       {showNewPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                     </button>
                   </div>
+                  <p className="text-xs text-gray-400 mt-1">Minimum 6 characters</p>
                 </div>
 
                 <button

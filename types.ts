@@ -438,3 +438,47 @@ export const DAILY_EARN_TASKS: EarnTask[] = [
   { id: 'et4', title: 'Quick Tip', subtitle: 'Watch 1 video', reward: 20, icon: 'PlayCircle', isCompleted: false, progress: 0, maxProgress: 1, type: 'bundle' },
   { id: 'et5', title: 'Social Pulse', subtitle: 'Cheer 5 friends', reward: 25, icon: 'Users', isCompleted: false, progress: 0, maxProgress: 5, type: 'bundle' }
 ];
+// Add these interfaces to your types.ts
+
+export interface AdgemOffer {
+    id: string;
+    storeId?: string;
+    trackingType?: string;
+    epc?: string;
+    icon?: string;
+    name: string;
+    clickUrl: string;
+    instructions?: string;
+    description?: string;
+    shortDescription?: string;
+    category1?: string;
+    category2?: string;
+    amount: number;
+    completionDifficulty?: number;
+    renderSticker?: boolean;
+    stickerText?: string;
+    stickerColor?: string;
+    os?: {
+        android?: boolean;
+        ios?: boolean;
+        web?: boolean;
+    };
+}
+
+export interface AdgemTransaction {
+    transactionId: string;
+    visibleId?: string;
+    campaignId?: string;
+    offerId?: string;
+    offerName?: string;
+    credits: number;
+    payout?: number;
+    goalId?: string;
+    goalName?: string;
+    completedAt: number;
+}
+
+// Update UserState interface to include:
+// adgemOffers?: AdgemOffer[];
+// adgemTransactions?: AdgemTransaction[];
+// adgemLastSync?: number;

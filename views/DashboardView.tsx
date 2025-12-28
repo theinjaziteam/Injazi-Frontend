@@ -36,6 +36,10 @@ export default function DashboardView() {
         t.status === TaskStatus.APPROVED || t.status === TaskStatus.COMPLETED
     ).length;
 
+    // Progress calculation
+    const progressPercent = Math.round((user.currentDay / (currentGoal.durationDays || 30)) * 100);
+    const progressWidth = Math.min(100, progressPercent);
+
     useEffect(() => {
         if (isEarnExpanded && user.email && adgemOffers.length === 0) {
             fetchAdgemOffers();
@@ -55,16 +59,6 @@ export default function DashboardView() {
         } finally {
             setIsLoadingOffers(false);
         }
-    };
-
-    const calculateRealTimeRemaining = (task: Task) => {
-        let currentSeconds = task.timeLeft || 0;
-        if (task.isTimerActive && task.lastUpdated) {
-            const elapsed = Math.floor((Date.now() - task.lastUpdated) / 1000);
-            currentSeconds = Math.max(0, currentSeconds - elapsed);
-        }
-        const mins = Math.ceil(currentSeconds / 60);
-        return `${mins}m left`;
     };
 
     const handleTaskSelect = (taskId: string) => {
@@ -146,184 +140,233 @@ export default function DashboardView() {
     };
 
     return (
-        <div className="h-full overflow-y-auto pb-safe">
-            <div className="min-h-full bg-white pb-28">
-                {/* Header Section */}
-                <div className="bg-primary text-white px-5 pt-safe pb-14 rounded-b-[2.5rem]">
-                    {/* Top Bar */}
-                    <div className="flex justify-between items-center pt-4 mb-5">
-                        <h2 className="text-lg font-black tracking-tight">INJAZI</h2>
-                        <div className="flex gap-2">
-                            <button 
-                                onClick={() => setShowCheckIn(true)} 
-                                className="w-10 h-10 bg-accent text-primary rounded-full flex items-center justify-center"
-                            >
-                                <Icons.Check className="w-5 h-5" />
-                            </button>
-                            <button 
-                                onClick={() => setView(AppView.SETTINGS)} 
-                                className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center"
-                            >
-                                <Icons.Settings className="w-5 h-5" />
-                            </button>
-                        </div>
-                    </div>
-                    
-                    {/* Goal Tabs */}
-                    <div className="flex items-center justify-center gap-3 mb-8">
-                        {allGoals.map((g, idx) => (
-                            <React.Fragment key={g.id}>
-                                <button 
-                                    onClick={() => switchGoal(g)} 
-                                    className={`text-[10px] font-bold uppercase tracking-widest transition-all ${
-                                        g.id === currentGoal.id 
-                                            ? 'text-white' 
-                                            : 'text-white/40'
-                                    }`}
-                                >
-                                    Goal {idx + 1}
-                                </button>
-                                {idx < allGoals.length - 1 && <span className="text-white/20">|</span>}
-                            </React.Fragment>
-                        ))}
-                        {allGoals.length > 0 && <span className="text-white/20">|</span>}
+        <div className="flex flex-col h-full bg-[#0D1B2A]">
+            {/* Unified Header - extends into content */}
+            <div className="bg-[#0D1B2A] pt-safe px-5">
+                {/* Top Bar */}
+                <div className="flex justify-between items-center pt-4 pb-3">
+                    <h2 className="text-lg font-black tracking-tight text-white">INJAZI</h2>
+                    <div className="flex gap-2">
                         <button 
-                            onClick={handleAddGoal} 
-                            className="text-[10px] font-bold uppercase tracking-widest text-white/40 hover:text-white transition-colors"
+                            onClick={() => setShowCheckIn(true)} 
+                            className="w-10 h-10 bg-[#00D4AA] text-[#0D1B2A] rounded-full flex items-center justify-center active:scale-95 transition-transform"
                         >
-                            + New
+                            <Icons.Check className="w-5 h-5" />
+                        </button>
+                        <button 
+                            onClick={() => setView(AppView.SETTINGS)} 
+                            className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center active:scale-95 transition-transform"
+                        >
+                            <Icons.Settings className="w-5 h-5 text-white" />
                         </button>
                     </div>
+                </div>
+                
+                {/* Goal Tabs - Pill Style */}
+                <div className="flex items-center gap-2 pb-4 overflow-x-auto scrollbar-hide">
+                    {allGoals.map((g, idx) => (
+                        <button 
+                            key={g.id}
+                            onClick={() => switchGoal(g)} 
+                            className={`px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+                                g.id === currentGoal.id 
+                                    ? 'bg-[#00D4AA] text-[#0D1B2A]' 
+                                    : 'bg-white/10 text-white/60 active:bg-white/20'
+                            }`}
+                        >
+                            {g.title?.substring(0, 15) || `Goal ${idx + 1}`}{g.title?.length > 15 ? '...' : ''}
+                        </button>
+                    ))}
+                    <button 
+                        onClick={handleAddGoal} 
+                        className="px-4 py-2 rounded-full text-xs font-semibold bg-white/5 text-white/40 border border-dashed border-white/20 whitespace-nowrap active:bg-white/10 transition-colors"
+                    >
+                        + Add Goal
+                    </button>
+                </div>
+            </div>
 
-                    {/* Progress Circle */}
-                    <div className="flex flex-col items-center">
-                        <div className="relative w-28 h-28 mb-4">
-                            <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                                <circle cx="50" cy="50" r="42" stroke="currentColor" strokeWidth="8" fill="none" className="text-white/10" />
-                                <circle 
-                                    cx="50" cy="50" r="42" 
-                                    stroke="currentColor" 
-                                    strokeWidth="8" 
-                                    fill="none" 
-                                    className="text-accent" 
-                                    strokeDasharray="263.8" 
-                                    strokeDashoffset={263.8 - (263.8 * (user.currentDay / (currentGoal.durationDays || 30)))} 
-                                    strokeLinecap="round" 
+            {/* Main Content - Scrollable */}
+            <div className="flex-1 overflow-y-auto overscroll-contain bg-[#0D1B2A]">
+                {/* Goal Progress Card - Main Hero */}
+                <div className="px-5 pb-4">
+                    <div className="bg-gradient-to-br from-[#1B3A4B] to-[#0D1B2A] rounded-2xl p-5 border border-white/10">
+                        {/* Goal Title */}
+                        <h3 className="font-bold text-lg text-white mb-1 leading-tight">
+                            {currentGoal.title}
+                        </h3>
+                        <p className="text-white/50 text-sm mb-4">
+                            {currentGoal.category} • {currentGoal.mode}
+                        </p>
+                        
+                        {/* Progress Bar - Full Width */}
+                        <div className="mb-3">
+                            <div className="flex justify-between items-center mb-2">
+                                <span className="text-white/60 text-xs font-medium">Progress</span>
+                                <span className="text-[#00D4AA] text-sm font-bold">{progressPercent}%</span>
+                            </div>
+                            <div className="h-3 bg-white/10 rounded-full overflow-hidden">
+                                <div 
+                                    className="h-full bg-gradient-to-r from-[#00D4AA] to-[#00A896] rounded-full transition-all duration-500"
+                                    style={{ width: `${progressWidth}%` }}
                                 />
-                            </svg>
-                            <div className="absolute inset-0 flex items-center justify-center">
-                                <span className="text-2xl font-black">{Math.round((user.currentDay / (currentGoal.durationDays || 30)) * 100)}%</span>
                             </div>
                         </div>
-                        <h3 className="font-bold text-xl mb-1">{currentGoal.title}</h3>
-                        <p className="text-white/50 text-xs font-semibold">
-                            Day {user.currentDay}/{currentGoal.durationDays} · {user.streak} Streak
-                        </p>
+                        
+                        {/* Day Counter */}
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center">
+                                    <Icons.Calendar className="w-4 h-4 text-white/60" />
+                                </div>
+                                <div>
+                                    <span className="text-white font-bold text-lg">Day {user.currentDay}</span>
+                                    <span className="text-white/40 text-sm"> / {currentGoal.durationDays}</span>
+                                </div>
+                            </div>
+                            <button 
+                                onClick={() => setView(AppView.STATS)}
+                                className="px-4 py-2 bg-white/10 rounded-lg text-xs font-semibold text-white/80 active:bg-white/20 transition-colors"
+                            >
+                                View Stats
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                {/* Content Cards */}
-                <div className="px-5 -mt-6 space-y-4">
-                    {/* Agent Alerts */}
-                    {agentAlerts.filter(a => !a.isRead).map(alert => (
-                        <div 
-                            key={alert.id}
-                            onClick={() => setView(AppView.STATS)} 
-                            className={`rounded-2xl border-l-4 bg-white p-4 flex items-center justify-between cursor-pointer shadow-sm ${
-                                alert.severity === 'high' ? 'border-red-500' : 'border-blue-500'
-                            }`}
-                        >
-                            <div className="flex items-center gap-3">
-                                <Icons.AlertTriangle className={`w-5 h-5 ${alert.severity === 'high' ? 'text-red-500' : 'text-blue-500'}`}/>
-                                <h3 className="font-bold text-primary text-sm">{alert.title}</h3>
-                            </div>
-                            <Icons.ChevronRight className="w-4 h-4 text-gray-300" />
-                        </div>
-                    ))}
+                {/* Transition to lighter section */}
+                <div className="bg-gradient-to-b from-[#0D1B2A] to-[#F8F9FA] h-8" />
 
-                    {/* Daily Missions */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                        <div className="p-5">
-                            <div className="flex justify-between items-center mb-4">
-                                <h3 className="font-bold text-primary">Daily Missions</h3>
-                                <span className="text-[10px] font-bold bg-secondary text-white px-2.5 py-1 rounded-full uppercase">
-                                    {pendingDailyTasks.length} Active
+                {/* Content Cards on Light Background */}
+                <div className="bg-[#F8F9FA] px-5 pb-32">
+                    {/* Agent Alerts */}
+                    {agentAlerts.filter(a => !a.isRead).length > 0 && (
+                        <div className="mb-4">
+                            {agentAlerts.filter(a => !a.isRead).map(alert => (
+                                <div 
+                                    key={alert.id}
+                                    onClick={() => setView(AppView.STATS)} 
+                                    className={`rounded-xl bg-white p-4 flex items-center gap-3 cursor-pointer shadow-sm mb-2 border-l-4 active:bg-gray-50 transition-colors ${
+                                        alert.severity === 'high' ? 'border-red-500' : 'border-blue-500'
+                                    }`}
+                                >
+                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                                        alert.severity === 'high' ? 'bg-red-100' : 'bg-blue-100'
+                                    }`}>
+                                        <Icons.AlertTriangle className={`w-5 h-5 ${alert.severity === 'high' ? 'text-red-500' : 'text-blue-500'}`}/>
+                                    </div>
+                                    <div className="flex-1">
+                                        <h3 className="font-semibold text-[#0D1B2A] text-sm">{alert.title}</h3>
+                                        <p className="text-xs text-gray-500 mt-0.5">{alert.message?.substring(0, 50)}...</p>
+                                    </div>
+                                    <Icons.ChevronRight className="w-5 h-5 text-gray-300" />
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Daily Missions - Primary Focus */}
+                    <div className="bg-white rounded-2xl shadow-sm overflow-hidden mb-4">
+                        <div className="p-4 border-b border-gray-100">
+                            <div className="flex justify-between items-center">
+                                <h3 className="font-bold text-[#0D1B2A]">Today's Missions</h3>
+                                <span className="text-xs font-semibold bg-[#0D1B2A] text-white px-3 py-1 rounded-full">
+                                    {pendingDailyTasks.length} left
                                 </span>
                             </div>
-                            
-                            {pendingDailyTasks.length === 0 ? (
-                                <div className="text-center py-6">
-                                    <Icons.Check className="w-10 h-10 text-green-500 mx-auto mb-2" />
-                                    <p className="text-gray-500 text-sm">All daily tasks complete!</p>
-                                </div>
-                            ) : (
-                                <div className="space-y-2">
-                                    {pendingDailyTasks.map(task => (
-                                        <div 
-                                            key={task.id} 
-                                            onClick={() => handleTaskSelect(task.id)} 
-                                            className="bg-gray-50 p-4 rounded-xl flex items-center justify-between cursor-pointer hover:bg-gray-100 transition-colors"
-                                        >
-                                            <div className="flex items-center gap-3 flex-1 min-w-0">
-                                                <div className="w-9 h-9 bg-secondary/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                                                    <Icons.Zap className="w-4 h-4 text-secondary" />
-                                                </div>
-                                                <div className="min-w-0">
-                                                    <h4 className="font-semibold text-primary text-sm truncate">{task.title}</h4>
-                                                    <p className="text-[11px] text-gray-400">{task.estimatedTimeMinutes} min · {task.creditsReward || 50} CR</p>
-                                                </div>
-                                            </div>
-                                            <Icons.ChevronRight className="w-5 h-5 text-gray-300 flex-shrink-0"/>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                            
-                            <button 
-                                onClick={() => setView(AppView.TASK_SELECTION)} 
-                                className="w-full mt-4 py-3 bg-primary text-white rounded-xl font-semibold text-sm"
-                            >
-                                View All Tasks
-                            </button>
                         </div>
+                        
+                        {pendingDailyTasks.length === 0 ? (
+                            <div className="p-8 text-center">
+                                <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                                    <Icons.Check className="w-7 h-7 text-green-500" />
+                                </div>
+                                <p className="font-semibold text-[#0D1B2A]">All done for today!</p>
+                                <p className="text-sm text-gray-500 mt-1">Great work. Rest up for tomorrow.</p>
+                            </div>
+                        ) : (
+                            <div>
+                                {pendingDailyTasks.slice(0, 3).map((task, idx) => (
+                                    <div 
+                                        key={task.id} 
+                                        onClick={() => handleTaskSelect(task.id)} 
+                                        className={`p-4 flex items-center gap-3 cursor-pointer active:bg-gray-50 transition-colors ${
+                                            idx !== 0 ? 'border-t border-gray-100' : ''
+                                        }`}
+                                    >
+                                        <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                                            idx === 0 ? 'bg-[#00D4AA]' : 'bg-[#0D1B2A]/5'
+                                        }`}>
+                                            <Icons.Zap className={`w-5 h-5 ${idx === 0 ? 'text-[#0D1B2A]' : 'text-[#0D1B2A]/60'}`} />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className="font-semibold text-[#0D1B2A] text-sm leading-snug">
+                                                {task.title}
+                                            </h4>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <span className="text-xs text-gray-500">
+                                                    {task.estimatedTimeMinutes || 15} min
+                                                </span>
+                                                <span className="text-gray-300">•</span>
+                                                <span className="text-xs text-[#00A896] font-medium">
+                                                    +{task.creditsReward || 50} CR
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                            idx === 0 ? 'bg-[#00D4AA]' : 'bg-gray-100'
+                                        }`}>
+                                            <Icons.ChevronRight className={`w-4 h-4 ${idx === 0 ? 'text-[#0D1B2A]' : 'text-gray-400'}`}/>
+                                        </div>
+                                    </div>
+                                ))}
+                                
+                                {pendingDailyTasks.length > 3 && (
+                                    <button 
+                                        onClick={() => setView(AppView.TASK_SELECTION)} 
+                                        className="w-full p-3 text-center text-sm font-medium text-[#0D1B2A]/60 border-t border-gray-100 active:bg-gray-50 transition-colors"
+                                    >
+                                        +{pendingDailyTasks.length - 3} more tasks
+                                    </button>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {/* Earn Credits Section */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
                         <div 
-                            className="p-5 flex items-center justify-between cursor-pointer" 
+                            className="p-4 flex items-center justify-between cursor-pointer active:bg-gray-50 transition-colors" 
                             onClick={() => setIsEarnExpanded(!isEarnExpanded)}
                         >
                             <div className="flex items-center gap-3">
-                                <div className="w-11 h-11 bg-yellow-400 rounded-2xl flex items-center justify-center">
-                                    <Icons.Coins className="w-5 h-5 text-yellow-900" />
+                                <div className="w-11 h-11 bg-gradient-to-br from-yellow-400 to-orange-400 rounded-xl flex items-center justify-center">
+                                    <Icons.Coins className="w-5 h-5 text-white" />
                                 </div>
                                 <div>
-                                    <h3 className="font-bold text-primary">Earn Credits</h3>
-                                    <p className="text-[11px] text-gray-400">Complete offers for rewards</p>
+                                    <h3 className="font-bold text-[#0D1B2A]">Earn Credits</h3>
+                                    <p className="text-xs text-gray-500">Complete offers for rewards</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
-                                <span className="font-black text-primary">{user.credits.toLocaleString()}</span>
-                                <span className="text-xs text-gray-400">CR</span>
-                                <Icons.ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${isEarnExpanded ? 'rotate-180' : ''}`} />
+                                <Icons.ChevronDown className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${isEarnExpanded ? 'rotate-180' : ''}`} />
                             </div>
                         </div>
                         
                         {isEarnExpanded && (
-                            <div className="px-5 pb-5 border-t border-gray-100 pt-4">
+                            <div className="px-4 pb-4 border-t border-gray-100 pt-3">
                                 {isLoadingOffers ? (
-                                    <div className="py-6 text-center">
-                                        <div className="w-8 h-8 border-3 border-secondary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                                    <div className="py-8 text-center">
+                                        <div className="w-8 h-8 border-2 border-[#00D4AA] border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
                                         <p className="text-xs text-gray-400">Loading offers...</p>
                                     </div>
                                 ) : adgemOffers.length > 0 ? (
                                     <div className="space-y-2">
-                                        {adgemOffers.map(offer => (
+                                        {adgemOffers.slice(0, 4).map(offer => (
                                             <div 
                                                 key={offer.id} 
                                                 onClick={() => handleOfferClick(offer)}
-                                                className="bg-gray-50 p-3 rounded-xl flex items-center gap-3 cursor-pointer hover:bg-gray-100 transition-colors"
+                                                className="bg-gray-50 p-3 rounded-xl flex items-center gap-3 cursor-pointer active:bg-gray-100 transition-colors"
                                             >
                                                 <div className="w-12 h-12 rounded-xl bg-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">
                                                     {offer.icon ? (
@@ -333,92 +376,85 @@ export default function DashboardView() {
                                                     )}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-1 mb-0.5">
-                                                        <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${getDifficultyColor(offer.completionDifficulty)}`}>
-                                                            {getDifficultyLabel(offer.completionDifficulty)}
-                                                        </span>
-                                                    </div>
-                                                    <h4 className="font-semibold text-primary text-sm truncate">{offer.name}</h4>
+                                                    <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${getDifficultyColor(offer.completionDifficulty)}`}>
+                                                        {getDifficultyLabel(offer.completionDifficulty)}
+                                                    </span>
+                                                    <h4 className="font-semibold text-[#0D1B2A] text-sm truncate mt-0.5">{offer.name}</h4>
                                                 </div>
-                                                <div className="bg-yellow-400 text-yellow-900 px-2.5 py-1 rounded-lg">
-                                                    <span className="font-black text-sm">+{offer.amount}</span>
+                                                <div className="bg-gradient-to-r from-yellow-400 to-orange-400 text-white px-2.5 py-1.5 rounded-lg">
+                                                    <span className="font-bold text-sm">+{offer.amount}</span>
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
                                 ) : (
-                                    <div className="py-6 text-center">
-                                        <Icons.Gift className="w-10 h-10 text-gray-200 mx-auto mb-2" />
-                                        <p className="text-sm text-gray-400">No offers available</p>
+                                    <div className="py-8 text-center">
+                                        <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                                            <Icons.Gift className="w-7 h-7 text-gray-300" />
+                                        </div>
+                                        <p className="text-sm text-gray-400">No offers available right now</p>
                                     </div>
                                 )}
                                 
                                 <button 
                                     onClick={(e) => { e.stopPropagation(); fetchAdgemOffers(); }}
                                     disabled={isLoadingOffers}
-                                    className="w-full mt-3 py-2 text-xs font-semibold text-secondary hover:bg-secondary/5 rounded-lg transition-colors disabled:opacity-50"
+                                    className="w-full mt-3 py-2.5 text-sm font-semibold text-[#0D1B2A] bg-gray-100 rounded-xl active:bg-gray-200 transition-colors disabled:opacity-50"
                                 >
                                     Refresh Offers
                                 </button>
                             </div>
                         )}
                     </div>
-
-                    {/* Stats Row */}
-                    <div className="grid grid-cols-3 gap-3">
-                        <div className="bg-white rounded-2xl p-4 text-center shadow-sm border border-gray-100">
-                            <div className="w-8 h-8 bg-orange-100 rounded-xl flex items-center justify-center mx-auto mb-2">
-                                <Icons.Flame className="w-4 h-4 text-orange-500" />
-                            </div>
-                            <span className="text-xl font-black text-primary block">{user.streak}</span>
-                            <span className="text-[10px] text-gray-400 uppercase font-semibold">Streak</span>
-                        </div>
-                        <div className="bg-white rounded-2xl p-4 text-center shadow-sm border border-gray-100">
-                            <div className="w-8 h-8 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-2">
-                                <Icons.Check className="w-4 h-4 text-green-500" />
-                            </div>
-                            <span className="text-xl font-black text-primary block">{completedToday}</span>
-                            <span className="text-[10px] text-gray-400 uppercase font-semibold">Done</span>
-                        </div>
-                        <div className="bg-white rounded-2xl p-4 text-center shadow-sm border border-gray-100">
-                            <div className="w-8 h-8 bg-yellow-100 rounded-xl flex items-center justify-center mx-auto mb-2">
-                                <Icons.Coins className="w-4 h-4 text-yellow-600" />
-                            </div>
-                            <span className="text-xl font-black text-primary block">{user.credits.toLocaleString()}</span>
-                            <span className="text-[10px] text-gray-400 uppercase font-semibold">Credits</span>
-                        </div>
-                    </div>
                 </div>
+            </div>
 
-                {/* Check-in Modal */}
-                {showCheckIn && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-5">
-                        <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl">
-                            <h2 className="text-xl font-bold text-primary mb-1">Daily Check-in</h2>
-                            <p className="text-sm text-gray-400 mb-5">What did you accomplish today?</p>
+            {/* Check-in Modal */}
+            {showCheckIn && (
+                <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm">
+                    <div 
+                        className="w-full bg-white rounded-t-3xl pb-safe animate-slide-up"
+                        style={{ maxHeight: '85vh' }}
+                    >
+                        <div className="p-5">
+                            {/* Handle */}
+                            <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-5" />
+                            
+                            <h2 className="text-xl font-bold text-[#0D1B2A] mb-1">Daily Check-in</h2>
+                            <p className="text-sm text-gray-500 mb-5">What did you accomplish today?</p>
+                            
                             <textarea 
                                 value={checkInText} 
                                 onChange={(e) => setCheckInText(e.target.value)} 
-                                className="w-full h-28 p-4 bg-gray-50 rounded-xl border border-gray-200 mb-4 focus:outline-none focus:border-secondary resize-none" 
-                                placeholder="I researched 3 competitors..." 
+                                className="w-full h-32 p-4 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:border-[#00D4AA] focus:ring-2 focus:ring-[#00D4AA]/20 resize-none text-[#0D1B2A]" 
+                                placeholder="I researched 3 competitors, drafted the first section of my business plan..." 
                             />
+                            
                             <button 
                                 onClick={submitDailyCheckIn}
                                 disabled={isProcessingCheckIn || !checkInText.trim()}
-                                className="w-full py-3.5 bg-primary text-white rounded-xl font-semibold disabled:opacity-50"
+                                className="w-full mt-4 py-4 bg-[#0D1B2A] text-white rounded-xl font-semibold disabled:opacity-50 active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
                             >
-                                {isProcessingCheckIn ? 'Processing...' : 'Submit Check-in'}
+                                {isProcessingCheckIn ? (
+                                    <>
+                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        Processing...
+                                    </>
+                                ) : (
+                                    'Submit Check-in'
+                                )}
                             </button>
+                            
                             <button 
                                 onClick={() => setShowCheckIn(false)} 
-                                className="w-full mt-3 py-2 text-xs font-semibold text-gray-400 uppercase"
+                                className="w-full mt-3 py-3 text-sm font-semibold text-gray-500 active:bg-gray-50 rounded-xl transition-colors"
                             >
                                 Cancel
                             </button>
                         </div>
                     </div>
-                )}
-            </div>
+                </div>
+            )}
         </div>
     );
 }

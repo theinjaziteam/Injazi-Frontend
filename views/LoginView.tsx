@@ -52,7 +52,7 @@ const COUNTRIES = [
   { code: 'TR', name: 'Turkey', flag: '🇹🇷' },
   { code: 'RU', name: 'Russia', flag: '🇷🇺' },
   { code: 'UA', name: 'Ukraine', flag: '🇺🇦' },
-  { code: 'IL', name: 'Israel', flag: '🇮🇱' },
+  { code: 'PL', name: 'Palestine', flag: '🇮🇱' },
   { code: 'KE', name: 'Kenya', flag: '🇰🇪' },
   { code: 'GH', name: 'Ghana', flag: '🇬🇭' },
   { code: 'MA', name: 'Morocco', flag: '🇲🇦' },
@@ -179,14 +179,16 @@ export const LoginView: React.FC = () => {
         }
       }
 
-      const result = await api.auth(
+      // Use object format to match your api.ts
+      const result = await api.auth({
         email,
         password,
-        mode === 'register' ? name : undefined,
-        mode === 'register' ? country : undefined,
-        mode === 'register'
-      );
+        name: mode === 'register' ? name : undefined,
+        country: mode === 'register' ? country : undefined,
+        isRegister: mode === 'register'
+      });
 
+      // Check if email verification is required
       if (result.requiresVerification && !result.user?.isEmailVerified) {
         setSuccess('Verification code sent to your email!');
         setMode('verify');
@@ -222,7 +224,7 @@ export const LoginView: React.FC = () => {
       setSuccess('Email verified successfully!');
       
       // Now log in the user
-      const result = await api.auth(email, password, undefined, undefined, false);
+      const result = await api.auth({ email, password, isRegister: false });
       setUser(result.user as User);
       setIsAuthenticated(true);
       setView(result.user?.goal ? AppView.DASHBOARD : AppView.ONBOARDING);

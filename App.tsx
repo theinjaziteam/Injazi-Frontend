@@ -1,9 +1,9 @@
 import React from 'react';
 import { AppProvider, useApp } from './contexts/AppContext';
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { AppView } from './types';
 import { BottomNav } from './components/UIComponents';
 
-// Import Views
 import LoginView from './views/LoginView';
 import OnboardingView from './views/OnboardingView';
 import DashboardView from './views/DashboardView';
@@ -18,6 +18,7 @@ import TaskSelectionView from './views/TaskSelectionView';
 
 function AppContent() {
     const { view, setView, isAuthenticated, showAdOverlay, adCountdown } = useApp();
+    const { theme } = useTheme();
 
     if (!isAuthenticated) return <LoginView />;
 
@@ -29,7 +30,7 @@ function AppContent() {
                     view !== AppView.TASK_SELECTION;
 
     return (
-        <div className="h-[100dvh] w-screen bg-white overflow-hidden flex flex-col font-sans">
+        <div className={`h-[100dvh] w-screen bg-white overflow-hidden flex flex-col font-sans ${theme === 'light' ? 'light-mode' : ''}`}>
             <div className="flex-1 overflow-hidden relative" id="main-container">
                 {view === AppView.ONBOARDING && <OnboardingView />}
                 {view === AppView.DASHBOARD && <DashboardView />}
@@ -44,14 +45,13 @@ function AppContent() {
                 
                 {(view === AppView.PLANS || view === AppView.USER_PROFILE) && (
                     <div className="p-10 text-center flex flex-col items-center justify-center h-full">
-                        <h1 className="text-2xl font-bold mb-2">View: {view}</h1>
+                        <h1 className="text-2xl font-bold mb-2 text-primary">View: {view}</h1>
                         <p className="text-gray-500 mb-6">This section is under construction.</p>
                         <button onClick={() => setView(AppView.DASHBOARD)} className="px-6 py-3 bg-primary text-white rounded-full font-bold">Back to Dashboard</button>
                     </div>
                 )}
             </div>
 
-            {/* Global Overlays */}
             {showAdOverlay && (
                 <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center p-6 animate-fade-in">
                    <div className="w-full max-w-sm bg-white rounded-3xl overflow-hidden relative">
@@ -64,7 +64,6 @@ function AppContent() {
                 </div>
             )}
 
-            {/* Bottom Navigation - Always visible, with proper safe area */}
             {showNav && (
                 <BottomNav 
                   activeTab={
@@ -89,8 +88,10 @@ function AppContent() {
 
 export default function App() {
     return (
-        <AppProvider>
-            <AppContent />
-        </AppProvider>
+        <ThemeProvider>
+            <AppProvider>
+                <AppContent />
+            </AppProvider>
+        </ThemeProvider>
     );
 }

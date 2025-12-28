@@ -431,7 +431,7 @@ export default function SocialView() {
         }
 
         return (
-            <div className="p-6 pb-32 space-y-10 animate-fade-in">
+            <div className="p-5 pb-4 space-y-8 animate-fade-in">
                 {lessons.length > 0 ? lessons.map((chapter, chapterIdx) => {
                     const completedInChapter = chapter.lessons.filter(l => getLessonStatus(l.id) === 'completed').length;
                     
@@ -624,7 +624,7 @@ export default function SocialView() {
     const renderMarketplace = (type: 'products' | 'courses') => {
         const items = type === 'courses' ? courses : adsFeed;
         return (
-            <div className="p-6 pb-32 grid grid-cols-1 gap-6 animate-fade-in">
+            <div className="p-5 pb-4 grid grid-cols-1 gap-6 animate-fade-in">
                 {items.length > 0 ? items.map(item => (
                     <Card key={item.id} className="overflow-hidden group border border-gray-100 shadow-lg shadow-gray-100/50">
                         <div className="h-48 relative bg-gray-100">
@@ -658,7 +658,7 @@ export default function SocialView() {
     };
 
     const renderFriends = () => (
-        <div className="p-6 pb-32 space-y-6">
+        <div className="p-5 pb-4 space-y-5">
             <div className="relative mb-6">
                 <Icons.Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300"/>
                 <input 
@@ -697,7 +697,7 @@ export default function SocialView() {
     );
 
     const renderRecommended = () => (
-        <div className="p-6 pb-32 space-y-6 animate-fade-in">
+        <div className="p-5 pb-4 space-y-5 animate-fade-in">
             <h3 className="font-black text-primary text-lg uppercase tracking-tight mb-4">Recommended Resources</h3>
             {recommendedVideos.length > 0 ? recommendedVideos.map(v => (
                 <Card key={v.id} className="overflow-hidden border border-gray-100 shadow-lg shadow-gray-100/50 group cursor-pointer" onClick={() => window.open(v.url)}>

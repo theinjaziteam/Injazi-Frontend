@@ -1,4 +1,3 @@
-// contexts/AppContext.tsx
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { UserState, AppView, GoalCategory, ConnectedApp, FeedItem, Chapter, Course, Product, Friend, EarnTask, DAILY_EARN_TASKS, SocialSection, ExternalVideo, TaskStatus, Difficulty, Goal } from '../types';
 import { getGoalCurriculum, getSocialMarketplace, getSocialAds, getFeedRecommendations } from '../services/geminiService';
@@ -116,9 +115,6 @@ const INITIAL_STATE: UserState = {
     ]
 };
 
-// Theme type
-export type ThemeMode = 'light' | 'dark';
-
 interface AppContextType {
     user: UserState;
     setUser: React.Dispatch<React.SetStateAction<UserState>>;
@@ -150,10 +146,6 @@ interface AppContextType {
     setAdCountdown: React.Dispatch<React.SetStateAction<number>>;
     friends: Friend[];
     setFriends: (friends: Friend[]) => void;
-    // Theme
-    theme: ThemeMode;
-    setTheme: (theme: ThemeMode) => void;
-    toggleTheme: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -182,21 +174,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [showAdOverlay, setShowAdOverlay] = useState(false);
     const [adCountdown, setAdCountdown] = useState(0);
 
-    // Theme State
-    const [theme, setTheme] = useState<ThemeMode>(() => {
-        const saved = localStorage.getItem('injazi_theme');
-        return (saved as ThemeMode) || 'light';
-    });
-
-    const toggleTheme = () => {
-        setTheme(prev => prev === 'light' ? 'dark' : 'light');
-    };
-
-    // Save theme to localStorage
-    useEffect(() => {
-        localStorage.setItem('injazi_theme', theme);
-    }, [theme]);
-
     const setFriends = (newFriends: any) => {
         const updatedFriends = typeof newFriends === 'function' ? newFriends(user.friends || []) : newFriends;
         setUser(prev => ({ ...prev, friends: updatedFriends }));
@@ -213,7 +190,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     useEffect(() => {
         if (isAuthenticated && user.email) {
             const saveTimer = setTimeout(() => {
-                console.log(" Auto-Syncing State...");
+                console.log("☁️ Auto-Syncing State...");
                 api.sync(user).catch(err => console.error("Sync failed", err));
             }, 2000);
             return () => clearTimeout(saveTimer);
@@ -233,17 +210,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 let needsSync = false;
 
                 if (currentGoal.savedCurriculum && currentGoal.savedCurriculum.length > 0) {
+                    console.log("📚 Loading saved curriculum");
                     updatedLessons = currentGoal.savedCurriculum;
                 } else {
+                    console.log("🤖 Generating new curriculum...");
                     setIsLoadingLessons(true);
                     try {
                         const generated = await getGoalCurriculum(currentGoal);
                         if (generated && generated.length > 0) {
                             updatedLessons = generated;
+                            console.log("✅ Curriculum generated:", generated.length, "chapters");
                         } else {
+                            console.log("⚠️ AI returned empty, using default");
                             updatedLessons = getDefaultCurriculum(currentGoal);
                         }
                     } catch (e) {
+                        console.error("❌ Curriculum generation failed:", e);
                         updatedLessons = getDefaultCurriculum(currentGoal);
                     }
                     setIsLoadingLessons(false);
@@ -301,6 +283,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 setRecommendedVideos(updatedVideos);
 
                 if (needsSync) {
+                    console.log("💾 Saving content to goal...");
                     const updatedGoalData = {
                         savedCurriculum: updatedLessons,
                         savedCourses: updatedCourses,
@@ -340,8 +323,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             showAdOverlay, setShowAdOverlay,
             adCountdown, setAdCountdown,
             friends: user.friends || [],
-            setFriends,
-            theme, setTheme, toggleTheme
+            setFriends
         }}>
             {children}
         </AppContext.Provider>

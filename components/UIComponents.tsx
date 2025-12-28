@@ -264,68 +264,46 @@ export const Toggle: React.FC<{ checked: boolean; onChange: (checked: boolean) =
   </button>
 );
 
-// BottomNav - Add/replace in UIComponents.tsx
-
+// Find the BottomNav export and replace with:
 export const BottomNav: React.FC<{
-    activeTab: string;
-    onTabChange: (tab: string) => void;
+  activeTab: string;
+  onTabChange: (tab: string) => void;
 }> = ({ activeTab, onTabChange }) => {
-    const theme = localStorage.getItem('injazi_theme') || 'light';
-    const isDark = theme === 'dark';
-    
-    // Light mode colors (new palette)
-    // Dark mode colors (old palette)
-    const colors = {
-        navBg: isDark ? '#171738' : '#F9F5EE',
-        navActive: isDark ? '#DFF3E4' : '#3B4777',
-        navInactive: '#7D8777',
-        border: isDark ? '#232350' : '#EDECFB',
-        activeBg: isDark ? 'rgba(223,243,228,0.1)' : 'rgba(59,71,119,0.1)',
-    };
+  const tabs = [
+    { id: 'dashboard', icon: Icons.Home, label: 'Home' },
+    { id: 'social', icon: Icons.BookOpen, label: 'Learn' },
+    { id: 'chat', icon: Icons.MessageCircle, label: 'Guide' },
+    { id: 'stats', icon: Icons.Activity, label: 'Stats' },
+    { id: 'shop', icon: Icons.Shop, label: 'Shop' },
+  ];
 
-    const navItems = [
-        { id: 'dashboard', icon: Icons.Home, label: 'Home' },
-        { id: 'social', icon: Icons.BookOpen, label: 'Learn' },
-        { id: 'shop', icon: Icons.ShoppingBag, label: 'Shop' },
-        { id: 'stats', icon: Icons.BarChart, label: 'Stats' },
-    ];
-
-    return (
-        <nav 
-            className="fixed bottom-0 left-0 right-0 z-40 pb-safe border-t"
-            style={{ backgroundColor: colors.navBg, borderColor: colors.border }}
-        >
-            <div className="flex justify-around items-center h-16 px-2">
-                {navItems.map((item) => {
-                    const isActive = activeTab === item.id;
-                    const Icon = item.icon;
-                    
-                    return (
-                        <button
-                            key={item.id}
-                            onClick={() => onTabChange(item.id)}
-                            className="flex flex-col items-center justify-center flex-1 py-2 transition-all active:scale-95"
-                        >
-                            <div 
-                                className="w-10 h-10 rounded-xl flex items-center justify-center mb-0.5 transition-colors"
-                                style={{ backgroundColor: isActive ? colors.activeBg : 'transparent' }}
-                            >
-                                <Icon 
-                                    className="w-6 h-6 transition-colors"
-                                    style={{ color: isActive ? colors.navActive : colors.navInactive }}
-                                    strokeWidth={isActive ? 2.5 : 2}
-                                />
-                            </div>
-                            <span 
-                                className="text-[11px] font-semibold transition-colors"
-                                style={{ color: isActive ? colors.navActive : colors.navInactive }}
-                            >
-                                {item.label}
-                            </span>
-                        </button>
-                    );
-                })}
-            </div>
-        </nav>
-    );
+  return (
+    <div className="flex-shrink-0 bg-primary border-t border-white/10 pb-safe" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 12px)' }}>
+      <div className="flex justify-around items-center h-16 px-4 bg-primary">
+        {tabs.map(tab => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => onTabChange(tab.id)}
+              className={`flex flex-col items-center justify-center gap-1 py-2 px-4 rounded-xl transition-all ${
+                isActive 
+                  ? 'text-white' 
+                  : 'text-white/40 hover:text-white/70'
+              }`}
+            >
+              <Icon className={`w-5 h-5 transition-transform ${isActive ? 'scale-110' : ''}`} />
+              <span className={`text-[9px] font-bold uppercase tracking-wider ${isActive ? 'opacity-100' : 'opacity-60'}`}>
+                {tab.label}
+              </span>
+              {isActive && (
+                <div className="absolute bottom-1 w-1 h-1 bg-accent rounded-full" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 };

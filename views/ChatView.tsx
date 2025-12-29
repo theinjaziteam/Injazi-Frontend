@@ -765,7 +765,7 @@ export default function ChatView() {
     // ========== JOURNEYS LIST VIEW ==========
     if (showJourneysList) {
         return (
-            <div className="h-full w-full flex flex-col bg-black">
+            <div style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', backgroundColor: '#000000' }}>
                 {/* Header */}
                 <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
                     <button 
@@ -912,7 +912,7 @@ export default function ChatView() {
     // ========== CHAT VIEW ==========
     if (viewMode === 'chat') {
         return (
-            <div className="h-full w-full flex flex-col bg-black">
+            <div style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', backgroundColor: '#000000' }}>
                 {/* Header */}
                 <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
                     <button 
@@ -1069,7 +1069,7 @@ export default function ChatView() {
 
     // ========== PLANET VIEW ==========
     return (
-        <div className="h-full w-full flex flex-col overflow-hidden relative bg-black">
+        <div style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', backgroundColor: '#000000' }}>
             {/* Canvas */}
             <canvas 
                 ref={canvasRef} 

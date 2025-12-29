@@ -8,17 +8,15 @@ import { api } from '../services/api';
 
 export default function DashboardView() {
     const { 
-        user, setUser, setView, setShowCheckIn, showCheckIn,
-        lessons
+       user, setUser, setView, setShowCheckIn, showCheckIn,
+    lessons, showConfetti
     } = useApp();
     const [isEarnExpanded, setIsEarnExpanded] = useState(false);
     const [checkInText, setCheckInText] = useState('');
     const [isProcessingCheckIn, setIsProcessingCheckIn] = useState(false);
     const [isLoadingOffers, setIsLoadingOffers] = useState(false);
     const [adgemOffers, setAdgemOffers] = useState<any[]>([]);
-    const [showConfetti, setShowConfetti] = useState(false);
     const [progressAnimated, setProgressAnimated] = useState(false);
-    const [lastCompletedCount, setLastCompletedCount] = useState(0);
     const scrollRef = useRef<HTMLDivElement>(null);
 
     // --- SAFETY CHECKS ---
@@ -43,20 +41,6 @@ export default function DashboardView() {
     useEffect(() => {
         const timer = setTimeout(() => setProgressAnimated(true), 300);
         return () => clearTimeout(timer);
-    }, []);
-
-    // Show confetti when a task is completed (not when all are done)
-    useEffect(() => {
-        if (completedTodayCount > lastCompletedCount && lastCompletedCount > 0) {
-            setShowConfetti(true);
-            setTimeout(() => setShowConfetti(false), 2500);
-        }
-        setLastCompletedCount(completedTodayCount);
-    }, [completedTodayCount]);
-
-    // Initialize lastCompletedCount on mount
-    useEffect(() => {
-        setLastCompletedCount(completedTodayCount);
     }, []);
 
     // Get greeting based on time

@@ -1,4 +1,4 @@
-// types.ts
+import React from 'react';
 
 // --- Enums ---
 export enum GoalCategory {
@@ -62,23 +62,6 @@ export enum AppView {
 
 // --- Interfaces ---
 
-export interface JourneyStep {
-  id: string;
-  title: string;
-  content: string;
-  position: { lat: number; lng: number };
-  isActive: boolean;
-  isCompleted: boolean;
-}
-
-export interface GuideConversation {
-  id: string;
-  name: string;
-  createdAt: number;
-  messages: ChatMessage[];
-  journeySteps: JourneyStep[];
-}
-
 export interface Goal {
   id: string;
   userDescription: string;
@@ -109,18 +92,18 @@ export interface Task {
   estimatedTimeMinutes: number;
   difficulty: Difficulty;
   videoRequirements: string;
-  creditsReward: number;
+  creditsReward: number; 
   isSelected?: boolean;
   status: TaskStatus;
   verificationMessage?: string;
   deadline?: number;
   isChallenge?: boolean;
-  sourceLessonId?: string;
+  sourceLessonId?: string;  // Links task to a specific lesson
   isSupplementary?: boolean;
-  isLessonTask?: boolean;
-  timeLeft?: number;
-  lastUpdated?: number;
-  isTimerActive?: boolean;
+  isLessonTask?: boolean;   // NEW: Marks this as a lesson-generated task
+  timeLeft?: number; 
+  lastUpdated?: number; 
+  isTimerActive?: boolean; 
 }
 
 export interface EarnTask {
@@ -132,7 +115,7 @@ export interface EarnTask {
   isCompleted: boolean;
   progress: number;
   maxProgress: number;
-  type?: 'bundle';
+  type?: 'bundle'; 
 }
 
 export interface ExtraLog {
@@ -143,10 +126,9 @@ export interface ExtraLog {
 }
 
 export interface ChatAttachment {
-  type: 'image' | 'pdf' | 'audio' | 'file';
+  type: 'image' | 'pdf' | 'audio';
   mimeType: string;
   data: string;
-  fileName?: string;
 }
 
 export interface ChatMessage {
@@ -202,7 +184,7 @@ export interface UserState {
   name: string;
   country: string;
   privacyAccepted: boolean;
-
+  
   goal: Goal | null;
   allGoals: Goal[];
   currentDay: number;
@@ -210,7 +192,7 @@ export interface UserState {
   streak: number;
   isPremium: boolean;
   activePlanId: string;
-
+  
   realMoneyBalance: number;
   earnings: WalletTransaction[];
 
@@ -229,57 +211,51 @@ export interface UserState {
   maxGoalSlots: number;
   history: HistoricalData[];
   reminders: FutureReminder[];
-
+  
   friends: Friend[];
   myCourses: Course[];
   myProducts: Product[];
   myVideos: FeedItem[];
-
-  guideConversations?: GuideConversation[];
-
-  adgemOffers?: AdgemOffer[];
-  adgemTransactions?: AdgemTransaction[];
-  adgemLastSync?: number;
 }
 
 export interface WalletTransaction {
-  id: string;
-  date: number;
-  amount: number;
-  type: 'deposit' | 'withdrawal' | 'earning' | 'redemption';
-  status: 'pending' | 'completed';
-  description: string;
+    id: string;
+    date: number;
+    amount: number;
+    type: 'deposit' | 'withdrawal' | 'earning' | 'redemption';
+    status: 'pending' | 'completed';
+    description: string;
 }
 
 export interface HistoricalData {
-  date: number;
-  tasksCompleted: number;
-  tasksTotal: number;
-  mood: string;
-  summary: string;
-  chatSnapshot: string[];
+    date: number;
+    tasksCompleted: number;
+    tasksTotal: number;
+    mood: string;
+    summary: string;
+    chatSnapshot: string[];
 }
 
 export interface FutureReminder {
-  id: string;
-  date: number;
-  text: string;
+    id: string;
+    date: number;
+    text: string;
 }
 
 export interface Product {
-  id: string;
-  creatorId: string;
-  creatorName: string;
-  title: string;
-  description: string;
-  mediaUrls: string[];
-  priceUsd?: number;
-  priceCredits?: number;
-  currencyType: 'money' | 'credits' | 'both';
-  category: GoalCategory;
-  isFeatured?: boolean;
-  likes: number;
-  isLiked?: boolean;
+    id: string;
+    creatorId: string;
+    creatorName: string;
+    title: string;
+    description: string;
+    mediaUrls: string[];
+    priceUsd?: number;
+    priceCredits?: number;
+    currencyType: 'money' | 'credits' | 'both';
+    category: GoalCategory;
+    isFeatured?: boolean;
+    likes: number;
+    isLiked?: boolean;
 }
 
 export interface FeedItem {
@@ -402,95 +378,57 @@ export interface Country {
   code: string;
 }
 
-export interface AdgemOffer {
-  id: string;
-  storeId?: string;
-  trackingType?: string;
-  epc?: string;
-  icon?: string;
-  name: string;
-  clickUrl: string;
-  instructions?: string;
-  description?: string;
-  shortDescription?: string;
-  category1?: string;
-  category2?: string;
-  amount: number;
-  completionDifficulty?: number;
-  renderSticker?: boolean;
-  stickerText?: string;
-  stickerColor?: string;
-  os?: {
-    android?: boolean;
-    ios?: boolean;
-    web?: boolean;
-  };
-}
-
-export interface AdgemTransaction {
-  transactionId: string;
-  visibleId?: string;
-  campaignId?: string;
-  offerId?: string;
-  offerName?: string;
-  credits: number;
-  payout?: number;
-  goalId?: string;
-  goalName?: string;
-  completedAt: number;
-}
-
 // --- Constants ---
 
 export const COUNTRIES: Country[] = [
-  { name: "Afghanistan", code: "AF" },
-  { name: "Albania", code: "AL" },
-  { name: "Algeria", code: "DZ" },
-  { name: "Andorra", code: "AD" },
-  { name: "Angola", code: "AO" },
-  { name: "Argentina", code: "AR" },
-  { name: "Armenia", code: "AM" },
-  { name: "Australia", code: "AU" },
-  { name: "Austria", code: "AT" },
-  { name: "Azerbaijan", code: "AZ" },
-  { name: "Bahrain", code: "BH" },
-  { name: "Bangladesh", code: "BD" },
-  { name: "Belgium", code: "BE" },
-  { name: "Brazil", code: "BR" },
-  { name: "Canada", code: "CA" },
-  { name: "China", code: "CN" },
-  { name: "Egypt", code: "EG" },
-  { name: "France", code: "FR" },
-  { name: "Germany", code: "DE" },
-  { name: "India", code: "IN" },
-  { name: "Indonesia", code: "ID" },
-  { name: "Italy", code: "IT" },
-  { name: "Japan", code: "JP" },
-  { name: "Jordan", code: "JO" },
-  { name: "Kuwait", code: "KW" },
-  { name: "Lebanon", code: "LB" },
-  { name: "Malaysia", code: "MY" },
-  { name: "Mexico", code: "MX" },
-  { name: "Morocco", code: "MA" },
-  { name: "Netherlands", code: "NL" },
-  { name: "Norway", code: "NO" },
-  { name: "Oman", code: "OM" },
-  { name: "Pakistan", code: "PK" },
-  { name: "Palestine", code: "PS" },
-  { name: "Qatar", code: "QA" },
-  { name: "Russia", code: "RU" },
-  { name: "Saudi Arabia", code: "SA" },
-  { name: "Singapore", code: "SG" },
-  { name: "South Africa", code: "ZA" },
-  { name: "South Korea", code: "KR" },
-  { name: "Spain", code: "ES" },
-  { name: "Sweden", code: "SE" },
-  { name: "Switzerland", code: "CH" },
-  { name: "Turkey", code: "TR" },
-  { name: "United Arab Emirates", code: "AE" },
-  { name: "United Kingdom", code: "GB" },
-  { name: "United States", code: "US" },
-  { name: "Yemen", code: "YE" }
+    { name: "Afghanistan", code: "AF" },
+    { name: "Albania", code: "AL" },
+    { name: "Algeria", code: "DZ" },
+    { name: "Andorra", code: "AD" },
+    { name: "Angola", code: "AO" },
+    { name: "Argentina", code: "AR" },
+    { name: "Armenia", code: "AM" },
+    { name: "Australia", code: "AU" },
+    { name: "Austria", code: "AT" },
+    { name: "Azerbaijan", code: "AZ" },
+    { name: "Bahrain", code: "BH" },
+    { name: "Bangladesh", code: "BD" },
+    { name: "Belgium", code: "BE" },
+    { name: "Brazil", code: "BR" },
+    { name: "Canada", code: "CA" },
+    { name: "China", code: "CN" },
+    { name: "Egypt", code: "EG" },
+    { name: "France", code: "FR" },
+    { name: "Germany", code: "DE" },
+    { name: "India", code: "IN" },
+    { name: "Indonesia", code: "ID" },
+    { name: "Italy", code: "IT" },
+    { name: "Japan", code: "JP" },
+    { name: "Jordan", code: "JO" },
+    { name: "Kuwait", code: "KW" },
+    { name: "Lebanon", code: "LB" },
+    { name: "Malaysia", code: "MY" },
+    { name: "Mexico", code: "MX" },
+    { name: "Morocco", code: "MA" },
+    { name: "Netherlands", code: "NL" },
+    { name: "Norway", code: "NO" },
+    { name: "Oman", code: "OM" },
+    { name: "Pakistan", code: "PK" },
+    { name: "Palestine", code: "PS" },
+    { name: "Qatar", code: "QA" },
+    { name: "Russia", code: "RU" },
+    { name: "Saudi Arabia", code: "SA" },
+    { name: "Singapore", code: "SG" },
+    { name: "South Africa", code: "ZA" },
+    { name: "South Korea", code: "KR" },
+    { name: "Spain", code: "ES" },
+    { name: "Sweden", code: "SE" },
+    { name: "Switzerland", code: "CH" },
+    { name: "Turkey", code: "TR" },
+    { name: "United Arab Emirates", code: "AE" },
+    { name: "United Kingdom", code: "GB" },
+    { name: "United States", code: "US" },
+    { name: "Yemen", code: "YE" }
 ];
 
 export const DAILY_EARN_TASKS: EarnTask[] = [
@@ -500,3 +438,47 @@ export const DAILY_EARN_TASKS: EarnTask[] = [
   { id: 'et4', title: 'Quick Tip', subtitle: 'Watch 1 video', reward: 20, icon: 'PlayCircle', isCompleted: false, progress: 0, maxProgress: 1, type: 'bundle' },
   { id: 'et5', title: 'Social Pulse', subtitle: 'Cheer 5 friends', reward: 25, icon: 'Users', isCompleted: false, progress: 0, maxProgress: 5, type: 'bundle' }
 ];
+// Add these interfaces to your types.ts
+
+export interface AdgemOffer {
+    id: string;
+    storeId?: string;
+    trackingType?: string;
+    epc?: string;
+    icon?: string;
+    name: string;
+    clickUrl: string;
+    instructions?: string;
+    description?: string;
+    shortDescription?: string;
+    category1?: string;
+    category2?: string;
+    amount: number;
+    completionDifficulty?: number;
+    renderSticker?: boolean;
+    stickerText?: string;
+    stickerColor?: string;
+    os?: {
+        android?: boolean;
+        ios?: boolean;
+        web?: boolean;
+    };
+}
+
+export interface AdgemTransaction {
+    transactionId: string;
+    visibleId?: string;
+    campaignId?: string;
+    offerId?: string;
+    offerName?: string;
+    credits: number;
+    payout?: number;
+    goalId?: string;
+    goalName?: string;
+    completedAt: number;
+}
+
+// Update UserState interface to include:
+// adgemOffers?: AdgemOffer[];
+// adgemTransactions?: AdgemTransaction[];
+// adgemLastSync?: number;

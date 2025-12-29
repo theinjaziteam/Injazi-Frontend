@@ -27,24 +27,24 @@ export default function DashboardView() {
     const adgemTransactions = (user as any).adgemTransactions || [];
     const currentGoal = user.goal || { title: "Loading...", category: "General", durationDays: 30, mode: "Standard" };
 
-    // Separate daily tasks from lesson tasks
-    const pendingDailyTasks = dailyTasks.filter(t => 
+    // FIXED: Only count non-lesson tasks for daily progress
+    const dailyOnlyTasks = dailyTasks.filter(t => !t.isLessonTask);
+    
+    const pendingDailyTasks = dailyOnlyTasks.filter(t => 
         t.status !== TaskStatus.APPROVED && 
-        t.status !== TaskStatus.COMPLETED &&
-        !t.isLessonTask
+        t.status !== TaskStatus.COMPLETED
     );
 
-    const completedTodayCount = dailyTasks.filter(t => 
+    const completedTodayCount = dailyOnlyTasks.filter(t => 
         t.status === TaskStatus.APPROVED || t.status === TaskStatus.COMPLETED
     ).length;
 
-    const totalTodayCount = dailyTasks.filter(t => !t.isLessonTask).length;
+    const totalDailyTasks = dailyOnlyTasks.length;
 
     // Animate progress on mount
     useEffect(() => {
         const timer = setTimeout(() => {
             setProgressAnimated(true);
-            // Animate liquid fill
             const targetFill = Math.round((user.currentDay / (currentGoal.durationDays || 365)) * 100);
             let current = 0;
             const interval = setInterval(() => {
@@ -69,10 +69,8 @@ export default function DashboardView() {
         return 'Good evening';
     };
 
-    // Get first name
     const firstName = user.name?.split(' ')[0] || 'Architect';
 
-    // Fetch AdGem offers when section expands
     useEffect(() => {
         if (isEarnExpanded && user.email && adgemOffers.length === 0) {
             fetchAdgemOffers();
@@ -165,8 +163,13 @@ export default function DashboardView() {
         }
     };
 
-    // Format large numbers with commas
     const formatCredits = (num: number) => {
+        if (num >= 1000000) {
+            return (num / 1000000).toFixed(1) + 'M';
+        }
+        if (num >= 1000) {
+            return (num / 1000).toFixed(1) + 'K';
+        }
         return num.toLocaleString();
     };
 
@@ -203,7 +206,6 @@ export default function DashboardView() {
         return 'text-amber-600';
     };
 
-    // Task icons
     const TaskIcon = ({ difficulty }: { difficulty?: string }) => {
         const colorClass = getDifficultyIconColor(difficulty);
         
@@ -229,11 +231,31 @@ export default function DashboardView() {
         );
     };
 
-    // Progress calculation
-    const progressPercent = Math.round((user.currentDay / (currentGoal.durationDays || 365)) * 100);
+    // Custom Coin Icon Component
+    const CoinIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
+        <svg className={className} viewBox="0 0 24 24" fill="none">
+            {/* Coin base - 3D effect */}
+            <ellipse cx="12" cy="14" rx="9" ry="4" fill="#D97706"/>
+            {/* Coin face */}
+            <ellipse cx="12" cy="12" rx="9" ry="4" fill="url(#coinGradient)"/>
+            {/* Coin inner ring */}
+            <ellipse cx="12" cy="12" rx="6.5" ry="2.8" fill="none" stroke="#D97706" strokeWidth="0.8"/>
+            {/* Dollar/Star symbol in center */}
+            <circle cx="12" cy="12" r="2" fill="#D97706"/>
+            {/* Shine effect */}
+            <ellipse cx="9" cy="11" rx="1.5" ry="0.8" fill="white" fillOpacity="0.4"/>
+            <defs>
+                <linearGradient id="coinGradient" x1="3" y1="8" x2="21" y2="16">
+                    <stop offset="0%" stopColor="#FCD34D"/>
+                    <stop offset="50%" stopColor="#FBBF24"/>
+                    <stop offset="100%" stopColor="#F59E0B"/>
+                </linearGradient>
+            </defs>
+        </svg>
+    );
 
-    // All tasks completed check
-    const allTasksComplete = pendingDailyTasks.length === 0 && totalTodayCount > 0;
+    const progressPercent = Math.round((user.currentDay / (currentGoal.durationDays || 365)) * 100);
+    const allTasksComplete = pendingDailyTasks.length === 0 && totalDailyTasks > 0;
 
     return (
         <div 
@@ -273,14 +295,14 @@ export default function DashboardView() {
             )}
 
             <div className="min-h-full">
-                {/* Header Section - Refined with better hierarchy */}
+                {/* Header Section */}
                 <div className="bg-gradient-to-br from-[#171738] via-[#1e1e4a] to-[#2a2a5c] text-white px-5 pt-safe pb-24 relative overflow-hidden">
                     {/* Subtle organic background shapes */}
                     <div className="absolute top-0 right-0 w-80 h-80 bg-[#3423A6]/20 rounded-full blur-[100px] -translate-y-1/3 translate-x-1/4" />
                     <div className="absolute bottom-0 left-0 w-60 h-60 bg-[#DFF3E4]/10 rounded-full blur-[80px] translate-y-1/3 -translate-x-1/4" />
                     <div className="absolute top-1/2 left-1/2 w-40 h-40 bg-[#3423A6]/10 rounded-full blur-[60px] -translate-x-1/2 -translate-y-1/2" />
                     
-                    {/* Top Bar with Credits Pill */}
+                    {/* Top Bar - Credits integrated naturally */}
                     <div className="flex justify-between items-start relative z-20 pt-4 mb-6">
                         <div>
                             <p className="text-white/50 text-[11px] font-medium tracking-wide uppercase">{getGreeting()}</p>
@@ -288,14 +310,10 @@ export default function DashboardView() {
                         </div>
                         
                         <div className="flex items-center gap-2">
-                            {/* Credits Pill - Prominent placement */}
-                            <div className="flex items-center gap-2 bg-gradient-to-r from-amber-400/20 to-amber-500/10 backdrop-blur-md border border-amber-400/30 rounded-full px-3 py-1.5">
-                                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-amber-300 to-amber-500 flex items-center justify-center shadow-sm">
-                                    <svg className="w-3 h-3 text-amber-900" viewBox="0 0 24 24" fill="currentColor">
-                                        <circle cx="12" cy="12" r="8"/>
-                                    </svg>
-                                </div>
-                                <span className="text-sm font-bold text-amber-100">{formatCredits(user.credits || 0)}</span>
+                            {/* Credits - Integrated design that belongs */}
+                            <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-3 py-1.5 border border-white/10">
+                                <CoinIcon className="w-5 h-5" />
+                                <span className="text-sm font-bold text-white/90">{formatCredits(user.credits || 0)}</span>
                             </div>
                             
                             <button 
@@ -307,7 +325,7 @@ export default function DashboardView() {
                         </div>
                     </div>
                     
-                    {/* Goal Tabs - More subtle */}
+                    {/* Goal Tabs */}
                     <div className="relative z-20 w-full mb-8">
                         <div className="flex justify-center items-center flex-wrap gap-1.5">
                             {allGoals.map((g, idx) => (
@@ -332,17 +350,13 @@ export default function DashboardView() {
                         </div>
                     </div>
 
-                    {/* Reimagined Progress Circle - Liquid Fill Effect */}
+                    {/* Progress Circle - Liquid Fill Effect */}
                     <div className="flex flex-col items-center text-center relative z-10">
                         <div className="relative w-44 h-44 flex items-center justify-center mb-5">
-                            {/* Outer glow */}
                             <div className="absolute inset-0 bg-[#DFF3E4]/10 rounded-full blur-2xl scale-110" />
                             
-                            {/* Main circle container */}
                             <div className="relative w-full h-full">
-                                {/* Background circle */}
                                 <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                                    {/* Outer ring - subtle */}
                                     <circle 
                                         cx="50" cy="50" r="46" 
                                         fill="none"
@@ -350,7 +364,6 @@ export default function DashboardView() {
                                         strokeWidth="2"
                                     />
                                     
-                                    {/* Progress track */}
                                     <circle 
                                         cx="50" cy="50" r="42" 
                                         fill="none"
@@ -359,7 +372,6 @@ export default function DashboardView() {
                                         strokeLinecap="round"
                                     />
                                     
-                                    {/* Gradient definition */}
                                     <defs>
                                         <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                                             <stop offset="0%" stopColor="#DFF3E4" />
@@ -375,7 +387,6 @@ export default function DashboardView() {
                                         </filter>
                                     </defs>
                                     
-                                    {/* Progress arc - thick gradient stroke */}
                                     <circle 
                                         cx="50" cy="50" r="42" 
                                         fill="none"
@@ -389,7 +400,6 @@ export default function DashboardView() {
                                     />
                                 </svg>
                                 
-                                {/* Center content */}
                                 <div className="absolute inset-0 flex items-center justify-center flex-col">
                                     <div className="relative">
                                         <span className="text-5xl font-black text-white tracking-tighter">{liquidFill}</span>
@@ -400,7 +410,7 @@ export default function DashboardView() {
                             </div>
                         </div>
                         
-                        {/* Goal Title Group - Tighter hierarchy */}
+                        {/* Goal Title Group */}
                         <div className="space-y-1.5">
                             <h3 className="font-black text-[22px] leading-tight max-w-[280px] mx-auto tracking-tight">
                                 {currentGoal.title}
@@ -412,7 +422,7 @@ export default function DashboardView() {
                     </div>
                 </div>
 
-                {/* Daily Progress Card - Floating overlap */}
+                {/* Daily Progress Card - FIXED: Shows correct count */}
                 <div className="px-5 -mt-8 relative z-20 mb-5">
                     <div 
                         className="bg-white rounded-2xl p-4 flex items-center justify-between"
@@ -439,7 +449,7 @@ export default function DashboardView() {
                             <div>
                                 <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Daily Progress</p>
                                 <p className="text-lg font-black text-[#171738]">
-                                    {completedTodayCount}/{totalTodayCount || '—'}
+                                    {completedTodayCount}/{totalDailyTasks}
                                     <span className="text-sm font-medium text-gray-400 ml-1.5">
                                         {allTasksComplete ? 'Complete!' : 'tasks'}
                                     </span>
@@ -457,7 +467,7 @@ export default function DashboardView() {
                 </div>
 
                 <div className="px-5 relative z-20 space-y-4 pb-32">
-                    {/* Agent Alerts - Softer design */}
+                    {/* Agent Alerts */}
                     {agentAlerts.filter(a => !a.isRead).map(alert => (
                         <div 
                             key={alert.id}
@@ -484,7 +494,7 @@ export default function DashboardView() {
                         </div>
                     ))}
 
-                    {/* Today's Missions - Refined card */}
+                    {/* Today's Missions - FIXED: Only shows daily tasks, not lesson tasks */}
                     <div 
                         className="bg-white rounded-2xl overflow-hidden"
                         style={{
@@ -505,10 +515,9 @@ export default function DashboardView() {
                             </div>
                             
                             {allTasksComplete ? (
-                                /* Completion State - More organic, less generic */
+                                /* Completion State - FIXED: Prompts to go to AI Guide */
                                 <div className="py-6 px-4">
                                     <div className="flex items-start gap-4">
-                                        {/* Custom illustration instead of generic icon */}
                                         <div className="relative flex-shrink-0">
                                             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-100 to-emerald-50 flex items-center justify-center">
                                                 <svg className="w-8 h-8 text-emerald-500" viewBox="0 0 24 24" fill="none">
@@ -516,7 +525,6 @@ export default function DashboardView() {
                                                     <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                                                 </svg>
                                             </div>
-                                            {/* Small decorative dots */}
                                             <div className="absolute -top-1 -right-1 w-3 h-3 bg-amber-300 rounded-full" />
                                             <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-[#3423A6]/40 rounded-full" />
                                         </div>
@@ -524,13 +532,17 @@ export default function DashboardView() {
                                         <div className="flex-1 pt-1">
                                             <h4 className="font-bold text-[#171738] text-base mb-1">You crushed it today!</h4>
                                             <p className="text-gray-400 text-sm leading-relaxed mb-3">
-                                                All {totalTodayCount} tasks complete. Your consistency is building real momentum.
+                                                All {totalDailyTasks} tasks complete. Ready to plan what's next?
                                             </p>
+                                            {/* FIXED: Now navigates to AI Chat */}
                                             <button 
-                                                onClick={() => setShowCheckIn(true)}
+                                                onClick={() => setView(AppView.CHAT)}
                                                 className="text-[#3423A6] font-bold text-sm flex items-center gap-1.5 group"
                                             >
-                                                <span>Reflect on your day</span>
+                                                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                                                </svg>
+                                                <span>Tell your AI Guide what's next</span>
                                                 <svg className="w-4 h-4 transition-transform group-hover:translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                                     <path d="M5 12h14M12 5l7 7-7 7"/>
                                                 </svg>
@@ -538,7 +550,7 @@ export default function DashboardView() {
                                         </div>
                                     </div>
                                 </div>
-                            ) : totalTodayCount === 0 ? (
+                            ) : totalDailyTasks === 0 ? (
                                 /* No tasks state */
                                 <div className="py-8 text-center">
                                     <div className="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
@@ -548,7 +560,7 @@ export default function DashboardView() {
                                     <p className="text-gray-400 text-xs">Check in to generate your daily missions</p>
                                 </div>
                             ) : (
-                                /* Task List - Refined cards */
+                                /* Task List - Only daily tasks, no lesson tasks */
                                 <div className="space-y-2.5">
                                     {pendingDailyTasks.map((task, index) => (
                                         <div 
@@ -560,12 +572,10 @@ export default function DashboardView() {
                                             }}
                                         >
                                             <div className="flex items-center gap-3">
-                                                {/* Task Icon */}
                                                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${getDifficultyBgColor(task.difficulty)}`}>
                                                     <TaskIcon difficulty={task.difficulty as string} />
                                                 </div>
                                                 
-                                                {/* Task Content */}
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-2 mb-0.5">
                                                         <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-md ${getDifficultyColor(task.difficulty)}`}>
@@ -580,7 +590,6 @@ export default function DashboardView() {
                                                     </h4>
                                                 </div>
                                                 
-                                                {/* Timer or Arrow */}
                                                 {(task.timeLeft !== undefined && task.timeLeft > 0 && task.timeLeft < ((task.estimatedTimeMinutes || 20) * 60)) ? (
                                                     <div className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold flex-shrink-0 ${
                                                         task.isTimerActive 
@@ -600,7 +609,7 @@ export default function DashboardView() {
                                 </div>
                             )}
                             
-                            {totalTodayCount > 0 && (
+                            {totalDailyTasks > 0 && (
                                 <button 
                                     onClick={() => setView(AppView.TASK_SELECTION)} 
                                     className="w-full mt-4 py-3 bg-gray-50 hover:bg-gray-100 text-[#171738] font-semibold text-sm rounded-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2 border border-gray-100"
@@ -612,7 +621,7 @@ export default function DashboardView() {
                         </div>
                     </div>
 
-                    {/* Earn Credits Section - Cleaner */}
+                    {/* Earn Credits Section - Better coin icon */}
                     <div 
                         className="bg-white rounded-2xl overflow-hidden"
                         style={{
@@ -624,11 +633,9 @@ export default function DashboardView() {
                             onClick={() => setIsEarnExpanded(!isEarnExpanded)}
                         >
                             <div className="flex items-center gap-3">
-                                <div className="w-11 h-11 bg-gradient-to-br from-amber-300 to-amber-400 rounded-xl flex items-center justify-center shadow-md shadow-amber-400/30">
-                                    <svg className="w-5 h-5 text-amber-800" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                        <circle cx="12" cy="12" r="8"/>
-                                        <path d="M12 6v12M6 12h12"/>
-                                    </svg>
+                                {/* Better 3D Coin Icon */}
+                                <div className="w-11 h-11 bg-gradient-to-br from-amber-100 to-amber-200 rounded-xl flex items-center justify-center shadow-sm">
+                                    <CoinIcon className="w-7 h-7" />
                                 </div>
                                 <div>
                                     <h3 className="text-[15px] font-bold text-[#171738]">Earn More Credits</h3>
@@ -674,8 +681,10 @@ export default function DashboardView() {
                                                     </p>
                                                 </div>
                                                 
-                                                <div className="bg-gradient-to-r from-amber-400 to-amber-500 text-amber-900 px-2.5 py-1.5 rounded-lg flex-shrink-0">
-                                                    <span className="font-black text-xs">+{offer.amount}</span>
+                                                {/* Coin reward badge */}
+                                                <div className="flex items-center gap-1 bg-gradient-to-r from-amber-50 to-amber-100 border border-amber-200 px-2 py-1.5 rounded-lg flex-shrink-0">
+                                                    <CoinIcon className="w-4 h-4" />
+                                                    <span className="font-black text-xs text-amber-700">+{offer.amount}</span>
                                                 </div>
                                             </div>
                                         ))}
@@ -728,7 +737,7 @@ export default function DashboardView() {
                 </div>
             </div>
 
-            {/* Check-in Modal - Softer design */}
+            {/* Check-in Modal */}
             {showCheckIn && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-5">
                     <div 

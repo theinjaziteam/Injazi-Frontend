@@ -1,10 +1,11 @@
+// views/TaskExecutionView.tsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { AppView, TaskStatus } from '../types';
 import { Icons, Button, Card } from '../components/UIComponents';
 
 export default function TaskExecutionView() {
-    const { user, setUser, setView } = useApp();
+    const { user, setUser, setView, triggerConfetti } = useApp();
     const task = user.dailyTasks.find(t => t.id === user.selectedTaskId);
     const initRef = useRef(false);
 
@@ -243,6 +244,9 @@ export default function TaskExecutionView() {
         setIsCompleted(true);
         setIsTimerRunning(false);
         
+        // Trigger confetti celebration!
+        triggerConfetti();
+        
         setTimeout(() => {
             setUser(prev => ({
                 ...prev,
@@ -281,7 +285,7 @@ export default function TaskExecutionView() {
             </div>
 
             <div className="p-6 pt-safe flex justify-between items-center relative z-10">
-                <button onClick={handleBack} className="p-2 bg-white/10 rounded-full hover:bg-white/20">
+                <button onClick={handleBack} className="p-2 bg-white/10 rounded-full hover:bg-white/20 active:scale-95 transition-all">
                     <Icons.ChevronLeft className="w-6 h-6"/>
                 </button>
                 <div className="flex flex-col items-end">
@@ -289,10 +293,10 @@ export default function TaskExecutionView() {
                 </div>
             </div>
 
-            <div className="flex-1 flex flex-col items-center justify-center relative z-10">
-                <div className="text-center mb-10 px-6">
-                    <h2 className="text-2xl font-black uppercase tracking-tighter mb-2">{task.title}</h2>
-                    <p className="text-white/60 text-sm">{task.description}</p>
+            <div className="flex-1 flex flex-col items-center justify-center relative z-10 px-6">
+                <div className="text-center mb-10">
+                    <h2 className="text-2xl font-black uppercase tracking-tight mb-2">{task.title}</h2>
+                    <p className="text-white/60 text-sm max-w-xs mx-auto">{task.description}</p>
                 </div>
 
                 <div className="relative mb-12">
@@ -315,7 +319,7 @@ export default function TaskExecutionView() {
                         {!isTimerRunning && (
                             <button 
                                 onClick={() => setShowCompleteModal(true)} 
-                                className="px-8 h-20 rounded-[2.5rem] bg-white/10 border-2 border-white/20 text-white font-black uppercase tracking-widest hover:bg-white/20 transition-all"
+                                className="px-8 h-20 rounded-[2.5rem] bg-white/10 border-2 border-white/20 text-white font-black uppercase tracking-widest active:scale-95 transition-all"
                             >
                                 Finish Early
                             </button>
@@ -326,15 +330,15 @@ export default function TaskExecutionView() {
                         <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mb-4 shadow-2xl shadow-green-500/50">
                             <Icons.Check className="w-10 h-10 text-white" />
                         </div>
-                        <h3 className="text-2xl font-black uppercase tracking-widest">Complete</h3>
+                        <h3 className="text-2xl font-black uppercase tracking-widest">Complete!</h3>
                     </div>
                 )}
             </div>
 
             {showCompleteModal && (
                 <div className="fixed inset-0 z-50 bg-primary/90 backdrop-blur-xl flex items-center justify-center p-6 animate-fade-in">
-                    <Card className="w-full max-w-sm bg-white p-8 text-center rounded-[3rem]">
-                        <h3 className="text-2xl font-black text-primary uppercase tracking-tighter mb-2">
+                    <Card className="w-full max-w-sm bg-white p-8 text-center rounded-[2rem]">
+                        <h3 className="text-2xl font-black text-primary uppercase tracking-tight mb-2">
                             {timeLeft <= 0 ? 'Timer Finished!' : 'Finish Task?'}
                         </h3>
                         <p className="text-gray-500 text-sm mb-8">Did you complete the objective?</p>

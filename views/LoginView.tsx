@@ -695,59 +695,59 @@ export default function LoginView() {
     );
 
     // Verification View
-    const renderVerifyForm = () => (
-        <div className="px-6 pb-6 space-y-6">
-            <button
-                onClick={() => { setMode('register'); clearMessages(); setCooldown(0); }}
-                className="flex items-center gap-2 text-white/50 hover:text-white transition-colors"
-            >
-                <Icons.ChevronLeft className="w-4 h-4" />
-                <span className="text-sm">Back</span>
-            </button>
+const renderVerifyForm = () => (
+    <div className="px-6 pb-6 space-y-6">
+        <button
+            onClick={() => { setMode('register'); clearMessages(); setCooldown(0); }}
+            className="flex items-center gap-2 text-white/50 hover:text-white transition-colors"
+        >
+            <Icons.ChevronLeft className="w-4 h-4" />
+            <span className="text-sm">Back</span>
+        </button>
 
-            <div className="text-center">
-                <div className="w-16 h-16 bg-[#3423A6]/30 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Icons.Mail className="w-8 h-8 text-[#DFF3E4]" />
-                </div>
-                <h2 className="text-xl font-bold text-white mb-2">Verify Your Email</h2>
-                <p className="text-white/50 text-sm">
-                    We sent a 6-digit code to<br />
-                    <span className="text-[#DFF3E4] font-medium">{email}</span>
+        <div className="text-center">
+            <div className="w-16 h-16 bg-[#3423A6]/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Icons.Mail className="w-8 h-8 text-[#DFF3E4]" />
+            </div>
+            <h2 className="text-xl font-bold text-white mb-2">Verify Your Email</h2>
+            <p className="text-white/50 text-sm">
+                We sent a 6-digit code to<br />
+                <span className="text-[#DFF3E4] font-medium">{email}</span>
+            </p>
+        </div>
+
+        {renderCodeInputs(verificationCode, codeInputRefs, false)}
+
+        <button 
+            onClick={handleVerifyEmail}
+            disabled={isLoading || verificationCode.join('').length !== 6}
+            className="w-full py-4 bg-[#3423A6] hover:bg-[#4330c9] disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-2xl font-bold text-lg shadow-[0_0_20px_rgba(52,35,166,0.5)] transition-all flex items-center justify-center gap-2"
+        >
+            {isLoading ? (
+                <Icons.RefreshCw className="w-5 h-5 animate-spin" />
+            ) : (
+                'Verify Email'
+            )}
+        </button>
+
+        <div className="text-center">
+            <p className="text-white/40 text-xs mb-2">Didn't receive the code?</p>
+            {cooldown > 0 ? (
+                <p className="text-white/60 text-sm font-medium">
+                    Resend available in <span className="text-[#DFF3E4]">{formatCooldown(cooldown)}</span>
                 </p>
-            </div>
-
-            {renderCodeInputs(verificationCode, codeInputRefs, false)}
-
-            <button 
-                onClick={handleVerifyEmail}
-                disabled={isLoading || verificationCode.join('').length !== 6}
-                className="w-full py-4 bg-[#3423A6] hover:bg-[#4330c9] disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-2xl font-bold text-lg shadow-[0_0_20px_rgba(52,35,166,0.5)] transition-all flex items-center justify-center gap-2"
-            >
-                {isLoading ? (
-                    <Icons.RefreshCw className="w-5 h-5 animate-spin" />
-                ) : (
-                    'Verify Email'
-                )}
-            </button>
-
-            <div className="text-center">
-                <p className="text-white/40 text-xs mb-2">Didn't receive the code?</p>
-                {cooldown > 0 ? (
-                    <p className="text-white/60 text-sm font-medium">
-                        Resend available in <span className="text-[#DFF3E4]">{formatCooldown(cooldown)}</span>
-                    </p>
-                ) : (
-                    <button
-                        onClick={handleResendCode}
-                        disabled={isLoading}
-                        className="text-[#DFF3E4] text-sm font-medium hover:underline disabled:opacity-50"
-                    >
-                        Resend Code
-                    </button>
-                )}
-            </div>
-
-         
+            ) : (
+                <button
+                    onClick={handleResendCode}
+                    disabled={isLoading}
+                    className="text-[#DFF3E4] text-sm font-medium hover:underline disabled:opacity-50"
+                >
+                    Resend Code
+                </button>
+            )}
+        </div>
+    </div>
+);
     // Reset Password View
     const renderResetForm = () => (
         <div className="px-6 pb-6 space-y-6">

@@ -34,8 +34,6 @@ export default function ChatView() {
     const rotationRef = useRef({ y: 0, targetY: 0, velocity: 0 });
     const dragRef = useRef({ isDragging: false, lastX: 0 });
     const starsRef = useRef<{ x: number; y: number; z: number; brightness: number }[]>([]);
-    
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     // Initialize stars
     useEffect(() => {
@@ -136,13 +134,12 @@ export default function ChatView() {
 
             // Planet center - positioned to right side
             const centerX = w * 0.62;
-            const centerY = h * 0.48;
-            const radius = Math.min(w, h) * 0.32;
+            const centerY = h * 0.45;
+            const radius = Math.min(w, h) * 0.3;
 
             // Smooth rotation with momentum
             if (!dragRef.current.isDragging) {
                 rotationRef.current.y += (rotationRef.current.targetY - rotationRef.current.y) * 0.05;
-                // Apply momentum decay
                 rotationRef.current.velocity *= 0.95;
                 rotationRef.current.y += rotationRef.current.velocity;
                 rotationRef.current.targetY = rotationRef.current.y;
@@ -166,7 +163,7 @@ export default function ChatView() {
             ctx.arc(centerX, centerY, radius * 1.5, 0, Math.PI * 2);
             ctx.fill();
 
-            // Planet body - subtle dark fill
+            // Planet body
             ctx.fillStyle = 'rgba(8, 8, 12, 0.98)';
             ctx.beginPath();
             ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
@@ -196,7 +193,7 @@ export default function ChatView() {
                 ctx.stroke();
             }
 
-            // Draw connection lines between markers first (behind markers)
+            // Draw connection lines between markers
             if (journeySteps.length > 1) {
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
                 ctx.lineWidth = 1.5;
@@ -234,7 +231,6 @@ export default function ChatView() {
                 const lat = step.position.lat * Math.PI / 180;
                 const lng = (step.position.lng * Math.PI / 180) + rotation;
                 
-                // Check visibility (front of planet)
                 const visibility = Math.cos(lng);
                 if (visibility < -0.1) return;
 
@@ -326,14 +322,6 @@ export default function ChatView() {
         };
     }, [journeySteps, currentStepIndex]);
 
-    // Auto-resize textarea
-    useEffect(() => {
-        if (textareaRef.current) {
-            textareaRef.current.style.height = 'auto';
-            textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 100) + 'px';
-        }
-    }, [chatInput]);
-
     // Typewriter effect
     const typeText = useCallback((text: string, onComplete?: () => void) => {
         setIsTyping(true);
@@ -349,7 +337,7 @@ export default function ChatView() {
                 setIsTyping(false);
                 onComplete?.();
             }
-        }, 15);
+        }, 12);
 
         return () => clearInterval(interval);
     }, []);
@@ -360,7 +348,6 @@ export default function ChatView() {
 
         const step = journeySteps[stepIndex];
         
-        // Update step states
         setJourneySteps(prev => prev.map((s, i) => ({
             ...s,
             isActive: i === stepIndex,
@@ -368,78 +355,135 @@ export default function ChatView() {
         })));
         
         setCurrentStepIndex(stepIndex);
-
-        // Type the explanation
         typeText(step.content);
     }, [journeySteps, typeText]);
 
-    // Parse AI response into steps
+    // IMPROVED: Parse AI response into multiple steps
     const parseAIResponseToSteps = (response: string): JourneyStep[] => {
-        // Try to extract numbered steps
-        const numberedPattern = /(?:^|\n)\s*(\d+)[.)]\s*\*?\*?([^*\n]+)\*?\*?[:\s]*([^\n]*(?:\n(?!\s*\d+[.)]).*)*)/g;
-        const matches = [...response.matchAll(numberedPattern)];
+        const steps: JourneyStep[] = [];
+        
+        // Clean up the response
+        const cleanResponse = response.trim();
+        
+        // Pattern 1: Numbered steps like "1." or "1)" or "Step 1:"
+        const numberedRegex = /(?:^|\n)\s*(?:Step\s*)?(\d+)[.):]\s*(.+?)(?=(?:\n\s*(?:Step\s*)?\d+[.):])|$)/gis;
+        let matches = [...cleanResponse.matchAll(numberedRegex)];
         
         if (matches.length >= 2) {
-            return matches.slice(0, 6).map((match, index) => {
-                const title = match[2]?.trim() || `Step ${index + 1}`;
-                const content = (match[2] + (match[3] ? ': ' + match[3] : '')).trim();
-                return {
-                    id: `step-${index}`,
-                    title: `Step ${index + 1}`,
-                    content: content || title,
-                    position: {
-                        lat: 30 - (index * 15) + (Math.random() - 0.5) * 20,
-                        lng: -120 + (index * 50) + (Math.random() - 0.5) * 15
-                    },
-                    isActive: false,
-                    isCompleted: false
-                };
+            matches.slice(0, 6).forEach((match, index) => {
+                const content = match[2]?.trim();
+                if (content && content.length > 10) {
+                    steps.push({
+                        id: `step-${index}`,
+                        title: `Step ${index + 1}`,
+                        content: content.replace(/\*\*/g, '').trim(),
+                        position: {
+                            lat: 40 - (index * 20) + (Math.random() - 0.5) * 15,
+                            lng: -100 + (index * 55) + (Math.random() - 0.5) * 10
+                        },
+                        isActive: false,
+                        isCompleted: false
+                    });
+                }
             });
         }
-
-        // Try bullet points
-        const bulletPattern = /(?:^|\n)\s*[-•*]\s*\*?\*?([^*\n]+)\*?\*?[:\s]*([^\n]*)/g;
-        const bulletMatches = [...response.matchAll(bulletPattern)];
         
-        if (bulletMatches.length >= 2) {
-            return bulletMatches.slice(0, 6).map((match, index) => ({
-                id: `step-${index}`,
-                title: `Step ${index + 1}`,
-                content: (match[1] + (match[2] ? ': ' + match[2] : '')).trim(),
-                position: {
-                    lat: 30 - (index * 15) + (Math.random() - 0.5) * 20,
-                    lng: -120 + (index * 50) + (Math.random() - 0.5) * 15
-                },
+        // Pattern 2: Bullet points with - or • or *
+        if (steps.length < 2) {
+            const bulletRegex = /(?:^|\n)\s*[-•*]\s*(.+?)(?=(?:\n\s*[-•*])|$)/gs;
+            matches = [...cleanResponse.matchAll(bulletRegex)];
+            
+            if (matches.length >= 2) {
+                matches.slice(0, 6).forEach((match, index) => {
+                    const content = match[1]?.trim();
+                    if (content && content.length > 10) {
+                        steps.push({
+                            id: `step-${index}`,
+                            title: `Step ${index + 1}`,
+                            content: content.replace(/\*\*/g, '').trim(),
+                            position: {
+                                lat: 40 - (index * 20) + (Math.random() - 0.5) * 15,
+                                lng: -100 + (index * 55) + (Math.random() - 0.5) * 10
+                            },
+                            isActive: false,
+                            isCompleted: false
+                        });
+                    }
+                });
+            }
+        }
+        
+        // Pattern 3: Split by sentences if response is long enough
+        if (steps.length < 2) {
+            const sentences = cleanResponse
+                .replace(/\*\*/g, '')
+                .split(/(?<=[.!?])\s+/)
+                .filter(s => s.trim().length > 20);
+            
+            if (sentences.length >= 3) {
+                // Group sentences into 3-5 steps
+                const stepsCount = Math.min(5, Math.max(3, Math.floor(sentences.length / 2)));
+                const sentencesPerStep = Math.ceil(sentences.length / stepsCount);
+                
+                for (let i = 0; i < stepsCount; i++) {
+                    const start = i * sentencesPerStep;
+                    const end = Math.min(start + sentencesPerStep, sentences.length);
+                    const content = sentences.slice(start, end).join(' ').trim();
+                    
+                    if (content.length > 15) {
+                        steps.push({
+                            id: `step-${i}`,
+                            title: `Step ${i + 1}`,
+                            content: content,
+                            position: {
+                                lat: 40 - (i * 20) + (Math.random() - 0.5) * 15,
+                                lng: -100 + (i * 55) + (Math.random() - 0.5) * 10
+                            },
+                            isActive: false,
+                            isCompleted: false
+                        });
+                    }
+                }
+            }
+        }
+        
+        // Pattern 4: Split by double newlines (paragraphs)
+        if (steps.length < 2) {
+            const paragraphs = cleanResponse
+                .split(/\n\n+/)
+                .map(p => p.replace(/\*\*/g, '').trim())
+                .filter(p => p.length > 30);
+            
+            if (paragraphs.length >= 2) {
+                paragraphs.slice(0, 5).forEach((p, index) => {
+                    steps.push({
+                        id: `step-${index}`,
+                        title: `Step ${index + 1}`,
+                        content: p,
+                        position: {
+                            lat: 40 - (index * 20) + (Math.random() - 0.5) * 15,
+                            lng: -100 + (index * 55) + (Math.random() - 0.5) * 10
+                        },
+                        isActive: false,
+                        isCompleted: false
+                    });
+                });
+            }
+        }
+        
+        // Fallback: Single step with full response
+        if (steps.length === 0) {
+            steps.push({
+                id: 'step-0',
+                title: 'Guidance',
+                content: cleanResponse.replace(/\*\*/g, '').trim(),
+                position: { lat: 20, lng: 0 },
                 isActive: false,
                 isCompleted: false
-            }));
+            });
         }
-
-        // Split by paragraphs
-        const paragraphs = response.split(/\n\n+/).filter(p => p.trim().length > 30);
-        if (paragraphs.length >= 2) {
-            return paragraphs.slice(0, 5).map((p, index) => ({
-                id: `step-${index}`,
-                title: `Step ${index + 1}`,
-                content: p.trim(),
-                position: {
-                    lat: 30 - (index * 15) + (Math.random() - 0.5) * 20,
-                    lng: -120 + (index * 50) + (Math.random() - 0.5) * 15
-                },
-                isActive: false,
-                isCompleted: false
-            }));
-        }
-
-        // Single response
-        return [{
-            id: 'step-0',
-            title: 'Guidance',
-            content: response.trim(),
-            position: { lat: 20, lng: 0 },
-            isActive: false,
-            isCompleted: false
-        }];
+        
+        return steps;
     };
 
     // Send message
@@ -492,13 +536,15 @@ export default function ChatView() {
 
             // Parse into journey steps
             const steps = parseAIResponseToSteps(response);
+            console.log('Parsed steps:', steps.length, steps);
+            
             setJourneySteps(steps);
             setIsJourneyActive(true);
 
-            // Navigate to first step after delay
+            // Navigate to first step
             setTimeout(() => {
                 navigateToStep(0);
-            }, 600);
+            }, 400);
 
         } catch (error) {
             console.error('Chat error:', error);
@@ -538,7 +584,7 @@ export default function ChatView() {
             />
 
             {/* Top Header */}
-            <div className="relative z-10 flex items-center justify-between px-6 pt-safe pb-3">
+            <div className="relative z-10 flex items-center justify-between px-5 pt-safe pb-2">
                 <button 
                     onClick={() => setView(AppView.DASHBOARD)}
                     className="p-2 rounded-xl text-white/50 hover:text-white hover:bg-white/10 transition-all"
@@ -565,78 +611,78 @@ export default function ChatView() {
 
             {/* Content Overlay - Left Side Text */}
             <div className="flex-1 relative z-10 pointer-events-none">
-                <div className="absolute left-0 top-0 bottom-0 w-[48%] flex flex-col justify-center pl-6 pr-4 py-8 pointer-events-auto">
+                <div className="absolute left-0 top-0 bottom-0 w-[48%] flex flex-col justify-center pl-5 pr-3 py-4 pointer-events-auto">
                     {!isJourneyActive && !isChatLoading && (
                         <div className="animate-fade-in">
-                            <p className="text-white/30 text-xs uppercase tracking-widest mb-3">Welcome</p>
-                            <h2 className="text-white text-2xl font-bold leading-tight mb-4">
+                            <p className="text-white/30 text-[10px] uppercase tracking-widest mb-2">Welcome</p>
+                            <h2 className="text-white text-xl font-bold leading-tight mb-3">
                                 What would you like<br />guidance on today?
                             </h2>
-                            <p className="text-white/50 text-sm leading-relaxed">
-                                Share your challenges, questions, or goals. I'll guide you through step by step on your journey.
+                            <p className="text-white/50 text-xs leading-relaxed">
+                                Share your challenges, questions, or goals. I'll guide you step by step.
                             </p>
                         </div>
                     )}
 
                     {isChatLoading && (
                         <div className="animate-pulse">
-                            <div className="flex items-center gap-2 mb-4">
-                                <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                                <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                                <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                            <div className="flex items-center gap-1.5 mb-3">
+                                <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                             </div>
-                            <p className="text-white/40 text-sm">Charting your journey...</p>
+                            <p className="text-white/40 text-xs">Charting your journey...</p>
                         </div>
                     )}
 
                     {isJourneyActive && journeySteps.length > 0 && currentStepIndex >= 0 && (
                         <div className="animate-fade-in">
                             {/* Step indicator */}
-                            <p className="text-white/30 text-xs uppercase tracking-widest mb-3">
+                            <p className="text-white/30 text-[10px] uppercase tracking-widest mb-2">
                                 Step {currentStepIndex + 1} of {journeySteps.length}
                             </p>
 
                             {/* Step title */}
-                            <h3 className="text-white text-xl font-bold mb-4">
+                            <h3 className="text-white text-lg font-bold mb-3">
                                 {journeySteps[currentStepIndex]?.title}
                             </h3>
 
                             {/* AI explanation with typewriter */}
-                            <div className="text-white/80 text-sm leading-relaxed mb-6 min-h-[100px] max-h-[180px] overflow-y-auto pr-2">
+                            <div className="text-white/80 text-xs leading-relaxed mb-4 min-h-[80px] max-h-[140px] overflow-y-auto pr-2 scrollbar-thin">
                                 {displayedText}
-                                {isTyping && <span className="inline-block w-0.5 h-4 bg-white ml-1 animate-pulse" />}
+                                {isTyping && <span className="inline-block w-0.5 h-3 bg-white ml-0.5 animate-pulse" />}
                             </div>
 
                             {/* Navigation */}
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2">
                                 <button
                                     onClick={goToPrevStep}
                                     disabled={currentStepIndex === 0}
-                                    className="px-4 py-2.5 rounded-xl border border-white/20 text-white/60 text-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/10 transition-all"
+                                    className="px-3 py-1.5 rounded-lg border border-white/20 text-white/60 text-xs font-medium disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/10 transition-all"
                                 >
-                                    Previous
+                                    Prev
                                 </button>
                                 <button
                                     onClick={goToNextStep}
                                     disabled={currentStepIndex === journeySteps.length - 1 || isTyping}
-                                    className="px-4 py-2.5 rounded-xl bg-white text-black text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/90 transition-all"
+                                    className="px-3 py-1.5 rounded-lg bg-white text-black text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/90 transition-all"
                                 >
-                                    {currentStepIndex === journeySteps.length - 1 ? 'Complete' : 'Next Step'}
+                                    {currentStepIndex === journeySteps.length - 1 ? 'Done' : 'Next'}
                                 </button>
                             </div>
 
                             {/* Step dots */}
-                            <div className="flex items-center gap-2 mt-5">
+                            <div className="flex items-center gap-1.5 mt-4">
                                 {journeySteps.map((_, idx) => (
                                     <button
                                         key={idx}
                                         onClick={() => navigateToStep(idx)}
-                                        className={`h-2 rounded-full transition-all ${
+                                        className={`h-1.5 rounded-full transition-all ${
                                             idx === currentStepIndex 
-                                                ? 'bg-white w-6' 
+                                                ? 'bg-white w-4' 
                                                 : idx < currentStepIndex 
-                                                    ? 'bg-white/50 w-2' 
-                                                    : 'bg-white/20 w-2'
+                                                    ? 'bg-white/50 w-1.5' 
+                                                    : 'bg-white/20 w-1.5'
                                         }`}
                                     />
                                 ))}
@@ -647,29 +693,28 @@ export default function ChatView() {
                     {/* Error state */}
                     {isJourneyActive && displayedText && journeySteps.length === 0 && (
                         <div className="animate-fade-in">
-                            <p className="text-white/80 text-sm leading-relaxed">{displayedText}</p>
+                            <p className="text-white/80 text-xs leading-relaxed">{displayedText}</p>
                         </div>
                     )}
                 </div>
             </div>
 
-            {/* Bottom Input */}
-            <div className="relative z-10 px-6 pb-safe">
-                <div className={`bg-white/5 backdrop-blur-xl rounded-2xl border transition-all ${
+            {/* Bottom Input - SMALLER */}
+            <div className="relative z-10 px-4 pb-safe">
+                <div className={`bg-white/5 backdrop-blur-xl rounded-xl border transition-all ${
                     isInputFocused ? 'border-white/30' : 'border-white/10'
                 }`}>
-                    <div className="flex items-end gap-2 p-3">
-                        <textarea
-                            ref={textareaRef}
+                    <div className="flex items-center gap-2 px-3 py-2">
+                        <input
+                            type="text"
                             value={chatInput}
                             onChange={e => setChatInput(e.target.value)}
                             onFocus={() => setIsInputFocused(true)}
                             onBlur={() => setIsInputFocused(false)}
                             placeholder="Ask for guidance..."
-                            className="flex-1 bg-transparent text-white text-sm placeholder:text-white/30 resize-none focus:outline-none leading-relaxed"
-                            rows={1}
+                            className="flex-1 bg-transparent text-white text-sm placeholder:text-white/30 focus:outline-none"
                             onKeyDown={e => {
-                                if (e.key === 'Enter' && !e.shiftKey) {
+                                if (e.key === 'Enter') {
                                     e.preventDefault();
                                     handleSendMessage();
                                 }
@@ -678,13 +723,13 @@ export default function ChatView() {
                         <button
                             onClick={handleSendMessage}
                             disabled={!chatInput.trim() || isChatLoading}
-                            className={`p-3 rounded-xl transition-all ${
+                            className={`p-2 rounded-lg transition-all ${
                                 chatInput.trim() && !isChatLoading
                                     ? 'bg-white text-black'
                                     : 'bg-white/10 text-white/30'
                             }`}
                         >
-                            <Icons.Send className="w-5 h-5" />
+                            <Icons.Send className="w-4 h-4" />
                         </button>
                     </div>
                 </div>
@@ -696,7 +741,17 @@ export default function ChatView() {
                     to { opacity: 1; transform: translateY(0); }
                 }
                 .animate-fade-in {
-                    animation: fade-in 0.5s ease-out;
+                    animation: fade-in 0.4s ease-out;
+                }
+                .scrollbar-thin::-webkit-scrollbar {
+                    width: 3px;
+                }
+                .scrollbar-thin::-webkit-scrollbar-track {
+                    background: transparent;
+                }
+                .scrollbar-thin::-webkit-scrollbar-thumb {
+                    background: rgba(255,255,255,0.2);
+                    border-radius: 3px;
                 }
             `}</style>
         </div>

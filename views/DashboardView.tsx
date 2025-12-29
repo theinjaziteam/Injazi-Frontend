@@ -148,36 +148,73 @@ export default function DashboardView() {
         }
     };
 
+    // ============================================
+    // UPDATED: Difficulty colors using PRIMARY shades
+    // Primary: #171738 (dark navy/indigo)
+    // Easy = Light shade, Medium = Mid shade, Hard = Dark shade
+    // ============================================
     const getDifficultyLabel = (difficulty?: number | string) => {
         if (difficulty === Difficulty.EASY || difficulty === 'EASY' || difficulty === 1) return 'Easy';
         if (difficulty === Difficulty.HARD || difficulty === 'HARD' || difficulty === 3) return 'Hard';
         return 'Medium';
     };
 
+    // CHANGED: Now uses shades of primary (#171738) instead of green/yellow/red
     const getDifficultyColor = (difficulty?: number | string) => {
-        if (difficulty === Difficulty.EASY || difficulty === 'EASY' || difficulty === 1) return 'bg-emerald-100 text-emerald-700';
-        if (difficulty === Difficulty.HARD || difficulty === 'HARD' || difficulty === 3) return 'bg-rose-100 text-rose-700';
-        return 'bg-amber-100 text-amber-700';
+        // Easy = lightest primary shade (good contrast on light bg)
+        if (difficulty === Difficulty.EASY || difficulty === 'EASY' || difficulty === 1) {
+            return 'bg-[#E8E8F0] text-[#171738]';
+        }
+        // Hard = darkest primary shade
+        if (difficulty === Difficulty.HARD || difficulty === 'HARD' || difficulty === 3) {
+            return 'bg-[#171738] text-white';
+        }
+        // Medium = mid primary shade
+        return 'bg-[#3423A6] text-white';
     };
 
-    // SVG Icons for tasks
+    // CHANGED: Task icon background colors to match primary shades
+    const getDifficultyBgColor = (difficulty?: number | string) => {
+        if (difficulty === Difficulty.EASY || difficulty === 'EASY' || difficulty === 1) {
+            return 'bg-[#E8E8F0]';
+        }
+        if (difficulty === Difficulty.HARD || difficulty === 'HARD' || difficulty === 3) {
+            return 'bg-[#2A2A5A]';
+        }
+        return 'bg-[#4A3DC7]/20';
+    };
+
+    // CHANGED: Task icon colors to use primary shades
+    const getDifficultyIconColor = (difficulty?: number | string) => {
+        if (difficulty === Difficulty.EASY || difficulty === 'EASY' || difficulty === 1) {
+            return 'text-[#3423A6]';
+        }
+        if (difficulty === Difficulty.HARD || difficulty === 'HARD' || difficulty === 3) {
+            return 'text-[#9B93D9]';
+        }
+        return 'text-[#3423A6]';
+    };
+
+    // SVG Icons for tasks - UPDATED to use primary color scheme
     const TaskIcon = ({ difficulty }: { difficulty?: string }) => {
+        const colorClass = getDifficultyIconColor(difficulty);
+        
         if (difficulty === 'EASY' || difficulty === Difficulty.EASY) {
             return (
-                <svg className="w-6 h-6 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg className={`w-6 h-6 ${colorClass}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
                 </svg>
             );
         }
         if (difficulty === 'HARD' || difficulty === Difficulty.HARD) {
             return (
-                <svg className="w-6 h-6 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg className={`w-6 h-6 ${colorClass}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
                 </svg>
             );
         }
         return (
-            <svg className="w-6 h-6 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg className={`w-6 h-6 ${colorClass}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
             </svg>
         );
@@ -197,8 +234,9 @@ export default function DashboardView() {
         </svg>
     );
 
+    // CHANGED: Credits icon now uses a warm gold/amber color (not gradient)
     const CoinsIcon = () => (
-        <svg className="w-6 h-6 text-yellow-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg className="w-6 h-6 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="8" cy="8" r="6"/>
             <path d="M18.09 10.37A6 6 0 1 1 10.34 18"/>
             <path d="M7 6h1v4"/>
@@ -253,7 +291,7 @@ export default function DashboardView() {
                                 viewBox="0 0 12 12"
                                 style={{
                                     transform: `rotate(${Math.random() * 360}deg)`,
-                                    fill: ['#3423A6', '#DFF3E4', '#FFD700', '#FF6B6B', '#4ECDC4', '#9B59B6'][Math.floor(Math.random() * 6)],
+                                    fill: ['#3423A6', '#DFF3E4', '#F59E0B', '#171738', '#4ECDC4', '#9B59B6'][Math.floor(Math.random() * 6)],
                                 }}
                             >
                                 {Math.random() > 0.5 ? (
@@ -434,7 +472,7 @@ export default function DashboardView() {
                                         ? 'bg-emerald-100 text-emerald-700' 
                                         : 'bg-secondary/10 text-secondary'
                                 }`}>
-                                    {pendingDailyTasks.length === 0 ? '✓ DONE' : `${pendingDailyTasks.length} LEFT`}
+                                    {pendingDailyTasks.length === 0 ? ' DONE' : `${pendingDailyTasks.length} LEFT`}
                                 </div>
                             </div>
                             
@@ -449,7 +487,7 @@ export default function DashboardView() {
                                         onClick={() => setShowCheckIn(true)}
                                         className="text-secondary font-bold text-xs active:scale-95 transition-transform"
                                     >
-                                        Log your progress →
+                                        Log your progress 
                                     </button>
                                 </div>
                             ) : (
@@ -461,20 +499,15 @@ export default function DashboardView() {
                                             className="bg-gray-50 border border-gray-100 p-3.5 rounded-xl cursor-pointer active:scale-[0.98] transition-transform"
                                         >
                                             <div className="flex items-center gap-3">
-                                                {/* Task Icon */}
-                                                <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                                                    task.difficulty === Difficulty.EASY || task.difficulty === 'EASY' 
-                                                        ? 'bg-emerald-100' 
-                                                        : task.difficulty === Difficulty.HARD || task.difficulty === 'HARD'
-                                                            ? 'bg-rose-100'
-                                                            : 'bg-amber-100'
-                                                }`}>
+                                                {/* Task Icon - CHANGED: Uses primary color shades */}
+                                                <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${getDifficultyBgColor(task.difficulty)}`}>
                                                     <TaskIcon difficulty={task.difficulty as string} />
                                                 </div>
                                                 
                                                 {/* Task Content */}
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-2 mb-0.5">
+                                                        {/* CHANGED: Difficulty badge uses primary shades */}
                                                         <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${getDifficultyColor(task.difficulty)}`}>
                                                             {getDifficultyLabel(task.difficulty)}
                                                         </span>
@@ -491,8 +524,8 @@ export default function DashboardView() {
                                                 {(task.timeLeft !== undefined && task.timeLeft > 0 && task.timeLeft < ((task.estimatedTimeMinutes || 20) * 60)) ? (
                                                     <div className={`px-2 py-1 rounded-lg text-[10px] font-bold flex-shrink-0 ${
                                                         task.isTimerActive 
-                                                            ? 'bg-emerald-100 text-emerald-700' 
-                                                            : 'bg-amber-100 text-amber-700'
+                                                            ? 'bg-[#DFF3E4] text-[#171738]' 
+                                                            : 'bg-[#E8E8F0] text-[#171738]'
                                                     }`}>
                                                         {calculateRealTimeRemaining(task)}
                                                     </div>
@@ -517,15 +550,16 @@ export default function DashboardView() {
                         </div>
                     </div>
 
-                    {/* Earn Credits Section */}
+                    {/* Earn Credits Section - CHANGED: Solid amber/gold instead of gradient */}
                     <div className="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100">
                         <div 
                             className="p-5 flex items-center justify-between cursor-pointer active:bg-gray-50 transition-colors" 
                             onClick={() => setIsEarnExpanded(!isEarnExpanded)}
                         >
                             <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl flex items-center justify-center shadow-lg shadow-orange-400/20">
-                                    <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                {/* CHANGED: Solid amber background instead of gradient */}
+                                <div className="w-12 h-12 bg-amber-400 rounded-xl flex items-center justify-center shadow-lg shadow-amber-400/30">
+                                    <svg className="w-6 h-6 text-amber-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                         <circle cx="8" cy="8" r="6"/>
                                         <path d="M18.09 10.37A6 6 0 1 1 10.34 18"/>
                                         <path d="M7 6h1v4"/>
@@ -581,7 +615,8 @@ export default function DashboardView() {
                                                     </p>
                                                 </div>
                                                 
-                                                <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white px-2.5 py-1.5 rounded-lg flex-shrink-0">
+                                                {/* CHANGED: Solid amber badge instead of gradient */}
+                                                <div className="bg-amber-400 text-amber-900 px-2.5 py-1.5 rounded-lg flex-shrink-0">
                                                     <span className="font-black text-xs">+{offer.amount}</span>
                                                 </div>
                                             </div>

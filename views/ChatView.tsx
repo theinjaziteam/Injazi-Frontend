@@ -1,7 +1,7 @@
 // views/ChatView.tsx
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
-import { AppView, ChatMessage, ChatAttachment } from '../types';
+import { AppView, ChatMessage, ChatAttachment, TaskStatus } from '../types';
 import { Icons } from '../components/UIComponents';
 import { checkContentSafety, getChatResponse } from '../services/geminiService';
 
@@ -14,23 +14,46 @@ function blobToBase64(blob: Blob): Promise<string> {
   });
 }
 
+// Journey zones based on progress
+const journeyZones = [
+    { id: 'launch', name: 'Launch Pad', icon: '🚀', color: 'from-violet-500 to-purple-600', description: 'Beginning your journey' },
+    { id: 'foundation', name: 'Foundation Valley', icon: '🏔️', color: 'from-emerald-500 to-teal-600', description: 'Building your base' },
+    { id: 'growth', name: 'Growth Forest', icon: '🌲', color: 'from-green-500 to-emerald-600', description: 'Expanding your skills' },
+    { id: 'challenge', name: 'Challenge Peaks', icon: '⛰️', color: 'from-amber-500 to-orange-600', description: 'Overcoming obstacles' },
+    { id: 'mastery', name: 'Mastery Summit', icon: '👑', color: 'from-yellow-400 to-amber-500', description: 'Achieving excellence' },
+];
+
 export default function ChatView() {
     const { user, setUser, setView } = useApp();
     const [chatInput, setChatInput] = useState('');
     const [isChatLoading, setIsChatLoading] = useState(false);
     const [chatAttachment, setChatAttachment] = useState<ChatAttachment | undefined>(undefined);
     const [isSpeaking, setIsSpeaking] = useState(false);
-    const [showQuickActions, setShowQuickActions] = useState(true);
+    const [activeZone, setActiveZone] = useState(0);
+    const [showZoneSelector, setShowZoneSelector] = useState(false);
+    const [isInputFocused, setIsInputFocused] = useState(false);
     const chatContainerRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
-    const inputContainerRef = useRef<HTMLDivElement>(null);
 
-    // Quick action suggestions
-    const quickActions = [
-        { icon: '🎯', label: "What should I focus on today?", query: "What's the most important thing I should focus on today to make progress on my goal?" },
-        { icon: '💡', label: "I'm feeling stuck", query: "I'm feeling stuck and unmotivated. Can you help me break through this?" },
-        { icon: '📊', label: "Review my progress", query: "Can you review my progress so far and give me honest feedback?" },
-        { icon: '🚀', label: "Accelerate my results", query: "What can I do to accelerate my progress and get results faster?" },
+    // Calculate current zone based on progress
+    useEffect(() => {
+        const progress = user.currentDay / (user.goal?.durationDays || 30);
+        if (progress < 0.2) setActiveZone(0);
+        else if (progress < 0.4) setActiveZone(1);
+        else if (progress < 0.6) setActiveZone(2);
+        else if (progress < 0.8) setActiveZone(3);
+        else setActiveZone(4);
+    }, [user.currentDay, user.goal?.durationDays]);
+
+    const currentZone = journeyZones[activeZone];
+
+    // Quick prompts based on zone
+    const zonePrompts = [
+        ["How do I start?", "What's my first step?", "I'm nervous"],
+        ["Review my foundation", "Am I on track?", "What should I focus on?"],
+        ["Help me grow faster", "I want to level up", "What's next?"],
+        ["I'm facing a challenge", "This is hard", "Help me push through"],
+        ["How do I maintain this?", "What's my next goal?", "Celebrate with me!"],
     ];
 
     // Scroll to bottom on new messages
@@ -42,18 +65,12 @@ export default function ChatView() {
         }, 100);
     }, [user.chatHistory, isChatLoading]);
 
-    // Hide quick actions when there are messages
-    useEffect(() => {
-        if (user.chatHistory.length > 0) {
-            setShowQuickActions(false);
-        }
-    }, [user.chatHistory]);
-
     // Auto-resize textarea
     useEffect(() => {
         if (textareaRef.current) {
             textareaRef.current.style.height = 'auto';
-            textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 120) + 'px';
+            const newHeight = Math.min(textareaRef.current.scrollHeight, 100);
+            textareaRef.current.style.height = newHeight + 'px';
         }
     }, [chatInput]);
 
@@ -64,10 +81,8 @@ export default function ChatView() {
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.rate = 1;
             utterance.pitch = 1;
-            utterance.volume = 1;
             utterance.onstart = () => setIsSpeaking(true);
             utterance.onend = () => setIsSpeaking(false);
-            utterance.onerror = () => setIsSpeaking(false);
             window.speechSynthesis.speak(utterance);
         }
     };
@@ -86,7 +101,7 @@ export default function ChatView() {
         
         const safetyCheck = await checkContentSafety(messageToSend);
         if (!safetyCheck.isSafe) {
-            alert("Message not sent. Please keep conversation appropriate.");
+            alert("Please keep the conversation appropriate.");
             return;
         }
         
@@ -101,7 +116,6 @@ export default function ChatView() {
         setUser(prev => ({ ...prev, chatHistory: [...prev.chatHistory, newMessage] }));
         setChatInput('');
         setChatAttachment(undefined);
-        setShowQuickActions(false);
         setIsChatLoading(true);
 
         try {
@@ -112,7 +126,7 @@ export default function ChatView() {
                 user.userProfile, 
                 user.dailyTasks, 
                 user.connectedApps, 
-                newMessage.attachment, 
+                chatAttachment, // Pass attachment for AI to analyze
                 user.extraLogs
             );
             
@@ -129,7 +143,7 @@ export default function ChatView() {
             const errorMessage: ChatMessage = { 
                 id: (Date.now() + 1).toString(), 
                 role: 'ai', 
-                text: "I apologize, but I'm having trouble connecting right now. Please try again in a moment.", 
+                text: "I'm having trouble connecting. Let me try again in a moment.", 
                 timestamp: Date.now() 
             };
             setUser(prev => ({ ...prev, chatHistory: [...prev.chatHistory, errorMessage] }));
@@ -138,17 +152,13 @@ export default function ChatView() {
         setIsChatLoading(false);
     };
 
-    const handleQuickAction = (query: string) => {
-        handleSendMessage(query);
-    };
-
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files?.[0]) {
             const file = e.target.files[0];
-            const maxSize = 10 * 1024 * 1024;
+            const maxSize = 20 * 1024 * 1024; // 20MB
             
             if (file.size > maxSize) {
-                alert('File too large. Maximum size is 10MB.');
+                alert('File too large. Maximum 20MB.');
                 return;
             }
             
@@ -157,6 +167,7 @@ export default function ChatView() {
             
             if (file.type.startsWith('image')) type = 'image';
             else if (file.type === 'application/pdf') type = 'pdf';
+            else if (file.type.startsWith('audio')) type = 'audio';
             
             setChatAttachment({ 
                 type, 
@@ -167,160 +178,227 @@ export default function ChatView() {
     };
 
     const clearChat = () => {
-        if (window.confirm('Clear all chat history? This cannot be undone.')) {
+        if (window.confirm('Clear chat history?')) {
             setUser(prev => ({ ...prev, chatHistory: [] }));
-            setShowQuickActions(true);
         }
     };
 
-    // Format message with markdown-like styling
     const formatMessage = (text: string) => {
-        // Bold text **text**
-        let formatted = text.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>');
-        // Bullet points
-        formatted = formatted.replace(/^• /gm, '<span class="text-[#3423A6] mr-2">•</span>');
-        formatted = formatted.replace(/^- /gm, '<span class="text-[#3423A6] mr-2">•</span>');
-        // Numbered lists
-        formatted = formatted.replace(/^(\d+)\. /gm, '<span class="text-[#3423A6] font-semibold mr-2">$1.</span>');
+        let formatted = text.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-[#171738]">$1</strong>');
+        formatted = formatted.replace(/^[•\-] /gm, '<span class="text-[#3423A6] mr-2">•</span>');
+        formatted = formatted.replace(/^(\d+)\. /gm, '<span class="text-[#3423A6] font-bold mr-2">$1.</span>');
         return formatted;
     };
 
-    const getTimeAgo = (timestamp?: number) => {
-        if (!timestamp) return '';
-        const diff = Date.now() - timestamp;
-        const minutes = Math.floor(diff / 60000);
-        if (minutes < 1) return 'Just now';
-        if (minutes < 60) return `${minutes}m ago`;
-        const hours = Math.floor(minutes / 60);
-        if (hours < 24) return `${hours}h ago`;
-        return `${Math.floor(hours / 24)}d ago`;
-    };
+    // Progress percentage
+    const progressPercent = Math.round((user.currentDay / (user.goal?.durationDays || 30)) * 100);
+    
+    // Completed tasks count
+    const completedToday = user.dailyTasks.filter(t => 
+        t.status === TaskStatus.APPROVED || t.status === TaskStatus.COMPLETED
+    ).length;
 
     return (
-        <div className="flex flex-col h-full bg-[#F7F8FC]">
-            {/* Premium Header */}
-            <div className="flex-shrink-0 bg-gradient-to-br from-[#171738] via-[#1e1e4a] to-[#2a2a5c] text-white px-5 pt-safe pb-5 relative overflow-hidden">
-                {/* Background decorations */}
-                <div className="absolute top-0 right-0 w-40 h-40 bg-[#3423A6]/30 rounded-full blur-[60px] -translate-y-1/2 translate-x-1/4" />
-                <div className="absolute bottom-0 left-0 w-32 h-32 bg-[#DFF3E4]/10 rounded-full blur-[40px] translate-y-1/2 -translate-x-1/4" />
+        <div className="flex flex-col h-full bg-[#0a0a1a] relative overflow-hidden">
+            {/* Animated Background - Stars */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                {[...Array(50)].map((_, i) => (
+                    <div
+                        key={i}
+                        className="absolute w-1 h-1 bg-white rounded-full animate-pulse"
+                        style={{
+                            left: `${Math.random() * 100}%`,
+                            top: `${Math.random() * 100}%`,
+                            opacity: Math.random() * 0.5 + 0.2,
+                            animationDelay: `${Math.random() * 3}s`,
+                            animationDuration: `${2 + Math.random() * 2}s`,
+                        }}
+                    />
+                ))}
                 
-                <div className="relative z-10">
-                    {/* Top row */}
-                    <div className="flex items-center justify-between mb-4 mt-2">
-                        <button 
-                            onClick={() => setView(AppView.DASHBOARD)}
-                            className="p-2 -ml-2 text-white/60 hover:text-white transition-colors"
-                        >
-                            <Icons.ArrowLeft className="w-5 h-5" />
-                        </button>
-                        
-                        <button 
-                            onClick={clearChat}
-                            className="p-2 -mr-2 text-white/40 hover:text-white/80 transition-colors"
-                            title="Clear chat"
-                        >
-                            <Icons.Trash className="w-4 h-4" />
-                        </button>
-                    </div>
-                    
-                    {/* Guide Identity */}
-                    <div className="flex items-center gap-4">
-                        <div className="relative">
-                            <div className="w-16 h-16 bg-gradient-to-br from-[#DFF3E4] to-[#A7F3D0] rounded-2xl flex items-center justify-center shadow-lg shadow-[#DFF3E4]/20">
-                                <svg className="w-8 h-8 text-[#171738]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.57-3.25 3.92a1 1 0 0 0-.75.97V12"/>
-                                    <path d="M12 12v6"/>
-                                    <circle cx="12" cy="20" r="2"/>
-                                    <path d="M8 6a4 4 0 0 0-4 4c0 2.5 2 4.5 4 5"/>
-                                    <path d="M16 6a4 4 0 0 1 4 4c0 2.5-2 4.5-4 5"/>
-                                </svg>
-                            </div>
-                            {/* Online indicator */}
-                            <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-400 rounded-full border-3 border-[#171738] flex items-center justify-center">
-                                <div className="w-2 h-2 bg-white rounded-full" />
-                            </div>
-                        </div>
-                        
-                        <div className="flex-1">
-                            <h1 className="text-xl font-black tracking-tight">Your Guide</h1>
-                            <p className="text-white/50 text-xs font-medium mt-0.5">
-                                Focused on: <span className="text-[#DFF3E4]">{user.goal?.title || 'Your Success'}</span>
-                            </p>
-                            <div className="flex items-center gap-1.5 mt-1.5">
-                                <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
-                                <span className="text-[10px] text-emerald-400 font-medium">Ready to help</span>
-                            </div>
+                {/* Floating orbs */}
+                <div className={`absolute w-64 h-64 rounded-full blur-[100px] bg-gradient-to-r ${currentZone.color} opacity-20 -top-20 -right-20 animate-float`} />
+                <div className={`absolute w-48 h-48 rounded-full blur-[80px] bg-gradient-to-r ${currentZone.color} opacity-15 bottom-40 -left-20 animate-float-delayed`} />
+                <div className="absolute w-32 h-32 rounded-full blur-[60px] bg-[#3423A6]/30 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+            </div>
+
+            {/* Glass Header - Compact */}
+            <div className="relative z-20 flex-shrink-0">
+                <div className="bg-white/5 backdrop-blur-xl border-b border-white/10">
+                    <div className="px-4 pt-safe">
+                        <div className="flex items-center justify-between py-3">
+                            {/* Back Button */}
+                            <button 
+                                onClick={() => setView(AppView.DASHBOARD)}
+                                className="p-2 -ml-2 text-white/60 hover:text-white transition-colors rounded-xl hover:bg-white/10"
+                            >
+                                <Icons.ArrowLeft className="w-5 h-5" />
+                            </button>
+
+                            {/* Zone Indicator - Tappable */}
+                            <button 
+                                onClick={() => setShowZoneSelector(!showZoneSelector)}
+                                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/10 hover:bg-white/15 transition-all"
+                            >
+                                <span className="text-lg">{currentZone.icon}</span>
+                                <span className="text-white/80 text-xs font-medium">{currentZone.name}</span>
+                                <Icons.ChevronDown className={`w-3 h-3 text-white/50 transition-transform ${showZoneSelector ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            {/* Clear Chat */}
+                            <button 
+                                onClick={clearChat}
+                                className="p-2 -mr-2 text-white/40 hover:text-white/80 transition-colors rounded-xl hover:bg-white/10"
+                            >
+                                <Icons.Trash className="w-4 h-4" />
+                            </button>
                         </div>
                     </div>
                 </div>
-            </div>
-            
-            {/* Chat Body */}
-            <div 
-                ref={chatContainerRef}
-                className="flex-1 overflow-y-auto"
-            >
-                {/* Empty State with Quick Actions */}
-                {user.chatHistory.length === 0 && (
-                    <div className="flex flex-col h-full px-5 py-6">
-                        {/* Welcome Section */}
-                        <div className="text-center mb-8 pt-4">
-                            <div className="w-20 h-20 bg-gradient-to-br from-[#3423A6]/10 to-[#3423A6]/5 rounded-3xl flex items-center justify-center mx-auto mb-4">
-                                <svg className="w-10 h-10 text-[#3423A6]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                                    <path d="M8 10h.01"/>
-                                    <path d="M12 10h.01"/>
-                                    <path d="M16 10h.01"/>
-                                </svg>
-                            </div>
-                            <h2 className="text-xl font-black text-[#171738] mb-2">How can I help you today?</h2>
-                            <p className="text-gray-400 text-sm leading-relaxed max-w-[280px] mx-auto">
-                                I'm your personal guide for <span className="text-[#3423A6] font-semibold">{user.goal?.title}</span>. 
-                                Ask me anything or choose a topic below.
-                            </p>
-                        </div>
-                        
-                        {/* Quick Actions */}
-                        {showQuickActions && (
-                            <div className="space-y-2.5">
-                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-1">Quick Actions</p>
-                                {quickActions.map((action, idx) => (
+
+                {/* Zone Selector Dropdown */}
+                {showZoneSelector && (
+                    <div className="absolute top-full left-0 right-0 z-30 px-4 pt-2 pb-4">
+                        <div className="bg-[#1a1a2e]/95 backdrop-blur-xl rounded-2xl border border-white/10 p-3 shadow-2xl">
+                            <p className="text-[10px] text-white/40 uppercase tracking-wider mb-2 px-2">Your Journey</p>
+                            <div className="space-y-1">
+                                {journeyZones.map((zone, idx) => (
                                     <button
-                                        key={idx}
-                                        onClick={() => handleQuickAction(action.query)}
-                                        className="w-full p-4 bg-white rounded-2xl text-left flex items-center gap-3 active:scale-[0.98] transition-all group hover:shadow-md"
-                                        style={{
-                                            boxShadow: '0 2px 8px -2px rgba(23, 23, 56, 0.06)'
-                                        }}
+                                        key={zone.id}
+                                        onClick={() => { setActiveZone(idx); setShowZoneSelector(false); }}
+                                        className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${
+                                            idx === activeZone 
+                                                ? `bg-gradient-to-r ${zone.color} text-white` 
+                                                : idx <= activeZone 
+                                                    ? 'bg-white/5 text-white/80 hover:bg-white/10' 
+                                                    : 'bg-white/5 text-white/30'
+                                        }`}
                                     >
-                                        <span className="text-2xl">{action.icon}</span>
-                                        <span className="flex-1 text-[#171738] font-medium text-sm group-hover:text-[#3423A6] transition-colors">
-                                            {action.label}
-                                        </span>
-                                        <Icons.ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-[#3423A6] transition-colors" />
+                                        <span className="text-xl">{zone.icon}</span>
+                                        <div className="flex-1 text-left">
+                                            <p className="text-sm font-semibold">{zone.name}</p>
+                                            <p className="text-[10px] opacity-70">{zone.description}</p>
+                                        </div>
+                                        {idx < activeZone && (
+                                            <Icons.Check className="w-4 h-4 text-emerald-400" />
+                                        )}
+                                        {idx === activeZone && (
+                                            <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                                        )}
                                     </button>
                                 ))}
                             </div>
-                        )}
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Chat Body */}
+            <div 
+                ref={chatContainerRef}
+                className="flex-1 overflow-y-auto relative z-10"
+                onClick={() => setShowZoneSelector(false)}
+            >
+                {/* Empty State - Planet View */}
+                {user.chatHistory.length === 0 && (
+                    <div className="flex flex-col items-center justify-center min-h-full px-5 py-8">
+                        {/* 3D Planet */}
+                        <div className="relative mb-8">
+                            {/* Planet glow */}
+                            <div className={`absolute inset-0 bg-gradient-to-r ${currentZone.color} rounded-full blur-3xl opacity-40 scale-150`} />
+                            
+                            {/* Planet */}
+                            <div className={`relative w-32 h-32 rounded-full bg-gradient-to-br ${currentZone.color} shadow-2xl flex items-center justify-center`}>
+                                {/* Planet texture overlay */}
+                                <div className="absolute inset-0 rounded-full bg-gradient-to-t from-black/30 to-transparent" />
+                                <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.3),transparent_50%)]" />
+                                
+                                {/* Zone icon */}
+                                <span className="text-5xl relative z-10 drop-shadow-lg">{currentZone.icon}</span>
+                                
+                                {/* Orbiting ring */}
+                                <div className="absolute inset-[-20px] border border-white/20 rounded-full animate-spin-slow" style={{ animationDuration: '20s' }} />
+                                <div className="absolute inset-[-35px] border border-white/10 rounded-full animate-spin-slow" style={{ animationDuration: '30s', animationDirection: 'reverse' }} />
+                            </div>
+
+                            {/* Progress orbit */}
+                            <svg className="absolute inset-[-25px] w-[calc(100%+50px)] h-[calc(100%+50px)]" viewBox="0 0 100 100">
+                                <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="2" />
+                                <circle 
+                                    cx="50" cy="50" r="45" 
+                                    fill="none" 
+                                    stroke="url(#progressGrad)" 
+                                    strokeWidth="3"
+                                    strokeLinecap="round"
+                                    strokeDasharray={`${2 * Math.PI * 45}`}
+                                    strokeDashoffset={2 * Math.PI * 45 * (1 - progressPercent / 100)}
+                                    transform="rotate(-90 50 50)"
+                                />
+                                <defs>
+                                    <linearGradient id="progressGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                        <stop offset="0%" stopColor="#DFF3E4" />
+                                        <stop offset="100%" stopColor="#3423A6" />
+                                    </linearGradient>
+                                </defs>
+                            </svg>
+                        </div>
+
+                        {/* Zone Info */}
+                        <div className="text-center mb-8">
+                            <p className="text-white/40 text-xs uppercase tracking-widest mb-2">Currently at</p>
+                            <h2 className="text-2xl font-black text-white mb-1">{currentZone.name}</h2>
+                            <p className="text-white/50 text-sm">{currentZone.description}</p>
+                        </div>
+
+                        {/* Stats Row */}
+                        <div className="flex items-center gap-6 mb-8">
+                            <div className="text-center">
+                                <p className="text-2xl font-black text-white">{progressPercent}%</p>
+                                <p className="text-[10px] text-white/40 uppercase">Journey</p>
+                            </div>
+                            <div className="w-px h-8 bg-white/20" />
+                            <div className="text-center">
+                                <p className="text-2xl font-black text-white">Day {user.currentDay}</p>
+                                <p className="text-[10px] text-white/40 uppercase">Current</p>
+                            </div>
+                            <div className="w-px h-8 bg-white/20" />
+                            <div className="text-center">
+                                <p className="text-2xl font-black text-white">{completedToday}</p>
+                                <p className="text-[10px] text-white/40 uppercase">Tasks Done</p>
+                            </div>
+                        </div>
+
+                        {/* Quick Prompts */}
+                        <div className="w-full max-w-sm">
+                            <p className="text-[10px] text-white/30 uppercase tracking-wider mb-3 text-center">Quick Actions</p>
+                            <div className="flex flex-wrap gap-2 justify-center">
+                                {zonePrompts[activeZone].map((prompt, idx) => (
+                                    <button
+                                        key={idx}
+                                        onClick={() => handleSendMessage(prompt)}
+                                        className="px-4 py-2 bg-white/10 hover:bg-white/15 border border-white/10 rounded-full text-white/80 text-sm font-medium transition-all hover:scale-105 active:scale-95"
+                                    >
+                                        {prompt}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                     </div>
                 )}
 
                 {/* Messages */}
                 {user.chatHistory.length > 0 && (
-                    <div className="px-5 py-4 space-y-4">
-                        {user.chatHistory.map((msg, index) => (
+                    <div className="px-4 py-4 space-y-4">
+                        {user.chatHistory.map((msg) => (
                             <div 
                                 key={msg.id} 
                                 className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                             >
-                                <div className={`max-w-[85%] ${msg.role === 'user' ? '' : 'flex gap-3'}`}>
+                                <div className={`max-w-[85%] ${msg.role === 'user' ? '' : 'flex gap-2.5'}`}>
                                     {/* AI Avatar */}
                                     {msg.role !== 'user' && (
-                                        <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-[#DFF3E4] to-[#A7F3D0] rounded-xl flex items-center justify-center mt-1">
-                                            <svg className="w-4 h-4 text-[#171738]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                <path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.57-3.25 3.92a1 1 0 0 0-.75.97V12"/>
-                                                <circle cx="12" cy="20" r="2"/>
-                                            </svg>
+                                        <div className={`flex-shrink-0 w-8 h-8 rounded-xl bg-gradient-to-br ${currentZone.color} flex items-center justify-center shadow-lg`}>
+                                            <span className="text-sm">{currentZone.icon}</span>
                                         </div>
                                     )}
                                     
@@ -328,13 +406,9 @@ export default function ChatView() {
                                         {/* Message bubble */}
                                         <div className={`p-4 rounded-2xl relative group ${
                                             msg.role === 'user' 
-                                                ? 'bg-gradient-to-br from-[#171738] to-[#2a2a5c] text-white rounded-br-md shadow-lg shadow-[#171738]/20' 
-                                                : 'bg-white text-[#171738] rounded-bl-md shadow-sm'
-                                        }`}
-                                        style={msg.role !== 'user' ? {
-                                            boxShadow: '0 2px 12px -2px rgba(23, 23, 56, 0.08)'
-                                        } : {}}
-                                        >
+                                                ? 'bg-gradient-to-br from-[#3423A6] to-[#4834c7] text-white rounded-br-md shadow-lg shadow-[#3423A6]/30' 
+                                                : 'bg-white/10 backdrop-blur-sm text-white/90 rounded-bl-md border border-white/10'
+                                        }`}>
                                             {/* Attachment preview */}
                                             {msg.attachment && (
                                                 <div className="mb-3 rounded-xl overflow-hidden">
@@ -356,60 +430,44 @@ export default function ChatView() {
                                             
                                             {/* Message text */}
                                             <div 
-                                                className={`text-sm leading-relaxed whitespace-pre-wrap ${
-                                                    msg.role === 'user' ? '' : 'text-gray-700'
-                                                }`}
+                                                className="text-sm leading-relaxed whitespace-pre-wrap"
                                                 dangerouslySetInnerHTML={{ 
                                                     __html: msg.role === 'user' ? msg.text : formatMessage(msg.text) 
                                                 }}
                                             />
                                             
-                                            {/* TTS button for AI messages */}
+                                            {/* TTS button */}
                                             {msg.role === 'ai' && (
                                                 <button 
                                                     onClick={() => isSpeaking ? stopSpeaking() : speakText(msg.text)}
-                                                    className="absolute -bottom-2 right-3 p-1.5 bg-white rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-all hover:scale-110"
+                                                    className="absolute -bottom-2 right-3 p-1.5 bg-white/20 backdrop-blur-sm rounded-full opacity-0 group-hover:opacity-100 transition-all hover:bg-white/30"
                                                 >
                                                     {isSpeaking ? (
-                                                        <Icons.Pause className="w-3.5 h-3.5 text-[#3423A6]" />
+                                                        <Icons.Pause className="w-3 h-3 text-white" />
                                                     ) : (
-                                                        <Icons.PlayCircle className="w-3.5 h-3.5 text-[#3423A6]" />
+                                                        <Icons.PlayCircle className="w-3 h-3 text-white" />
                                                     )}
                                                 </button>
                                             )}
                                         </div>
-                                        
-                                        {/* Timestamp */}
-                                        <p className={`text-[10px] text-gray-400 mt-1.5 ${msg.role === 'user' ? 'text-right' : 'text-left ml-1'}`}>
-                                            {getTimeAgo(msg.timestamp)}
-                                        </p>
                                     </div>
                                 </div>
                             </div>
                         ))}
                         
-                        {/* Loading indicator */}
+                        {/* Loading */}
                         {isChatLoading && (
                             <div className="flex justify-start">
-                                <div className="flex gap-3">
-                                    <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-[#DFF3E4] to-[#A7F3D0] rounded-xl flex items-center justify-center">
-                                        <svg className="w-4 h-4 text-[#171738]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                            <path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.57-3.25 3.92a1 1 0 0 0-.75.97V12"/>
-                                            <circle cx="12" cy="20" r="2"/>
-                                        </svg>
+                                <div className="flex gap-2.5">
+                                    <div className={`flex-shrink-0 w-8 h-8 rounded-xl bg-gradient-to-br ${currentZone.color} flex items-center justify-center`}>
+                                        <span className="text-sm">{currentZone.icon}</span>
                                     </div>
-                                    <div 
-                                        className="bg-white text-gray-500 rounded-2xl rounded-bl-md p-4 flex items-center gap-2"
-                                        style={{
-                                            boxShadow: '0 2px 12px -2px rgba(23, 23, 56, 0.08)'
-                                        }}
-                                    >
+                                    <div className="bg-white/10 backdrop-blur-sm rounded-2xl rounded-bl-md p-4 border border-white/10">
                                         <div className="flex gap-1.5">
-                                            <span className="w-2 h-2 bg-[#3423A6] rounded-full animate-bounce" style={{animationDelay: '0ms'}}></span>
-                                            <span className="w-2 h-2 bg-[#3423A6] rounded-full animate-bounce" style={{animationDelay: '150ms'}}></span>
-                                            <span className="w-2 h-2 bg-[#3423A6] rounded-full animate-bounce" style={{animationDelay: '300ms'}}></span>
+                                            <span className="w-2 h-2 bg-white/60 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></span>
+                                            <span className="w-2 h-2 bg-white/60 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></span>
+                                            <span className="w-2 h-2 bg-white/60 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></span>
                                         </div>
-                                        <span className="text-xs text-gray-400 ml-2">Thinking...</span>
                                     </div>
                                 </div>
                             </div>
@@ -418,102 +476,127 @@ export default function ChatView() {
                 )}
             </div>
 
-            {/* Input Area - Fixed properly at bottom */}
-            <div 
-                ref={inputContainerRef}
-                className="flex-shrink-0 bg-[#F7F8FC] border-t border-gray-200/50"
-            >
-                <div className="px-4 py-3 pb-safe">
+            {/* Floating Input Area */}
+            <div className="relative z-20 px-4 pb-safe">
+                <div className="pb-3">
                     {/* Attachment Preview */}
                     {chatAttachment && (
-                        <div className="mb-3 p-3 bg-white rounded-xl flex items-center gap-3 shadow-sm">
-                            <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <div className="mb-3 p-3 bg-white/10 backdrop-blur-xl rounded-2xl flex items-center gap-3 border border-white/10">
+                            <div className="w-12 h-12 rounded-xl overflow-hidden bg-white/10 flex items-center justify-center">
                                 {chatAttachment.type === 'image' ? (
                                     <img 
                                         src={`data:${chatAttachment.mimeType};base64,${chatAttachment.data}`} 
                                         className="w-full h-full object-cover" 
                                         alt="Preview"
                                     />
+                                ) : chatAttachment.type === 'pdf' ? (
+                                    <Icons.FileText className="w-5 h-5 text-white/60" />
                                 ) : (
-                                    <Icons.FileText className="w-5 h-5 text-gray-400" />
+                                    <Icons.Music className="w-5 h-5 text-white/60" />
                                 )}
                             </div>
                             <div className="flex-1">
-                                <p className="text-sm font-semibold text-[#171738]">
-                                    {chatAttachment.type === 'image' ? 'Image' : 'PDF'} attached
+                                <p className="text-sm font-semibold text-white">
+                                    {chatAttachment.type === 'image' ? 'Image' : chatAttachment.type === 'pdf' ? 'PDF' : 'Audio'} ready
                                 </p>
-                                <p className="text-[10px] text-gray-400">Ready to send</p>
+                                <p className="text-[10px] text-white/50">Will be analyzed by Guide</p>
                             </div>
                             <button 
                                 onClick={() => setChatAttachment(undefined)} 
-                                className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                                className="p-2 text-white/40 hover:text-red-400 transition-colors"
                             >
                                 <Icons.X className="w-4 h-4"/>
                             </button>
                         </div>
                     )}
                     
-                    {/* Input Container */}
+                    {/* Glass Input Container */}
                     <div 
-                        className="bg-white rounded-2xl flex items-end gap-2 p-2"
-                        style={{
-                            boxShadow: '0 2px 12px -2px rgba(23, 23, 56, 0.08)'
-                        }}
+                        className={`bg-white/10 backdrop-blur-xl rounded-2xl border transition-all duration-300 ${
+                            isInputFocused 
+                                ? 'border-white/30 shadow-lg shadow-white/5' 
+                                : 'border-white/10'
+                        }`}
                     >
-                        {/* Attachment Button */}
-                        <button 
-                            onClick={() => document.getElementById('chat-upload')?.click()}
-                            className="p-2.5 rounded-xl flex-shrink-0 text-gray-400 hover:text-[#3423A6] hover:bg-[#3423A6]/5 transition-all"
-                        >
-                            <Icons.Paperclip className="w-5 h-5"/>
-                            <input 
-                                id="chat-upload" 
-                                type="file" 
-                                className="hidden" 
-                                accept="image/*,.pdf"
-                                onChange={handleFileUpload} 
-                            />
-                        </button>
+                        <div className="flex items-end gap-2 p-2">
+                            {/* Attachment Button */}
+                            <button 
+                                onClick={() => document.getElementById('chat-upload')?.click()}
+                                className="p-2.5 rounded-xl flex-shrink-0 text-white/50 hover:text-white hover:bg-white/10 transition-all"
+                            >
+                                <Icons.Paperclip className="w-5 h-5"/>
+                                <input 
+                                    id="chat-upload" 
+                                    type="file" 
+                                    className="hidden" 
+                                    accept="image/*,.pdf,audio/*"
+                                    onChange={handleFileUpload} 
+                                />
+                            </button>
 
-                        {/* Text Input */}
-                        <div className="flex-1 py-1">
-                            <textarea 
-                                ref={textareaRef}
-                                value={chatInput} 
-                                onChange={e => setChatInput(e.target.value)} 
-                                placeholder="Ask your guide anything..." 
-                                className="w-full bg-transparent border-none focus:outline-none resize-none text-sm text-[#171738] placeholder:text-gray-400 leading-relaxed" 
-                                rows={1}
-                                style={{ minHeight: '24px', maxHeight: '120px' }}
-                                onKeyDown={(e) => { 
-                                    if(e.key === 'Enter' && !e.shiftKey) { 
-                                        e.preventDefault(); 
-                                        handleSendMessage(); 
-                                    } 
-                                }}
-                            />
+                            {/* Text Input */}
+                            <div className="flex-1 py-1">
+                                <textarea 
+                                    ref={textareaRef}
+                                    value={chatInput} 
+                                    onChange={e => setChatInput(e.target.value)} 
+                                    onFocus={() => setIsInputFocused(true)}
+                                    onBlur={() => setIsInputFocused(false)}
+                                    placeholder={`Ask your Guide anything...`}
+                                    className="w-full bg-transparent border-none focus:outline-none resize-none text-sm text-white placeholder:text-white/40 leading-relaxed" 
+                                    rows={1}
+                                    style={{ minHeight: '24px', maxHeight: '100px' }}
+                                    onKeyDown={(e) => { 
+                                        if(e.key === 'Enter' && !e.shiftKey) { 
+                                            e.preventDefault(); 
+                                            handleSendMessage(); 
+                                        } 
+                                    }}
+                                />
+                            </div>
+
+                            {/* Send Button */}
+                            <button 
+                                onClick={() => handleSendMessage()} 
+                                disabled={!chatInput.trim() && !chatAttachment}
+                                className={`p-2.5 rounded-xl transition-all flex-shrink-0 ${
+                                    chatInput.trim() || chatAttachment 
+                                        ? `bg-gradient-to-r ${currentZone.color} text-white shadow-lg active:scale-95` 
+                                        : 'bg-white/10 text-white/30'
+                                }`}
+                            >
+                                <Icons.Send className="w-5 h-5"/>
+                            </button>
                         </div>
-
-                        {/* Send Button */}
-                        <button 
-                            onClick={() => handleSendMessage()} 
-                            disabled={!chatInput.trim() && !chatAttachment}
-                            className={`p-3 rounded-xl transition-all flex-shrink-0 ${
-                                chatInput.trim() || chatAttachment 
-                                    ? 'bg-gradient-to-r from-[#3423A6] to-[#4834c7] text-white shadow-lg shadow-[#3423A6]/20 hover:shadow-[#3423A6]/30 active:scale-95' 
-                                    : 'bg-gray-100 text-gray-400'
-                            }`}
-                        >
-                            <Icons.Send className="w-5 h-5"/>
-                        </button>
                     </div>
-                    
-                    {/* Subtle hint */}
-                    <p className="text-center text-[10px] text-gray-400 mt-2">
-                        Press Enter to send • Shift+Enter for new line
-                    </p>
                 </div>
             </div>
+
+            {/* Animations */}
+            <style>{`
+                @keyframes float {
+                    0%, 100% { transform: translateY(0) rotate(0deg); }
+                    50% { transform: translateY(-20px) rotate(5deg); }
+                }
+                @keyframes float-delayed {
+                    0%, 100% { transform: translateY(0) rotate(0deg); }
+                    50% { transform: translateY(-15px) rotate(-5deg); }
+                }
+                @keyframes spin-slow {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
+                }
+                .animate-float {
+                    animation: float 8s ease-in-out infinite;
+                }
+                .animate-float-delayed {
+                    animation: float-delayed 10s ease-in-out infinite;
+                    animation-delay: -3s;
+                }
+                .animate-spin-slow {
+                    animation: spin-slow 20s linear infinite;
+                }
+            `}</style>
         </div>
     );
 }

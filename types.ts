@@ -61,6 +61,22 @@ export enum AppView {
 }
 
 // --- Interfaces ---
+export interface JourneyStep {
+    id: string;
+    title: string;
+    content: string;
+    position: { lat: number; lng: number };
+    isActive: boolean;
+    isCompleted: boolean;
+}
+
+export interface GuideConversation {
+    id: string;
+    name: string;
+    createdAt: number;
+    messages: ChatMessage[];
+    journeySteps: JourneyStep[];
+}
 
 export interface Goal {
   id: string;
@@ -216,6 +232,22 @@ export interface UserState {
   myCourses: Course[];
   myProducts: Product[];
   myVideos: FeedItem[];
+
+  guideConversations?: Array<{
+    id: string;
+    name: string;
+    createdAt: number;
+    messages: ChatMessage[];
+    journeySteps: Array<{
+        id: string;
+        title: string;
+        content: string;
+        position: { lat: number; lng: number };
+        isActive: boolean;
+        isCompleted: boolean;
+    }>;
+    planetColor: string;
+}>;
 }
 
 export interface WalletTransaction {

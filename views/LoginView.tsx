@@ -6,10 +6,16 @@ import { Icons } from '../components/UIComponents';
 import emailjs from '@emailjs/browser';
 
 // EmailJS Configuration - Move these to environment variables in production
-const EMAILJS_SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID || 'your_service_id';
-const EMAILJS_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID || 'your_template_id';
-const EMAILJS_PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY || 'your_public_key';
-const EMAILJS_RESET_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_RESET_TEMPLATE_ID || 'your_reset_template_id';
+const EMAILJS_SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+const EMAILJS_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
+const EMAILJS_PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+const EMAILJS_RESET_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_RESET_TEMPLATE_ID;
+
+// Add validation
+if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {
+    console.warn('⚠️ EmailJS not configured - check environment variables');
+}
+
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://injazi-backend.onrender.com';
 
@@ -48,7 +54,6 @@ export default function LoginView() {
     const [pendingUserData, setPendingUserData] = useState<{
         email: string;
         name: string;
-        code: string;
     } | null>(null);
 
     // Country Dropdown State
@@ -305,7 +310,6 @@ export default function LoginView() {
                         setPendingUserData({
                             email: result.email,
                             name: result.name,
-                            code: result.code // Store for debugging only - remove in production
                         });
                         setSuccess('Verification code sent to your email!');
                         setCooldown(300); // 5 minutes
@@ -743,15 +747,7 @@ export default function LoginView() {
                 )}
             </div>
 
-            {/* Debug info - remove in production */}
-            {pendingUserData?.code && import.meta.env.DEV && (
-                <div className="mt-4 p-3 bg-yellow-500/20 rounded-xl text-yellow-300 text-xs text-center">
-                    <p className="font-bold">DEV MODE - Code: {pendingUserData.code}</p>
-                </div>
-            )}
-        </div>
-    );
-
+         
     // Reset Password View
     const renderResetForm = () => (
         <div className="px-6 pb-6 space-y-6">

@@ -146,6 +146,8 @@ interface AppContextType {
     setAdCountdown: React.Dispatch<React.SetStateAction<number>>;
     friends: Friend[];
     setFriends: (friends: Friend[]) => void;
+    showConfetti: boolean;
+    triggerConfetti: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -173,6 +175,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [showCheckIn, setShowCheckIn] = useState(false);
     const [showAdOverlay, setShowAdOverlay] = useState(false);
     const [adCountdown, setAdCountdown] = useState(0);
+    
+    // Confetti state
+    const [showConfetti, setShowConfetti] = useState(false);
+    
+    const triggerConfetti = () => {
+        setShowConfetti(true);
+        setTimeout(() => setShowConfetti(false), 2500);
+    };
 
     const setFriends = (newFriends: any) => {
         const updatedFriends = typeof newFriends === 'function' ? newFriends(user.friends || []) : newFriends;
@@ -190,7 +200,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     useEffect(() => {
         if (isAuthenticated && user.email) {
             const saveTimer = setTimeout(() => {
-                console.log("☁️ Auto-Syncing State...");
+                console.log("💾 Auto-Syncing State...");
                 api.sync(user).catch(err => console.error("Sync failed", err));
             }, 2000);
             return () => clearTimeout(saveTimer);
@@ -323,7 +333,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             showAdOverlay, setShowAdOverlay,
             adCountdown, setAdCountdown,
             friends: user.friends || [],
-            setFriends
+            setFriends,
+            showConfetti,
+            triggerConfetti
         }}>
             {children}
         </AppContext.Provider>

@@ -34,8 +34,12 @@ export default function ChatView() {
     const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
     const [showJourneysList, setShowJourneysList] = useState(false);
     
-    // View mode: 'chat' for old conversations, 'journey' for active journey
-    const [viewMode, setViewMode] = useState<'chat' | 'journey'>('journey');
+    // Toggle between planet and chat format
+    const [usePlanetView, setUsePlanetView] = useState(true);
+    
+    // Renaming state
+    const [editingJourneyId, setEditingJourneyId] = useState<string | null>(null);
+    const [editingName, setEditingName] = useState('');
     
     // Journey State
     const [journeySteps, setJourneySteps] = useState<JourneyStep[]>([]);
@@ -45,12 +49,12 @@ export default function ChatView() {
     const [isTyping, setIsTyping] = useState(false);
     const typingRef = useRef<NodeJS.Timeout | null>(null);
     
-    // Canvas refs
+    // Canvas refs for planet
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const animationRef = useRef<number>();
-    const rotationRef = useRef({ x: 0.3, y: 0, autoRotate: true });
-    const dragRef = useRef({ isDragging: false, lastX: 0, lastY: 0 });
+    const rotationRef = useRef({ x: 0.3, y: 0, velocityX: 0, velocityY: 0 });
+    const dragRef = useRef({ isDragging: false, lastX: 0, lastY: 0, lastTime: 0 });
     const starsRef = useRef<{ x: number; y: number; z: number; b: number }[]>([]);
     const markersRef = useRef<{ idx: number; x: number; y: number; r: number }[]>([]);
     
@@ -66,26 +70,18 @@ export default function ChatView() {
     useEffect(() => {
         const convo = conversations.find(c => c.id === activeConversationId);
         if (convo) {
-            // If conversation has journey steps, show journey view
-            // If it's just messages (old conversation), show chat view
-            if (convo.journeySteps?.length > 0 && convo.messages.length <= 2) {
-                // New journey - show planet view
-                setViewMode('journey');
+            if (convo.journeySteps?.length > 0) {
                 setJourneySteps(convo.journeySteps);
                 setIsJourneyActive(true);
                 setCurrentStepIndex(0);
                 setDisplayedText(convo.journeySteps[0]?.content || '');
             } else {
-                // Old conversation or multi-message - show chat view
-                setViewMode('chat');
                 setJourneySteps([]);
                 setIsJourneyActive(false);
                 setCurrentStepIndex(-1);
                 setDisplayedText('');
             }
         } else {
-            // No active conversation - ready for new journey
-            setViewMode('journey');
             setJourneySteps([]);
             setIsJourneyActive(false);
             setCurrentStepIndex(-1);
@@ -95,14 +91,14 @@ export default function ChatView() {
 
     // Auto-scroll for chat view
     useEffect(() => {
-        if (viewMode === 'chat') {
+        if (!usePlanetView) {
             messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
         }
-    }, [viewMode, conversations, activeConversationId]);
+    }, [usePlanetView, conversations, activeConversationId]);
 
     // Init stars
     useEffect(() => {
-        starsRef.current = Array.from({ length: 200 }, () => ({
+        starsRef.current = Array.from({ length: 300 }, () => ({
             x: Math.random() * 2 - 1,
             y: Math.random() * 2 - 1,
             z: Math.random(),
@@ -110,8 +106,10 @@ export default function ChatView() {
         }));
     }, []);
 
-    // Canvas rendering - FULL 3D ROTATION with proper touch/mouse handling
+    // Canvas rendering - FULLY SPINNABLE PLANET WITH MOMENTUM
     useEffect(() => {
+        if (!usePlanetView) return;
+        
         const canvas = canvasRef.current;
         if (!canvas) return;
 
@@ -135,48 +133,68 @@ export default function ChatView() {
         resize();
         window.addEventListener('resize', resize);
 
-        // Pointer handlers for planet rotation
-        const getPointerPos = (e: PointerEvent | TouchEvent): { x: number; y: number } => {
-            if ('touches' in e) {
-                return { x: e.touches[0].clientX, y: e.touches[0].clientY };
-            }
-            return { x: (e as PointerEvent).clientX, y: (e as PointerEvent).clientY };
-        };
-
+        // Pointer handlers for planet rotation with MOMENTUM
         const onDown = (e: PointerEvent) => {
-            const pos = getPointerPos(e);
-            dragRef.current = { isDragging: true, lastX: pos.x, lastY: pos.y };
-            rotationRef.current.autoRotate = false;
+            dragRef.current = { 
+                isDragging: true, 
+                lastX: e.clientX, 
+                lastY: e.clientY,
+                lastTime: Date.now()
+            };
+            // Stop momentum when grabbing
+            rotationRef.current.velocityX = 0;
+            rotationRef.current.velocityY = 0;
+            canvas.style.cursor = 'grabbing';
         };
 
         const onMove = (e: PointerEvent) => {
             if (!dragRef.current.isDragging) return;
-            const pos = getPointerPos(e);
-            const dx = pos.x - dragRef.current.lastX;
-            const dy = pos.y - dragRef.current.lastY;
-            rotationRef.current.y += dx * 0.01;
-            rotationRef.current.x += dy * 0.008;
-            rotationRef.current.x = Math.max(-1.2, Math.min(1.2, rotationRef.current.x));
-            dragRef.current.lastX = pos.x;
-            dragRef.current.lastY = pos.y;
+            
+            const now = Date.now();
+            const dt = Math.max(1, now - dragRef.current.lastTime);
+            
+            const dx = e.clientX - dragRef.current.lastX;
+            const dy = e.clientY - dragRef.current.lastY;
+            
+            // Apply rotation
+            rotationRef.current.y += dx * 0.008;
+            rotationRef.current.x += dy * 0.006;
+            
+            // No clamping - allow full rotation!
+            // rotationRef.current.x = Math.max(-Math.PI, Math.min(Math.PI, rotationRef.current.x));
+            
+            // Track velocity for momentum
+            rotationRef.current.velocityY = (dx * 0.008) / dt * 16;
+            rotationRef.current.velocityX = (dy * 0.006) / dt * 16;
+            
+            dragRef.current.lastX = e.clientX;
+            dragRef.current.lastY = e.clientY;
+            dragRef.current.lastTime = now;
         };
 
         const onUp = () => { 
-            dragRef.current.isDragging = false; 
+            dragRef.current.isDragging = false;
+            canvas.style.cursor = 'grab';
         };
 
         const onClick = (e: MouseEvent) => {
+            // Only handle click if not dragging with momentum
+            if (Math.abs(rotationRef.current.velocityX) > 0.001 || Math.abs(rotationRef.current.velocityY) > 0.001) {
+                return;
+            }
+            
             const rect = canvas.getBoundingClientRect();
             const cx = e.clientX - rect.left;
             const cy = e.clientY - rect.top;
             for (const m of markersRef.current) {
-                if (Math.hypot(cx - m.x, cy - m.y) < m.r + 15) {
+                if (Math.hypot(cx - m.x, cy - m.y) < m.r + 20) {
                     navigateToStep(m.idx);
                     break;
                 }
             }
         };
 
+        canvas.style.cursor = 'grab';
         canvas.addEventListener('pointerdown', onDown);
         canvas.addEventListener('pointermove', onMove);
         canvas.addEventListener('pointerup', onUp);
@@ -188,48 +206,68 @@ export default function ChatView() {
             const dpr = devicePixelRatio;
             const W = w / dpr, H = h / dpr;
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-            ctx.fillStyle = '#000';
+            
+            // Deep space background
+            const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+            bgGrad.addColorStop(0, '#050508');
+            bgGrad.addColorStop(1, '#000000');
+            ctx.fillStyle = bgGrad;
             ctx.fillRect(0, 0, W, H);
 
-            // Stars
+            // Twinkling stars
             starsRef.current.forEach(s => {
-                const t = 0.3 + Math.sin(Date.now() * 0.001 + s.b * 10) * 0.4;
-                ctx.fillStyle = `rgba(255,255,255,${s.z * t})`;
+                const twinkle = 0.4 + Math.sin(Date.now() * 0.002 + s.b * 20) * 0.6;
+                ctx.fillStyle = `rgba(255,255,255,${s.z * twinkle * 0.8})`;
                 ctx.beginPath();
-                ctx.arc((s.x + 1) * W / 2, (s.y + 1) * H / 2, s.b + 0.5, 0, Math.PI * 2);
+                ctx.arc((s.x + 1) * W / 2, (s.y + 1) * H / 2, s.b * 1.5 + 0.3, 0, Math.PI * 2);
                 ctx.fill();
             });
 
-            const cx = W * 0.58, cy = H * 0.42, r = Math.min(W, H) * 0.26;
+            // Planet position and size
+            const cx = W * 0.6, cy = H * 0.45, r = Math.min(W, H) * 0.28;
 
-            // Auto rotate
-            if (rotationRef.current.autoRotate && !dragRef.current.isDragging) {
-                rotationRef.current.y += 0.003;
+            // Apply momentum (friction decay)
+            if (!dragRef.current.isDragging) {
+                rotationRef.current.y += rotationRef.current.velocityY;
+                rotationRef.current.x += rotationRef.current.velocityX;
+                
+                // Friction - slow down gradually
+                rotationRef.current.velocityY *= 0.96;
+                rotationRef.current.velocityX *= 0.96;
+                
+                // Add gentle auto-rotation when nearly stopped
+                if (Math.abs(rotationRef.current.velocityY) < 0.0005) {
+                    rotationRef.current.velocityY = 0.001;
+                }
             }
 
             const rotY = rotationRef.current.y;
             const rotX = rotationRef.current.x;
 
-            // Glow
-            const glow = ctx.createRadialGradient(cx, cy, r * 0.8, cx, cy, r * 1.4);
-            glow.addColorStop(0, 'rgba(255,255,255,0.06)');
+            // Outer glow
+            const glow = ctx.createRadialGradient(cx, cy, r * 0.8, cx, cy, r * 1.8);
+            glow.addColorStop(0, 'rgba(100, 100, 255, 0.08)');
+            glow.addColorStop(0.5, 'rgba(50, 50, 200, 0.03)');
             glow.addColorStop(1, 'transparent');
             ctx.fillStyle = glow;
             ctx.beginPath();
-            ctx.arc(cx, cy, r * 1.4, 0, Math.PI * 2);
+            ctx.arc(cx, cy, r * 1.8, 0, Math.PI * 2);
             ctx.fill();
 
-            // Planet
-            ctx.fillStyle = '#080810';
+            // Planet body
+            const planetGrad = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, 0, cx, cy, r);
+            planetGrad.addColorStop(0, '#151525');
+            planetGrad.addColorStop(1, '#080810');
+            ctx.fillStyle = planetGrad;
             ctx.beginPath();
             ctx.arc(cx, cy, r, 0, Math.PI * 2);
             ctx.fill();
 
-            // Grid - longitude
-            ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+            // Grid lines - longitude
+            ctx.strokeStyle = 'rgba(255,255,255,0.06)';
             ctx.lineWidth = 1;
-            for (let i = 0; i < 12; i++) {
-                const a = (i / 12) * Math.PI + rotY;
+            for (let i = 0; i < 16; i++) {
+                const a = (i / 16) * Math.PI + rotY;
                 const sx = Math.cos(a);
                 if (Math.abs(sx) > 0.02) {
                     ctx.beginPath();
@@ -238,86 +276,105 @@ export default function ChatView() {
                 }
             }
 
-            // Grid - latitude
-            for (let i = 1; i < 6; i++) {
-                const lr = r * Math.sin((i / 6) * Math.PI);
-                const ly = cy - r * Math.cos((i / 6) * Math.PI);
+            // Grid lines - latitude
+            for (let i = 1; i < 8; i++) {
+                const latAngle = (i / 8) * Math.PI;
+                const lr = r * Math.sin(latAngle);
+                const ly = cy - r * Math.cos(latAngle) * Math.cos(rotX);
                 ctx.beginPath();
-                ctx.ellipse(cx, ly, lr, lr * 0.3, 0, 0, Math.PI * 2);
+                ctx.ellipse(cx, ly, lr, lr * Math.abs(Math.sin(rotX)) * 0.3 + lr * 0.1, 0, 0, Math.PI * 2);
                 ctx.stroke();
             }
 
-            // Markers
+            // Draw journey markers
             markersRef.current = [];
             
             journeySteps.forEach((step, idx) => {
                 const lat = step.position.lat * Math.PI / 180;
                 const lng = (step.position.lng * Math.PI / 180) + rotY;
                 
-                // 3D sphere projection
+                // 3D sphere projection with full rotation
                 const cosLat = Math.cos(lat);
                 const sinLat = Math.sin(lat);
                 const cosLng = Math.cos(lng);
                 const sinLng = Math.sin(lng);
                 
-                // Apply X rotation (tilt)
-                const y1 = sinLat;
-                const z1 = cosLat * cosLng;
+                // Rotate around X axis
+                let y1 = sinLat;
+                let z1 = cosLat * cosLng;
                 const y2 = y1 * Math.cos(rotX) - z1 * Math.sin(rotX);
                 const z2 = y1 * Math.sin(rotX) + z1 * Math.cos(rotX);
                 
-                // Check visibility (front of sphere)
-                if (z2 < -0.1) return;
+                // Only show if on front side
+                if (z2 < -0.05) return;
                 
                 const x = cx + cosLat * sinLng * r;
                 const y = cy - y2 * r;
-                const scale = 0.5 + (z2 + 1) * 0.25;
-                const ms = 14 * scale;
+                const depth = (z2 + 1) / 2;
+                const scale = 0.5 + depth * 0.5;
+                const ms = 16 * scale;
 
                 markersRef.current.push({ idx, x, y, r: ms });
 
                 const isActive = idx === currentStepIndex;
                 const isCompleted = idx < currentStepIndex;
 
-                // Active glow
+                // Glow for active marker
                 if (isActive) {
-                    const ps = ms * (2 + Math.sin(Date.now() * 0.005) * 0.5);
-                    const g = ctx.createRadialGradient(x, y, 0, x, y, ps * 2);
-                    g.addColorStop(0, 'rgba(255,255,255,0.5)');
-                    g.addColorStop(0.5, 'rgba(255,255,255,0.1)');
-                    g.addColorStop(1, 'transparent');
-                    ctx.fillStyle = g;
+                    const pulseSize = ms * (2.5 + Math.sin(Date.now() * 0.004) * 0.5);
+                    const activeGlow = ctx.createRadialGradient(x, y, 0, x, y, pulseSize * 2);
+                    activeGlow.addColorStop(0, 'rgba(255,255,255,0.6)');
+                    activeGlow.addColorStop(0.4, 'rgba(255,255,255,0.2)');
+                    activeGlow.addColorStop(1, 'transparent');
+                    ctx.fillStyle = activeGlow;
                     ctx.beginPath();
-                    ctx.arc(x, y, ps * 2, 0, Math.PI * 2);
+                    ctx.arc(x, y, pulseSize * 2, 0, Math.PI * 2);
                     ctx.fill();
                 }
 
-                // Marker
+                // Marker circle
                 ctx.beginPath();
                 ctx.arc(x, y, ms, 0, Math.PI * 2);
-                ctx.fillStyle = isActive ? '#fff' : isCompleted ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.3)';
+                
                 if (isActive) {
-                    ctx.shadowColor = '#fff';
-                    ctx.shadowBlur = 15;
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.shadowColor = '#FFFFFF';
+                    ctx.shadowBlur = 20;
+                } else if (isCompleted) {
+                    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+                    ctx.shadowBlur = 0;
+                } else {
+                    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+                    ctx.shadowBlur = 0;
                 }
                 ctx.fill();
                 ctx.shadowBlur = 0;
 
-                ctx.strokeStyle = isActive ? '#fff' : 'rgba(255,255,255,0.4)';
-                ctx.lineWidth = isActive ? 2 : 1;
+                // Marker border
+                ctx.strokeStyle = isActive ? '#FFFFFF' : 'rgba(255,255,255,0.4)';
+                ctx.lineWidth = isActive ? 2.5 : 1.5;
                 ctx.stroke();
 
-                // Number
-                ctx.fillStyle = isActive ? '#000' : '#fff';
-                ctx.font = `bold ${13 * scale}px -apple-system, system-ui, sans-serif`;
+                // Step number
+                ctx.fillStyle = isActive ? '#000000' : 'rgba(255,255,255,0.9)';
+                ctx.font = `bold ${14 * scale}px -apple-system, system-ui, sans-serif`;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillText(`${idx + 1}`, x, y);
             });
 
+            // Planet edge highlight
+            const edgeGrad = ctx.createRadialGradient(cx - r * 0.4, cy - r * 0.4, 0, cx, cy, r);
+            edgeGrad.addColorStop(0, 'rgba(255,255,255,0.1)');
+            edgeGrad.addColorStop(0.6, 'transparent');
+            ctx.fillStyle = edgeGrad;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.fill();
+
             // Planet border
-            ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+            ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.arc(cx, cy, r, 0, Math.PI * 2);
             ctx.stroke();
@@ -337,7 +394,7 @@ export default function ChatView() {
             canvas.removeEventListener('click', onClick);
             if (animationRef.current) cancelAnimationFrame(animationRef.current);
         };
-    }, [journeySteps, currentStepIndex]);
+    }, [usePlanetView, journeySteps, currentStepIndex]);
 
     // Type text with cleanup
     const typeText = useCallback((text: string) => {
@@ -358,20 +415,25 @@ export default function ChatView() {
                 if (typingRef.current) clearInterval(typingRef.current);
                 setIsTyping(false);
             }
-        }, 8);
+        }, 6);
     }, []);
 
-    // Navigate to step
+    // Navigate to step - FIXED
     const navigateToStep = useCallback((idx: number) => {
         if (idx < 0 || idx >= journeySteps.length) return;
+        
         setCurrentStepIndex(idx);
         setJourneySteps(prev => prev.map((s, i) => ({
             ...s,
             isActive: i === idx,
             isCompleted: i < idx
         })));
-        const content = journeySteps[idx]?.content || '';
-        typeText(content);
+        
+        // Get the content and type it
+        const step = journeySteps[idx];
+        if (step?.content) {
+            typeText(step.content);
+        }
     }, [journeySteps, typeText]);
 
     // Create conversation
@@ -389,14 +451,25 @@ export default function ChatView() {
         setCurrentStepIndex(-1);
         setIsJourneyActive(false);
         setDisplayedText('');
-        setViewMode('journey');
-        rotationRef.current = { x: 0.3, y: 0, autoRotate: true };
+        rotationRef.current = { x: 0.3, y: 0, velocityX: 0, velocityY: 0.001 };
         setShowJourneysList(false);
     };
 
-    // Rename conversation
-    const renameConversation = (id: string, name: string) => {
-        setConversations(prev => prev.map(c => c.id === id ? { ...c, name } : c));
+    // Start renaming
+    const startRename = (convo: GuideConversation) => {
+        setEditingJourneyId(convo.id);
+        setEditingName(convo.name);
+    };
+
+    // Save rename
+    const saveRename = () => {
+        if (editingJourneyId && editingName.trim()) {
+            setConversations(prev => prev.map(c => 
+                c.id === editingJourneyId ? { ...c, name: editingName.trim() } : c
+            ));
+        }
+        setEditingJourneyId(null);
+        setEditingName('');
     };
 
     // Delete conversation
@@ -406,11 +479,10 @@ export default function ChatView() {
             setActiveConversationId(null);
             setJourneySteps([]);
             setIsJourneyActive(false);
-            setViewMode('journey');
         }
     };
 
-    // FIXED: Parse response into steps - handles full AI response properly
+    // IMPROVED: Parse response into steps - better extraction
     const parseSteps = (text: string): JourneyStep[] => {
         if (!text || typeof text !== 'string') {
             return [{
@@ -423,108 +495,110 @@ export default function ChatView() {
             }];
         }
 
-        // Clean the text - remove markdown formatting that might interfere
-        const clean = text
+        // Clean the text thoroughly
+        let clean = text
             .replace(/\*\*/g, '')
             .replace(/\*/g, '')
-            .replace(/undefined/g, '')
+            .replace(/undefined/gi, '')
+            .replace(/null/gi, '')
             .trim();
         
         const steps: JourneyStep[] = [];
-
-        // Try numbered patterns: "1." or "1)" or "1:" or "Step 1:"
-        const numPatterns = [
-            /(?:^|\n)\s*(?:Step\s*)?(\d+)[.):\-]\s*([^\n]+(?:\n(?!\s*(?:Step\s*)?\d+[.):\-])[^\n]*)*)/gi,
-            /(?:^|\n)\s*(\d+)[.):\-]\s*([^\n]+)/g
-        ];
         
-        for (const pattern of numPatterns) {
-            let m;
-            const tempSteps: JourneyStep[] = [];
-            while ((m = pattern.exec(clean)) !== null) {
-                const content = (m[2] || '').trim();
-                if (content.length > 10) {
-                    tempSteps.push({
-                        id: `s-${tempSteps.length}`,
-                        title: `Step ${tempSteps.length + 1}`,
-                        content: content,
-                        position: { 
-                            lat: 40 - tempSteps.length * 25, 
-                            lng: -100 + tempSteps.length * 50 
-                        },
-                        isActive: false,
-                        isCompleted: false
-                    });
-                }
-            }
-            if (tempSteps.length >= 2) {
-                return tempSteps.slice(0, 6);
-            }
-        }
+        // Generate positions spread around the planet
+        const getPosition = (index: number, total: number) => ({
+            lat: 35 - (index * (70 / Math.max(total - 1, 1))),
+            lng: -120 + (index * (240 / Math.max(total - 1, 1)))
+        });
 
-        // Try bullet points: "- item" or "• item"
-        const bulletPattern = /(?:^|\n)\s*[-•]\s*([^\n]+)/g;
-        let m;
-        while ((m = bulletPattern.exec(clean)) !== null) {
-            const content = (m[1] || '').trim();
-            if (content.length > 10) {
-                steps.push({
-                    id: `s-${steps.length}`,
-                    title: `Step ${steps.length + 1}`,
-                    content: content,
-                    position: { 
-                        lat: 40 - steps.length * 25, 
-                        lng: -100 + steps.length * 50 
-                    },
-                    isActive: false,
-                    isCompleted: false
-                });
+        // Pattern 1: Numbered steps like "1." or "1)" or "1:" or "Step 1:"
+        const numberedRegex = /(?:^|\n)\s*(?:Step\s*)?(\d+)[.):\-]\s*([^\n]+(?:\n(?!\s*(?:Step\s*)?\d+[.):\-])(?!\n)[^\n]*)*)/gi;
+        let match;
+        const numberedMatches: string[] = [];
+        
+        while ((match = numberedRegex.exec(clean)) !== null) {
+            const content = (match[2] || '').replace(/\n/g, ' ').trim();
+            if (content.length > 15) {
+                numberedMatches.push(content);
             }
         }
-        if (steps.length >= 2) {
-            return steps.slice(0, 6);
-        }
-
-        // Split by paragraphs if no structured format found
-        const paragraphs = clean.split(/\n\n+/).filter(p => p.trim().length > 30);
-        if (paragraphs.length >= 2) {
-            return paragraphs.slice(0, 5).map((p, i) => ({
+        
+        if (numberedMatches.length >= 2) {
+            const total = Math.min(numberedMatches.length, 6);
+            return numberedMatches.slice(0, total).map((content, i) => ({
                 id: `s-${i}`,
                 title: `Step ${i + 1}`,
-                content: p.trim(),
-                position: { 
-                    lat: 40 - i * 25, 
-                    lng: -100 + i * 50 
-                },
+                content,
+                position: getPosition(i, total),
                 isActive: false,
                 isCompleted: false
             }));
         }
 
-        // Split long text into logical chunks by sentences
-        const sentences = clean.split(/(?<=[.!?])\s+/).filter(s => s.length > 15);
-        if (sentences.length >= 4) {
-            const chunkSize = Math.ceil(sentences.length / Math.min(4, Math.ceil(sentences.length / 3)));
-            const chunks: string[] = [];
-            for (let i = 0; i < sentences.length; i += chunkSize) {
-                chunks.push(sentences.slice(i, i + chunkSize).join(' '));
+        // Pattern 2: Bullet points
+        const bulletRegex = /(?:^|\n)\s*[-•]\s*([^\n]+)/g;
+        const bulletMatches: string[] = [];
+        
+        while ((match = bulletRegex.exec(clean)) !== null) {
+            const content = (match[1] || '').trim();
+            if (content.length > 15) {
+                bulletMatches.push(content);
             }
+        }
+        
+        if (bulletMatches.length >= 2) {
+            const total = Math.min(bulletMatches.length, 6);
+            return bulletMatches.slice(0, total).map((content, i) => ({
+                id: `s-${i}`,
+                title: `Step ${i + 1}`,
+                content,
+                position: getPosition(i, total),
+                isActive: false,
+                isCompleted: false
+            }));
+        }
+
+        // Pattern 3: Paragraphs (double newline separated)
+        const paragraphs = clean.split(/\n\n+/).filter(p => p.trim().length > 40);
+        if (paragraphs.length >= 2) {
+            const total = Math.min(paragraphs.length, 5);
+            return paragraphs.slice(0, total).map((p, i) => ({
+                id: `s-${i}`,
+                title: `Step ${i + 1}`,
+                content: p.replace(/\n/g, ' ').trim(),
+                position: getPosition(i, total),
+                isActive: false,
+                isCompleted: false
+            }));
+        }
+
+        // Pattern 4: Split by sentences into chunks
+        const sentences = clean.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 10);
+        if (sentences.length >= 3) {
+            const numSteps = Math.min(Math.max(Math.ceil(sentences.length / 2), 3), 5);
+            const perStep = Math.ceil(sentences.length / numSteps);
+            const chunks: string[] = [];
+            
+            for (let i = 0; i < numSteps; i++) {
+                const chunk = sentences.slice(i * perStep, (i + 1) * perStep).join(' ').trim();
+                if (chunk.length > 20) {
+                    chunks.push(chunk);
+                }
+            }
+            
             if (chunks.length >= 2) {
-                return chunks.slice(0, 5).map((chunk, i) => ({
+                return chunks.map((content, i) => ({
                     id: `s-${i}`,
                     title: `Step ${i + 1}`,
-                    content: chunk.trim(),
-                    position: { 
-                        lat: 40 - i * 25, 
-                        lng: -100 + i * 50 
-                    },
+                    content,
+                    position: getPosition(i, chunks.length),
                     isActive: false,
                     isCompleted: false
                 }));
             }
         }
 
-        // Single step fallback - show entire response
+        // Fallback: Single step with full response
         return [{
             id: 's-0',
             title: 'Guidance',
@@ -545,7 +619,7 @@ export default function ChatView() {
         if (!convoId) {
             const newConvo: GuideConversation = {
                 id: `j-${Date.now()}`,
-                name: msg.slice(0, 30) + (msg.length > 30 ? '...' : ''),
+                name: msg.slice(0, 35) + (msg.length > 35 ? '...' : ''),
                 createdAt: Date.now(),
                 messages: [],
                 journeySteps: []
@@ -594,8 +668,9 @@ export default function ChatView() {
                 user.extraLogs || []
             );
 
-            // Ensure response is valid
-            const validResponse = response && typeof response === 'string' ? response : 'I apologize, but I had trouble generating a response. Please try again.';
+            const validResponse = (response && typeof response === 'string') 
+                ? response 
+                : 'I apologize, but I had trouble generating a response. Please try again.';
 
             const aiMsg: ChatMessage = { 
                 id: `${Date.now() + 1}`, 
@@ -606,7 +681,7 @@ export default function ChatView() {
             
             const steps = parseSteps(validResponse);
 
-            // Update conversation with AI response and journey steps
+            // Update conversation
             setConversations(prev => prev.map(c => 
                 c.id === convoId ? { 
                     ...c, 
@@ -617,13 +692,14 @@ export default function ChatView() {
 
             setJourneySteps(steps);
             setIsJourneyActive(true);
-            setViewMode('journey');
 
-            // Start the journey
+            // Navigate to first step
             setTimeout(() => {
                 setCurrentStepIndex(0);
-                typeText(steps[0]?.content || '');
-            }, 200);
+                if (steps[0]?.content) {
+                    typeText(steps[0].content);
+                }
+            }, 300);
 
         } catch (err) {
             console.error('Chat error:', err);
@@ -634,7 +710,7 @@ export default function ChatView() {
         }
     };
 
-    // Navigation controls
+    // Navigation - FIXED buttons
     const goNext = () => {
         if (currentStepIndex < journeySteps.length - 1) {
             navigateToStep(currentStepIndex + 1);
@@ -647,7 +723,7 @@ export default function ChatView() {
         }
     };
 
-    // Format time for chat messages
+    // Format time
     const formatTime = (ts: number) => {
         return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     };
@@ -705,46 +781,87 @@ export default function ChatView() {
                                     className={`rounded-2xl transition-all overflow-hidden ${
                                         convo.id === activeConversationId 
                                             ? 'bg-white/10 ring-2 ring-white/20' 
-                                            : 'bg-white/5 active:bg-white/10'
+                                            : 'bg-white/5'
                                     }`}
                                 >
-                                    <div className="p-4 flex items-center gap-4">
-                                        {/* Planet Icon */}
-                                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-white/20 to-white/5 flex items-center justify-center flex-shrink-0 relative">
-                                            <div className="absolute inset-1 rounded-full border border-white/20" />
-                                            <span className="text-white/60 text-xs font-bold">
-                                                {convo.journeySteps?.length || convo.messages?.length || 0}
-                                            </span>
+                                    {editingJourneyId === convo.id ? (
+                                        // Editing mode
+                                        <div className="p-4">
+                                            <input
+                                                type="text"
+                                                value={editingName}
+                                                onChange={e => setEditingName(e.target.value)}
+                                                className="w-full bg-white/10 border border-white/30 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-white/50 mb-3"
+                                                autoFocus
+                                                onKeyDown={e => {
+                                                    if (e.key === 'Enter') saveRename();
+                                                    if (e.key === 'Escape') setEditingJourneyId(null);
+                                                }}
+                                                placeholder="Journey name..."
+                                            />
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => setEditingJourneyId(null)}
+                                                    className="flex-1 py-2.5 rounded-xl border border-white/20 text-white/60 text-sm font-medium active:bg-white/10"
+                                                >
+                                                    Cancel
+                                                </button>
+                                                <button
+                                                    onClick={saveRename}
+                                                    className="flex-1 py-2.5 rounded-xl bg-white text-black text-sm font-bold active:bg-white/90"
+                                                >
+                                                    Save
+                                                </button>
+                                            </div>
                                         </div>
+                                    ) : (
+                                        // Normal mode
+                                        <div className="p-4 flex items-center gap-4">
+                                            {/* Planet Icon */}
+                                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-white/20 to-white/5 flex items-center justify-center flex-shrink-0 relative">
+                                                <div className="absolute inset-1 rounded-full border border-white/20" />
+                                                <span className="text-white/60 text-xs font-bold">
+                                                    {convo.journeySteps?.length || convo.messages?.length || 0}
+                                                </span>
+                                            </div>
 
-                                        {/* Info */}
-                                        <button
-                                            onClick={() => {
-                                                setActiveConversationId(convo.id);
-                                                setShowJourneysList(false);
-                                            }}
-                                            className="flex-1 text-left min-w-0"
-                                        >
-                                            <h3 className="text-white font-semibold text-sm truncate">
-                                                {convo.name}
-                                            </h3>
-                                            <p className="text-white/40 text-xs mt-0.5">
-                                                {convo.messages?.length || 0} messages · {new Date(convo.createdAt).toLocaleDateString()}
-                                            </p>
-                                        </button>
+                                            {/* Info - tap to select */}
+                                            <button
+                                                onClick={() => {
+                                                    setActiveConversationId(convo.id);
+                                                    setShowJourneysList(false);
+                                                }}
+                                                className="flex-1 text-left min-w-0"
+                                            >
+                                                <h3 className="text-white font-semibold text-sm truncate">
+                                                    {convo.name}
+                                                </h3>
+                                                <p className="text-white/40 text-xs mt-0.5">
+                                                    {convo.messages?.length || 0} messages · {new Date(convo.createdAt).toLocaleDateString()}
+                                                </p>
+                                            </button>
 
-                                        {/* Delete */}
-                                        <button
-                                            onClick={() => {
-                                                if (confirm('Delete this journey?')) {
-                                                    deleteConversation(convo.id);
-                                                }
-                                            }}
-                                            className="p-2 text-white/30 active:text-red-400 rounded-lg"
-                                        >
-                                            <Icons.Trash className="w-4 h-4" />
-                                        </button>
-                                    </div>
+                                            {/* Edit button */}
+                                            <button
+                                                onClick={() => startRename(convo)}
+                                                className="p-2 text-white/30 active:text-white rounded-lg"
+                                            >
+                                                <Icons.Edit className="w-4 h-4" />
+                                            </button>
+
+                                            {/* Delete button */}
+                                            <button
+                                                onClick={() => {
+                                                    if (confirm('Delete this journey?')) {
+                                                        deleteConversation(convo.id);
+                                                    }
+                                                }}
+                                                className="p-2 text-white/30 active:text-red-400 rounded-lg"
+                                            >
+                                                <Icons.Trash className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -754,12 +871,12 @@ export default function ChatView() {
         );
     }
 
-    // ========== CHAT VIEW (for old conversations) ==========
-    if (viewMode === 'chat' && activeConvo && activeConvo.messages.length > 0) {
+    // ========== CHAT FORMAT VIEW ==========
+    if (!usePlanetView) {
         return (
             <div className="h-full w-full bg-black flex flex-col">
                 {/* Header */}
-                <div className="relative z-10 flex items-center justify-between px-4 pt-safe pb-2 border-b border-white/10 flex-shrink-0">
+                <div className="flex items-center justify-between px-4 pt-safe pb-2 border-b border-white/10 flex-shrink-0">
                     <button 
                         onClick={() => setView(AppView.DASHBOARD)}
                         className="p-2 rounded-xl text-white/50 active:text-white"
@@ -772,28 +889,39 @@ export default function ChatView() {
                         className="text-center px-3 py-1 rounded-xl active:bg-white/10"
                     >
                         <h1 className="text-white font-bold text-sm">
-                            {activeConvo.name}
+                            {activeConvo?.name || 'THE GUIDE'}
                         </h1>
-                        <p className="text-white/30 text-[10px]">Tap to see all journeys</p>
+                        <p className="text-white/30 text-[10px]">Tap to see journeys</p>
                     </button>
 
                     <button 
-                        onClick={createConversation}
-                        className="p-2 rounded-xl text-white/50 active:text-white"
+                        onClick={() => setUsePlanetView(true)}
+                        className="px-3 py-1.5 rounded-lg bg-white/10 text-white/70 text-xs font-medium active:bg-white/20"
                     >
-                        <Icons.Plus className="w-5 h-5" />
+                        Planet
                     </button>
                 </div>
 
                 {/* Messages */}
                 <div className="flex-1 overflow-y-auto px-4 py-4">
                     <div className="space-y-4">
-                        {activeConvo.messages.map((msg) => (
+                        {/* Welcome message if no conversation */}
+                        {(!activeConvo || activeConvo.messages.length === 0) && (
+                            <div className="text-center py-12">
+                                <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4">
+                                    <span className="text-2xl">✨</span>
+                                </div>
+                                <h2 className="text-white font-bold text-lg mb-2">Ask Your Guide</h2>
+                                <p className="text-white/40 text-sm">What do you need help with?</p>
+                            </div>
+                        )}
+
+                        {activeConvo?.messages.map((msg) => (
                             <div
                                 key={msg.id}
                                 className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                             >
-                                <div className={`max-w-[85%] ${msg.role === 'user' ? '' : ''}`}>
+                                <div className="max-w-[85%]">
                                     {msg.role !== 'user' && (
                                         <div className="flex items-center gap-2 mb-1.5">
                                             <div className="w-6 h-6 rounded-full bg-gradient-to-br from-white/20 to-white/5 flex items-center justify-center">
@@ -835,14 +963,14 @@ export default function ChatView() {
                 </div>
 
                 {/* Input */}
-                <div className="relative z-10 px-4 pb-4 flex-shrink-0" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
+                <div className="px-4 pb-4 flex-shrink-0" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
                     <div className="bg-white/5 backdrop-blur rounded-xl border border-white/10">
                         <div className="flex items-center gap-2 px-3 py-2">
                             <input
                                 type="text"
                                 value={chatInput}
                                 onChange={e => setChatInput(e.target.value)}
-                                placeholder="Continue the conversation..."
+                                placeholder="Ask anything..."
                                 className="flex-1 bg-transparent text-white text-sm placeholder:text-white/30 focus:outline-none"
                                 style={{ fontSize: '16px' }}
                                 onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
@@ -863,10 +991,10 @@ export default function ChatView() {
         );
     }
 
-    // ========== JOURNEY VIEW (main planet view) ==========
+    // ========== PLANET VIEW (default) ==========
     return (
         <div ref={containerRef} className="h-full w-full bg-black flex flex-col overflow-hidden">
-            {/* Canvas - with touch-action for dragging */}
+            {/* Canvas */}
             <canvas 
                 ref={canvasRef} 
                 className="absolute inset-0 w-full h-full"
@@ -892,96 +1020,117 @@ export default function ChatView() {
                     <p className="text-white/30 text-[10px]">Tap to see journeys</p>
                 </button>
 
+                {/* Toggle to Chat button */}
                 <button 
-                    onClick={createConversation}
-                    className="p-2 rounded-xl text-white/50 active:text-white"
+                    onClick={() => setUsePlanetView(false)}
+                    className="px-3 py-1.5 rounded-lg bg-white/10 text-white/70 text-xs font-medium active:bg-white/20"
                 >
-                    <Icons.Plus className="w-5 h-5" />
+                    Chat
                 </button>
             </div>
 
-            {/* Content */}
-            <div className="flex-1 relative z-10 min-h-0 pointer-events-none">
-                <div className="absolute left-0 top-0 bottom-0 w-[52%] flex flex-col justify-center pl-4 pr-2 pointer-events-auto">
+            {/* Content - Left Panel */}
+            <div className="flex-1 relative z-10 min-h-0">
+                <div className="absolute left-0 top-0 bottom-0 w-[55%] flex flex-col justify-center pl-5 pr-3">
                     {!isJourneyActive && !isChatLoading && (
                         <div>
                             <p className="text-white/30 text-[10px] uppercase tracking-widest mb-2">Welcome</p>
-                            <h2 className="text-white text-lg font-bold leading-tight mb-2">
+                            <h2 className="text-white text-xl font-bold leading-tight mb-3">
                                 What do you need help with?
                             </h2>
-                            <p className="text-white/50 text-xs leading-relaxed">
-                                Ask anything. I'll guide you step by step.
+                            <p className="text-white/50 text-sm leading-relaxed mb-4">
+                                Ask anything. I'll guide you step by step on your journey.
+                            </p>
+                            <p className="text-white/30 text-xs">
+                                💡 Spin the planet for fun!
                             </p>
                         </div>
                     )}
 
                     {isChatLoading && (
                         <div>
-                            <div className="flex gap-1 mb-2">
+                            <div className="flex gap-1.5 mb-3">
                                 {[0, 1, 2].map(i => (
-                                    <div key={i} className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" style={{ animationDelay: `${i * 150}ms` }} />
+                                    <div key={i} className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: `${i * 150}ms` }} />
                                 ))}
                             </div>
-                            <p className="text-white/40 text-xs">Thinking...</p>
+                            <p className="text-white/50 text-sm">Charting your journey...</p>
                         </div>
                     )}
 
                     {isJourneyActive && journeySteps.length > 0 && currentStepIndex >= 0 && (
                         <div>
-                            <p className="text-white/40 text-[10px] uppercase tracking-wider mb-1">
+                            {/* Step indicator */}
+                            <p className="text-white/50 text-xs uppercase tracking-wider mb-2">
                                 Step {currentStepIndex + 1} of {journeySteps.length}
                             </p>
 
-                            <h3 className="text-white text-base font-bold mb-2">
+                            {/* Step title */}
+                            <h3 className="text-white text-lg font-bold mb-3">
                                 {journeySteps[currentStepIndex]?.title || `Step ${currentStepIndex + 1}`}
                             </h3>
 
-                            {/* Text with scroll */}
+                            {/* Content with scroll */}
                             <div 
-                                className="text-white/90 text-xs leading-relaxed mb-3 pr-1 overflow-y-auto"
+                                className="text-white/85 text-sm leading-relaxed mb-4 pr-2 overflow-y-auto"
                                 style={{ 
-                                    maxHeight: '120px',
+                                    maxHeight: '140px',
                                     WebkitOverflowScrolling: 'touch'
                                 }}
                             >
                                 {displayedText}
-                                {isTyping && <span className="inline-block w-0.5 h-3 bg-white ml-0.5 animate-pulse" />}
+                                {isTyping && <span className="inline-block w-0.5 h-4 bg-white ml-1 animate-pulse" />}
                             </div>
 
-                            {/* Navigation buttons */}
-                            <div className="flex gap-2 mb-2">
+                            {/* Navigation buttons - FIXED */}
+                            <div className="flex gap-3 mb-3">
                                 <button
                                     onClick={goPrev}
                                     disabled={currentStepIndex === 0}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
                                         currentStepIndex === 0
-                                            ? 'bg-white/5 text-white/20'
-                                            : 'bg-white/10 text-white/80 active:bg-white/20'
+                                            ? 'bg-white/5 text-white/30 cursor-not-allowed'
+                                            : 'bg-white/15 text-white active:bg-white/25'
                                     }`}
                                 >
-                                    Prev
+                                    ← Prev
                                 </button>
-                                <button
-                                    onClick={goNext}
-                                    disabled={currentStepIndex === journeySteps.length - 1}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                                        currentStepIndex === journeySteps.length - 1
-                                            ? 'bg-white/20 text-white/40'
-                                            : 'bg-white text-black active:bg-white/90'
-                                    }`}
-                                >
-                                    {currentStepIndex === journeySteps.length - 1 ? 'Done' : 'Next'}
-                                </button>
+                                
+                                {currentStepIndex < journeySteps.length - 1 ? (
+                                    <button
+                                        onClick={goNext}
+                                        className="px-4 py-2 rounded-xl bg-white text-black text-sm font-bold active:bg-white/90"
+                                    >
+                                        Next →
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={() => {
+                                            // Reset for new question
+                                            setIsJourneyActive(false);
+                                            setJourneySteps([]);
+                                            setCurrentStepIndex(-1);
+                                            setDisplayedText('');
+                                        }}
+                                        className="px-4 py-2 rounded-xl bg-green-500 text-white text-sm font-bold active:bg-green-600"
+                                    >
+                                        ✓ Done
+                                    </button>
+                                )}
                             </div>
 
                             {/* Step dots */}
-                            <div className="flex gap-1.5">
+                            <div className="flex gap-2">
                                 {journeySteps.map((_, i) => (
                                     <button
                                         key={i}
                                         onClick={() => navigateToStep(i)}
-                                        className={`h-1.5 rounded-full transition-all ${
-                                            i === currentStepIndex ? 'bg-white w-4' : i < currentStepIndex ? 'bg-white/60 w-1.5' : 'bg-white/20 w-1.5'
+                                        className={`h-2 rounded-full transition-all ${
+                                            i === currentStepIndex 
+                                                ? 'bg-white w-6' 
+                                                : i < currentStepIndex 
+                                                    ? 'bg-white/60 w-2' 
+                                                    : 'bg-white/25 w-2'
                                         }`}
                                     />
                                 ))}
@@ -993,25 +1142,27 @@ export default function ChatView() {
 
             {/* Input */}
             <div className="relative z-10 px-4 pb-4 flex-shrink-0" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
-                <div className="bg-white/5 backdrop-blur rounded-xl border border-white/10">
-                    <div className="flex items-center gap-2 px-3 py-2">
+                <div className="bg-white/8 backdrop-blur-xl rounded-2xl border border-white/15">
+                    <div className="flex items-center gap-3 px-4 py-3">
                         <input
                             type="text"
                             value={chatInput}
                             onChange={e => setChatInput(e.target.value)}
                             placeholder="Ask anything..."
-                            className="flex-1 bg-transparent text-white text-sm placeholder:text-white/30 focus:outline-none"
+                            className="flex-1 bg-transparent text-white text-sm placeholder:text-white/40 focus:outline-none"
                             style={{ fontSize: '16px' }}
                             onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
                         />
                         <button
                             onClick={handleSend}
                             disabled={!chatInput.trim() || isChatLoading}
-                            className={`p-2 rounded-lg transition-colors ${
-                                chatInput.trim() && !isChatLoading ? 'bg-white text-black' : 'bg-white/10 text-white/30'
+                            className={`p-2.5 rounded-xl transition-all ${
+                                chatInput.trim() && !isChatLoading 
+                                    ? 'bg-white text-black' 
+                                    : 'bg-white/10 text-white/30'
                             }`}
                         >
-                            <Icons.Send className="w-4 h-4" />
+                            <Icons.Send className="w-5 h-5" />
                         </button>
                     </div>
                 </div>

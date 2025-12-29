@@ -1,14 +1,14 @@
+// services/geminiService.ts
 import { 
     Goal, Task, Difficulty, ChatMessage, GoalCategory, 
     FeedItem, Chapter, Course, GoalMode, ConnectedApp, TaskStatus, 
     BudgetSplit, DeepInsight, UserState, ExtraLog, Product, LessonContent
 } from "../types";
 
-// API Configuration - now points to YOUR backend
 const API_URL = import.meta.env.VITE_API_URL || 'https://injazi-backend.onrender.com';
 
 // ============================================
-// CORE API CALL FUNCTION - NOW CALLS YOUR BACKEND
+// CORE API CALL FUNCTION
 // ============================================
 
 async function callAI(endpoint: string, body: object): Promise<any> {
@@ -36,7 +36,174 @@ async function callAI(endpoint: string, body: object): Promise<any> {
 }
 
 // ============================================
-// GENERATE DAILY TASKS
+// ENHANCED CHAT RESPONSE - Much better prompting
+// ============================================
+
+export async function getChatResponse(
+    goal: Goal, 
+    history: ChatMessage[], 
+    newMessage: string, 
+    userProfile: string, 
+    currentTasks: Task[], 
+    connectedApps: ConnectedApp[], 
+    attachment?: any, 
+    extraLogs: ExtraLog[] = []
+): Promise<string> { 
+    try {
+        // Build rich context
+        const completedTasks = currentTasks.filter(t => 
+            t.status === TaskStatus.APPROVED || t.status === TaskStatus.COMPLETED
+        );
+        const pendingTasks = currentTasks.filter(t => 
+            t.status !== TaskStatus.APPROVED && t.status !== TaskStatus.COMPLETED
+        );
+        
+        const taskContext = pendingTasks.length > 0 
+            ? `\nCURRENT PENDING TASKS:\n${pendingTasks.map((t, i) => `${i + 1}. "${t.title}" (${t.difficulty}, ~${t.estimatedTimeMinutes}min)`).join('\n')}`
+            : '\nAll tasks for today are completed!';
+        
+        const progressContext = `
+PROGRESS SUMMARY:
+- Tasks completed today: ${completedTasks.length}/${currentTasks.length}
+- Goal: "${goal.title}" (${goal.category})
+- User context: ${userProfile || 'New user, still learning about them'}`;
+
+        const recentLogs = extraLogs.slice(-3).map(log => log.text).join(' | ');
+        const logsContext = recentLogs ? `\nRECENT USER NOTES: ${recentLogs}` : '';
+
+        // Build conversation history (last 10 messages for context)
+        const recentHistory = history.slice(-10).map(m => ({
+            role: m.role === 'user' ? 'user' : 'assistant',
+            content: m.text
+        }));
+
+        // Enhanced system prompt
+        const systemPrompt = `You are an elite personal success coach and strategic advisor embedded in the Injazi goal achievement app. Your name is "The Guide" and you have a warm but direct personality.
+
+YOUR CORE IDENTITY:
+- You're like a blend of a wise mentor, strategic consultant, and supportive friend
+- You speak with confidence and authority, but also warmth and understanding
+- You give specific, actionable advice - never vague platitudes
+- You remember context from the conversation and build on it
+- You celebrate wins genuinely but also push for growth
+- You're honest when something isn't working and suggest pivots
+
+YOUR APPROACH:
+1. UNDERSTAND before advising - ask clarifying questions when needed
+2. Be SPECIFIC - give exact steps, timeframes, and examples
+3. Be CONCISE - respect the user's time, get to the point
+4. Be STRATEGIC - think about the bigger picture and long-term success
+5. Be MOTIVATING - but through substance, not empty cheerleading
+
+COMMUNICATION STYLE:
+- Use short paragraphs (2-3 sentences max)
+- Use bullet points for action items or lists
+- Bold **key points** for emphasis
+- Be conversational but professional
+- Match the user's energy - if they're frustrated, acknowledge it; if they're excited, match it
+- End with a question or clear next step when appropriate
+
+WHAT YOU KNOW ABOUT THIS USER:
+${progressContext}
+${taskContext}
+${logsContext}
+
+IMPORTANT RULES:
+- Never say "I'm just an AI" or similar - you ARE their guide
+- Don't be preachy or lecture them
+- If they're struggling, focus on ONE small win they can achieve
+- If they're succeeding, help them think bigger
+- If they ask something outside your scope, redirect to how it connects to their goal
+- Keep responses under 200 words unless they ask for detailed analysis`;
+
+        const data = await callAI('chat', {
+            systemPrompt,
+            goal: { title: goal.title, category: goal.category },
+            history: recentHistory,
+            message: newMessage,
+            userProfile,
+            currentTasks: currentTasks.map(t => ({ 
+                title: t.title, 
+                status: t.status,
+                difficulty: t.difficulty,
+                estimatedTimeMinutes: t.estimatedTimeMinutes
+            }))
+        });
+
+        return data.response || getSmartFallbackResponse(newMessage, goal, pendingTasks, completedTasks);
+    } catch (error) {
+        console.error("Chat error:", error);
+        return getSmartFallbackResponse(newMessage, goal, 
+            currentTasks.filter(t => t.status !== TaskStatus.APPROVED && t.status !== TaskStatus.COMPLETED),
+            currentTasks.filter(t => t.status === TaskStatus.APPROVED || t.status === TaskStatus.COMPLETED)
+        );
+    }
+}
+
+function getSmartFallbackResponse(
+    message: string, 
+    goal: Goal, 
+    pendingTasks: Task[], 
+    completedTasks: Task[]
+): string {
+    const msg = message.toLowerCase();
+    const goalTitle = goal.title;
+    
+    // Stuck/Help patterns
+    if (msg.includes('stuck') || msg.includes('help') || msg.includes("don't know") || msg.includes('confused')) {
+        if (pendingTasks.length > 0) {
+            const easiestTask = pendingTasks.find(t => t.difficulty === Difficulty.EASY) || pendingTasks[0];
+            return `I hear you. When we're stuck, the best move is usually the smallest one.\n\n**Here's what I suggest:**\n\nLook at "${easiestTask.title}" - it's about ${easiestTask.estimatedTimeMinutes} minutes. Don't think about finishing it perfectly. Just open it and do the first tiny step.\n\nWhat's literally the first physical action you'd need to take?`;
+        }
+        return `Being stuck is actually useful information - it tells us something needs to change.\n\n**Let's diagnose this:**\n\nIs it that you don't know WHAT to do next, or you know what to do but can't get yourself to do it?\n\nTell me more about where the friction is.`;
+    }
+    
+    // Motivation patterns
+    if (msg.includes('motivat') || msg.includes('tired') || msg.includes('exhausted') || msg.includes("can't")) {
+        return `I get it. Motivation is unreliable - that's why we don't depend on it.\n\n**Here's what actually works:**\n\nForget about feeling motivated. What's the absolute minimum you could do for "${goalTitle}" in the next 10 minutes that would let you say "I showed up today"?\n\nSometimes progress is just not quitting.`;
+    }
+    
+    // Progress/Done patterns
+    if (msg.includes('done') || msg.includes('finished') || msg.includes('completed') || msg.includes('did it')) {
+        if (completedTasks.length > 0) {
+            return `**That's momentum right there.** ${completedTasks.length} task${completedTasks.length > 1 ? 's' : ''} down.\n\nQuick reflection: What was the hardest part? And what made you push through it?\n\nUnderstanding your own patterns is how you build unstoppable consistency.`;
+        }
+        return `Excellent. Every completed action is evidence that you CAN do this.\n\n**Capture this win:**\n\nWhat did you learn from doing it? And what's the natural next step from here?`;
+    }
+    
+    // Focus patterns
+    if (msg.includes('focus') || msg.includes('priorit') || msg.includes('important') || msg.includes('should i')) {
+        if (pendingTasks.length > 0) {
+            const hardTask = pendingTasks.find(t => t.difficulty === Difficulty.HARD);
+            const suggestion = hardTask || pendingTasks[0];
+            return `**For "${goalTitle}", here's how I'd prioritize:**\n\nYour highest-leverage task right now is "${suggestion.title}". It's ${suggestion.difficulty?.toLowerCase() || 'moderate'} difficulty but will move the needle most.\n\nBut if your energy is low, start with something easier to build momentum first.\n\nWhat's your energy level right now, 1-10?`;
+        }
+        return `Great question. Focus is everything.\n\n**Here's my take:**\n\nFor "${goalTitle}", what's the ONE thing that, if you did it this week, would make everything else easier or unnecessary?\n\nStart there.`;
+    }
+    
+    // Progress review patterns
+    if (msg.includes('progress') || msg.includes('review') || msg.includes('how am i') || msg.includes('doing')) {
+        const completionRate = completedTasks.length / Math.max(completedTasks.length + pendingTasks.length, 1);
+        if (completionRate >= 0.8) {
+            return `**You're crushing it.** ${Math.round(completionRate * 100)}% completion rate.\n\nSeriously - most people don't get close to this. You're building the kind of consistency that compounds.\n\n**Next level question:** What would it look like to maintain this AND increase the difficulty slightly?`;
+        } else if (completionRate >= 0.5) {
+            return `**Solid progress.** ${Math.round(completionRate * 100)}% of tasks complete.\n\nYou're showing up, which is more than most. But I think you have another gear.\n\n**Challenge:** Can you finish one more task today? Just one. That small push is where growth happens.`;
+        } else {
+            return `**Real talk:** ${Math.round(completionRate * 100)}% completion is below where we want to be.\n\nBut here's the thing - we're not here to judge, we're here to adjust.\n\n**Let's figure this out:**\n\nAre the tasks too big? Is the goal not exciting enough? Or is life just chaotic right now?\n\nWhat's actually going on?`;
+        }
+    }
+    
+    // Accelerate/faster patterns
+    if (msg.includes('faster') || msg.includes('accelerate') || msg.includes('speed up') || msg.includes('quicker')) {
+        return `**You want to accelerate "${goalTitle}"? I love that energy.**\n\nHere are three ways to move faster:\n\n• **Increase frequency** - Can you do something for this goal twice a day instead of once?\n• **Remove friction** - What's slowing you down that you could eliminate?\n• **Raise stakes** - Tell someone your deadline. Social pressure works.\n\nWhich one resonates most with your situation?`;
+    }
+    
+    // Default - curious and engaging
+    return `Thanks for sharing that. I want to make sure I understand and give you something actually useful.\n\n**Quick context:**\n\nYou're working on "${goalTitle}" with ${pendingTasks.length} task${pendingTasks.length !== 1 ? 's' : ''} pending.\n\nWhat's the specific situation you're dealing with? The more detail you give me, the more targeted my advice can be.`;
+}
+
+// ============================================
+// GENERATE DAILY TASKS - Enhanced
 // ============================================
 
 export async function generateDailyTasks(
@@ -47,7 +214,17 @@ export async function generateDailyTasks(
     pending: any[] = []
 ): Promise<Task[]> {
     try {
+        const systemPrompt = `You are a task generation system for goal achievement. Create specific, actionable daily tasks.
+
+RULES:
+1. Tasks must be SPECIFIC - not "work on project" but "write 500 words of chapter 2"
+2. Tasks must be ACHIEVABLE in the given timeframe
+3. Include a mix of difficulties (1 easy, 1-2 medium, 1 hard)
+4. Tasks should build on each other and create momentum
+5. Consider the user's check-in if provided - adapt to their current state`;
+
         const data = await callAI('generate-tasks', {
+            systemPrompt,
             goal: { title: goal.title, category: goal.category },
             day,
             userProfile,
@@ -121,50 +298,6 @@ function getMockTasks(goal: Goal, day: number): Task[] {
 }
 
 // ============================================
-// CHAT RESPONSE
-// ============================================
-
-export async function getChatResponse(
-    goal: Goal, 
-    history: ChatMessage[], 
-    newMessage: string, 
-    userProfile: string, 
-    currentTasks: Task[], 
-    connectedApps: ConnectedApp[], 
-    attachment?: any, 
-    extraLogs: ExtraLog[] = []
-): Promise<string> { 
-    try {
-        const data = await callAI('chat', {
-            goal: { title: goal.title, category: goal.category },
-            history: history.map(m => ({ role: m.role, text: m.text })),
-            message: newMessage,
-            userProfile,
-            currentTasks: currentTasks.map(t => ({ title: t.title, status: t.status }))
-        });
-
-        return data.response || getFallbackResponse(newMessage, goal);
-    } catch (error) {
-        console.error("Chat error:", error);
-        return getFallbackResponse(newMessage, goal);
-    }
-}
-
-function getFallbackResponse(message: string, goal: Goal): string {
-    const msg = message.toLowerCase();
-    if (msg.includes('help') || msg.includes('stuck')) {
-        return `Let's break this down. What's the smallest next step you could take toward "${goal.title}" in the next 5 minutes? Sometimes starting tiny builds momentum.`;
-    }
-    if (msg.includes('motivat') || msg.includes('tired') || msg.includes('hard')) {
-        return `I hear you - this is challenging work. Remember why you started "${goal.title}". What originally excited you about this goal? Sometimes reconnecting with that spark helps.`;
-    }
-    if (msg.includes('done') || msg.includes('finished') || msg.includes('completed')) {
-        return `That's fantastic progress! Every completed task is a step forward. What did you learn from this that you can apply tomorrow?`;
-    }
-    return `I'm here to help with "${goal.title}". What specific challenge are you facing right now? The more detail you share, the better I can help.`;
-}
-
-// ============================================
 // CURRICULUM GENERATOR
 // ============================================
 
@@ -188,7 +321,7 @@ export async function getGoalCurriculum(goal: Goal): Promise<Chapter[]> {
 }
 
 // ============================================
-// ONBOARDING - KEPT LOCAL (no AI needed)
+// ONBOARDING
 // ============================================
 
 export async function getNextOnboardingQuestion(
@@ -208,7 +341,7 @@ export async function getNextOnboardingQuestion(
 }
 
 // ============================================
-// GOAL ANALYZER - Uses generic completion endpoint
+// GOAL ANALYZER
 // ============================================
 
 export async function analyzeGoal(
@@ -361,7 +494,7 @@ function getDefaultLessonContent(lesson: { id: string; title: string; descriptio
 }
 
 // ============================================
-// CONTENT SAFETY - KEPT LOCAL
+// CONTENT SAFETY
 // ============================================
 
 export async function checkContentSafety(text: string): Promise<{isSafe: boolean, reason?: string}> { 
@@ -371,7 +504,7 @@ export async function checkContentSafety(text: string): Promise<{isSafe: boolean
 }
 
 // ============================================
-// DEEP INSIGHTS - KEPT LOCAL
+// DEEP INSIGHTS
 // ============================================
 
 export async function generateDeepInsights(user: UserState): Promise<DeepInsight | null> {
@@ -412,7 +545,7 @@ export async function generateDeepInsights(user: UserState): Promise<DeepInsight
 }
 
 // ============================================
-// PLACEHOLDER FUNCTIONS - UNCHANGED
+// REMAINING FUNCTIONS (unchanged)
 // ============================================
 
 export async function getSocialMarketplace(): Promise<Course[]> { return []; }
@@ -443,10 +576,6 @@ export async function calculateBudgetSplit(amount: number, goal: any, profile: a
         highYield: { amount: amount * 0.2, percent: 20 }
     };
 }
-
-// ============================================
-// LESSON TASK GENERATOR
-// ============================================
 
 export async function generateLessonTasks(
     lesson: { id: string; title: string; description: string },

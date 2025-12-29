@@ -4,7 +4,6 @@ import { useApp } from '../contexts/AppContext';
 import { AppView, ChatMessage } from '../types';
 import { Icons } from '../components/UIComponents';
 import { getChatResponse, checkContentSafety } from '../services/geminiService';
-import JourneysListView from './JourneysListView';
 
 interface JourneyStep {
     id: string;
@@ -35,6 +34,9 @@ export default function ChatView() {
     const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
     const [showJourneysList, setShowJourneysList] = useState(false);
     
+    // View mode: 'chat' for old conversations, 'journey' for active journey
+    const [viewMode, setViewMode] = useState<'chat' | 'journey'>('journey');
+    
     // Journey State
     const [journeySteps, setJourneySteps] = useState<JourneyStep[]>([]);
     const [currentStepIndex, setCurrentStepIndex] = useState(-1);
@@ -51,27 +53,52 @@ export default function ChatView() {
     const dragRef = useRef({ isDragging: false, lastX: 0, lastY: 0 });
     const starsRef = useRef<{ x: number; y: number; z: number; b: number }[]>([]);
     const markersRef = useRef<{ idx: number; x: number; y: number; r: number }[]>([]);
+    
+    // Scroll ref for chat view
+    const messagesEndRef = useRef<HTMLDivElement>(null);
 
     // Save conversations to user
     useEffect(() => {
         setUser(prev => ({ ...prev, guideConversations: conversations } as any));
-    }, [conversations]);
+    }, [conversations, setUser]);
 
     // Load conversation data when switching
     useEffect(() => {
         const convo = conversations.find(c => c.id === activeConversationId);
-        if (convo && convo.journeySteps?.length > 0) {
-            setJourneySteps(convo.journeySteps);
-            setIsJourneyActive(true);
-            setCurrentStepIndex(0);
-            setDisplayedText(convo.journeySteps[0].content);
+        if (convo) {
+            // If conversation has journey steps, show journey view
+            // If it's just messages (old conversation), show chat view
+            if (convo.journeySteps?.length > 0 && convo.messages.length <= 2) {
+                // New journey - show planet view
+                setViewMode('journey');
+                setJourneySteps(convo.journeySteps);
+                setIsJourneyActive(true);
+                setCurrentStepIndex(0);
+                setDisplayedText(convo.journeySteps[0]?.content || '');
+            } else {
+                // Old conversation or multi-message - show chat view
+                setViewMode('chat');
+                setJourneySteps([]);
+                setIsJourneyActive(false);
+                setCurrentStepIndex(-1);
+                setDisplayedText('');
+            }
         } else {
+            // No active conversation - ready for new journey
+            setViewMode('journey');
             setJourneySteps([]);
             setIsJourneyActive(false);
             setCurrentStepIndex(-1);
             setDisplayedText('');
         }
     }, [activeConversationId, conversations]);
+
+    // Auto-scroll for chat view
+    useEffect(() => {
+        if (viewMode === 'chat') {
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [viewMode, conversations, activeConversationId]);
 
     // Init stars
     useEffect(() => {
@@ -83,14 +110,7 @@ export default function ChatView() {
         }));
     }, []);
 
-    // Rotate to step
-    useEffect(() => {
-        if (currentStepIndex >= 0 && journeySteps[currentStepIndex]) {
-            rotationRef.current.autoRotate = false;
-        }
-    }, [currentStepIndex, journeySteps]);
-
-    // Canvas rendering - FULL 3D ROTATION
+    // Canvas rendering - FULL 3D ROTATION with proper touch/mouse handling
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -115,23 +135,35 @@ export default function ChatView() {
         resize();
         window.addEventListener('resize', resize);
 
+        // Pointer handlers for planet rotation
+        const getPointerPos = (e: PointerEvent | TouchEvent): { x: number; y: number } => {
+            if ('touches' in e) {
+                return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            }
+            return { x: (e as PointerEvent).clientX, y: (e as PointerEvent).clientY };
+        };
+
         const onDown = (e: PointerEvent) => {
-            dragRef.current = { isDragging: true, lastX: e.clientX, lastY: e.clientY };
+            const pos = getPointerPos(e);
+            dragRef.current = { isDragging: true, lastX: pos.x, lastY: pos.y };
             rotationRef.current.autoRotate = false;
         };
 
         const onMove = (e: PointerEvent) => {
             if (!dragRef.current.isDragging) return;
-            const dx = e.clientX - dragRef.current.lastX;
-            const dy = e.clientY - dragRef.current.lastY;
+            const pos = getPointerPos(e);
+            const dx = pos.x - dragRef.current.lastX;
+            const dy = pos.y - dragRef.current.lastY;
             rotationRef.current.y += dx * 0.01;
             rotationRef.current.x += dy * 0.008;
             rotationRef.current.x = Math.max(-1.2, Math.min(1.2, rotationRef.current.x));
-            dragRef.current.lastX = e.clientX;
-            dragRef.current.lastY = e.clientY;
+            dragRef.current.lastX = pos.x;
+            dragRef.current.lastY = pos.y;
         };
 
-        const onUp = () => { dragRef.current.isDragging = false; };
+        const onUp = () => { 
+            dragRef.current.isDragging = false; 
+        };
 
         const onClick = (e: MouseEvent) => {
             const rect = canvas.getBoundingClientRect();
@@ -149,6 +181,7 @@ export default function ChatView() {
         canvas.addEventListener('pointermove', onMove);
         canvas.addEventListener('pointerup', onUp);
         canvas.addEventListener('pointerleave', onUp);
+        canvas.addEventListener('pointercancel', onUp);
         canvas.addEventListener('click', onClick);
 
         const draw = () => {
@@ -300,14 +333,20 @@ export default function ChatView() {
             canvas.removeEventListener('pointermove', onMove);
             canvas.removeEventListener('pointerup', onUp);
             canvas.removeEventListener('pointerleave', onUp);
+            canvas.removeEventListener('pointercancel', onUp);
             canvas.removeEventListener('click', onClick);
             if (animationRef.current) cancelAnimationFrame(animationRef.current);
         };
     }, [journeySteps, currentStepIndex]);
 
-    // Type text
+    // Type text with cleanup
     const typeText = useCallback((text: string) => {
         if (typingRef.current) clearInterval(typingRef.current);
+        if (!text) {
+            setDisplayedText('');
+            setIsTyping(false);
+            return;
+        }
         setIsTyping(true);
         setDisplayedText('');
         let i = 0;
@@ -322,7 +361,7 @@ export default function ChatView() {
         }, 8);
     }, []);
 
-    // Navigate - FIXED
+    // Navigate to step
     const navigateToStep = useCallback((idx: number) => {
         if (idx < 0 || idx >= journeySteps.length) return;
         setCurrentStepIndex(idx);
@@ -331,7 +370,8 @@ export default function ChatView() {
             isActive: i === idx,
             isCompleted: i < idx
         })));
-        typeText(journeySteps[idx].content);
+        const content = journeySteps[idx]?.content || '';
+        typeText(content);
     }, [journeySteps, typeText]);
 
     // Create conversation
@@ -349,89 +389,146 @@ export default function ChatView() {
         setCurrentStepIndex(-1);
         setIsJourneyActive(false);
         setDisplayedText('');
+        setViewMode('journey');
         rotationRef.current = { x: 0.3, y: 0, autoRotate: true };
         setShowJourneysList(false);
     };
 
-    // Rename
+    // Rename conversation
     const renameConversation = (id: string, name: string) => {
         setConversations(prev => prev.map(c => c.id === id ? { ...c, name } : c));
     };
 
-    // Delete
+    // Delete conversation
     const deleteConversation = (id: string) => {
         setConversations(prev => prev.filter(c => c.id !== id));
         if (activeConversationId === id) {
             setActiveConversationId(null);
             setJourneySteps([]);
             setIsJourneyActive(false);
+            setViewMode('journey');
         }
     };
 
-    // Parse response - IMPROVED
+    // FIXED: Parse response into steps - handles full AI response properly
     const parseSteps = (text: string): JourneyStep[] => {
-        const clean = text.replace(/\*\*/g, '').trim();
+        if (!text || typeof text !== 'string') {
+            return [{
+                id: 's-0',
+                title: 'Guidance',
+                content: 'I encountered an issue processing the response. Please try again.',
+                position: { lat: 20, lng: 0 },
+                isActive: false,
+                isCompleted: false
+            }];
+        }
+
+        // Clean the text - remove markdown formatting that might interfere
+        const clean = text
+            .replace(/\*\*/g, '')
+            .replace(/\*/g, '')
+            .replace(/undefined/g, '')
+            .trim();
+        
         const steps: JourneyStep[] = [];
 
-        // Try numbered
-        const numReg = /(?:^|\n)\s*(\d+)[.):\-]\s*([^\n]+)/g;
-        let m;
-        while ((m = numReg.exec(clean)) !== null) {
-            if (m[2]?.trim().length > 5) {
-                steps.push({
-                    id: `s-${steps.length}`,
-                    title: `Step ${steps.length + 1}`,
-                    content: m[2].trim(),
-                    position: { lat: 30 - steps.length * 20, lng: -80 + steps.length * 45 },
-                    isActive: false,
-                    isCompleted: false
-                });
-            }
-        }
-        if (steps.length >= 2) return steps.slice(0, 6);
-
-        // Try bullets
-        const bulReg = /(?:^|\n)\s*[-•*]\s*([^\n]+)/g;
-        while ((m = bulReg.exec(clean)) !== null) {
-            if (m[1]?.trim().length > 5) {
-                steps.push({
-                    id: `s-${steps.length}`,
-                    title: `Step ${steps.length + 1}`,
-                    content: m[1].trim(),
-                    position: { lat: 30 - steps.length * 20, lng: -80 + steps.length * 45 },
-                    isActive: false,
-                    isCompleted: false
-                });
-            }
-        }
-        if (steps.length >= 2) return steps.slice(0, 6);
-
-        // Split sentences
-        const sentences = clean.split(/(?<=[.!?])\s+/).filter(s => s.length > 20);
-        if (sentences.length >= 3) {
-            const count = Math.min(5, Math.ceil(sentences.length / 2));
-            const per = Math.ceil(sentences.length / count);
-            for (let i = 0; i < count; i++) {
-                const content = sentences.slice(i * per, (i + 1) * per).join(' ').trim();
-                if (content) {
-                    steps.push({
-                        id: `s-${i}`,
-                        title: `Step ${i + 1}`,
-                        content,
-                        position: { lat: 30 - i * 20, lng: -80 + i * 45 },
+        // Try numbered patterns: "1." or "1)" or "1:" or "Step 1:"
+        const numPatterns = [
+            /(?:^|\n)\s*(?:Step\s*)?(\d+)[.):\-]\s*([^\n]+(?:\n(?!\s*(?:Step\s*)?\d+[.):\-])[^\n]*)*)/gi,
+            /(?:^|\n)\s*(\d+)[.):\-]\s*([^\n]+)/g
+        ];
+        
+        for (const pattern of numPatterns) {
+            let m;
+            const tempSteps: JourneyStep[] = [];
+            while ((m = pattern.exec(clean)) !== null) {
+                const content = (m[2] || '').trim();
+                if (content.length > 10) {
+                    tempSteps.push({
+                        id: `s-${tempSteps.length}`,
+                        title: `Step ${tempSteps.length + 1}`,
+                        content: content,
+                        position: { 
+                            lat: 40 - tempSteps.length * 25, 
+                            lng: -100 + tempSteps.length * 50 
+                        },
                         isActive: false,
                         isCompleted: false
                     });
                 }
             }
-            if (steps.length >= 2) return steps;
+            if (tempSteps.length >= 2) {
+                return tempSteps.slice(0, 6);
+            }
         }
 
-        // Single
+        // Try bullet points: "- item" or "• item"
+        const bulletPattern = /(?:^|\n)\s*[-•]\s*([^\n]+)/g;
+        let m;
+        while ((m = bulletPattern.exec(clean)) !== null) {
+            const content = (m[1] || '').trim();
+            if (content.length > 10) {
+                steps.push({
+                    id: `s-${steps.length}`,
+                    title: `Step ${steps.length + 1}`,
+                    content: content,
+                    position: { 
+                        lat: 40 - steps.length * 25, 
+                        lng: -100 + steps.length * 50 
+                    },
+                    isActive: false,
+                    isCompleted: false
+                });
+            }
+        }
+        if (steps.length >= 2) {
+            return steps.slice(0, 6);
+        }
+
+        // Split by paragraphs if no structured format found
+        const paragraphs = clean.split(/\n\n+/).filter(p => p.trim().length > 30);
+        if (paragraphs.length >= 2) {
+            return paragraphs.slice(0, 5).map((p, i) => ({
+                id: `s-${i}`,
+                title: `Step ${i + 1}`,
+                content: p.trim(),
+                position: { 
+                    lat: 40 - i * 25, 
+                    lng: -100 + i * 50 
+                },
+                isActive: false,
+                isCompleted: false
+            }));
+        }
+
+        // Split long text into logical chunks by sentences
+        const sentences = clean.split(/(?<=[.!?])\s+/).filter(s => s.length > 15);
+        if (sentences.length >= 4) {
+            const chunkSize = Math.ceil(sentences.length / Math.min(4, Math.ceil(sentences.length / 3)));
+            const chunks: string[] = [];
+            for (let i = 0; i < sentences.length; i += chunkSize) {
+                chunks.push(sentences.slice(i, i + chunkSize).join(' '));
+            }
+            if (chunks.length >= 2) {
+                return chunks.slice(0, 5).map((chunk, i) => ({
+                    id: `s-${i}`,
+                    title: `Step ${i + 1}`,
+                    content: chunk.trim(),
+                    position: { 
+                        lat: 40 - i * 25, 
+                        lng: -100 + i * 50 
+                    },
+                    isActive: false,
+                    isCompleted: false
+                }));
+            }
+        }
+
+        // Single step fallback - show entire response
         return [{
             id: 's-0',
             title: 'Guidance',
-            content: clean,
+            content: clean || 'No response received. Please try again.',
             position: { lat: 20, lng: 0 },
             isActive: false,
             isCompleted: false
@@ -443,7 +540,7 @@ export default function ChatView() {
         const msg = chatInput.trim();
         if (!msg || !user.goal) return;
 
-        // Auto create conversation
+        // Auto create conversation if needed
         let convoId = activeConversationId;
         if (!convoId) {
             const newConvo: GuideConversation = {
@@ -464,8 +561,14 @@ export default function ChatView() {
             return;
         }
 
-        const userMsg: ChatMessage = { id: `${Date.now()}`, role: 'user', text: msg, timestamp: Date.now() };
+        const userMsg: ChatMessage = { 
+            id: `${Date.now()}`, 
+            role: 'user', 
+            text: msg, 
+            timestamp: Date.now() 
+        };
 
+        // Update conversation with user message
         setConversations(prev => prev.map(c => 
             c.id === convoId ? { ...c, messages: [...c.messages, userMsg] } : c
         ));
@@ -491,23 +594,39 @@ export default function ChatView() {
                 user.extraLogs || []
             );
 
-            const aiMsg: ChatMessage = { id: `${Date.now() + 1}`, role: 'ai', text: response, timestamp: Date.now() };
-            const steps = parseSteps(response);
+            // Ensure response is valid
+            const validResponse = response && typeof response === 'string' ? response : 'I apologize, but I had trouble generating a response. Please try again.';
 
+            const aiMsg: ChatMessage = { 
+                id: `${Date.now() + 1}`, 
+                role: 'ai', 
+                text: validResponse, 
+                timestamp: Date.now() 
+            };
+            
+            const steps = parseSteps(validResponse);
+
+            // Update conversation with AI response and journey steps
             setConversations(prev => prev.map(c => 
-                c.id === convoId ? { ...c, messages: [...c.messages, aiMsg], journeySteps: steps } : c
+                c.id === convoId ? { 
+                    ...c, 
+                    messages: [...c.messages, aiMsg], 
+                    journeySteps: steps 
+                } : c
             ));
 
             setJourneySteps(steps);
             setIsJourneyActive(true);
+            setViewMode('journey');
 
+            // Start the journey
             setTimeout(() => {
                 setCurrentStepIndex(0);
                 typeText(steps[0]?.content || '');
             }, 200);
 
         } catch (err) {
-            console.error(err);
+            console.error('Chat error:', err);
             setDisplayedText('Connection error. Please try again.');
             setIsJourneyActive(true);
         } finally {
@@ -515,7 +634,7 @@ export default function ChatView() {
         }
     };
 
-    // Navigation - FIXED
+    // Navigation controls
     const goNext = () => {
         if (currentStepIndex < journeySteps.length - 1) {
             navigateToStep(currentStepIndex + 1);
@@ -528,29 +647,226 @@ export default function ChatView() {
         }
     };
 
-    // Show journeys list
+    // Format time for chat messages
+    const formatTime = (ts: number) => {
+        return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
+
+    // Get active conversation
+    const activeConvo = conversations.find(c => c.id === activeConversationId);
+
+    // ========== JOURNEYS LIST VIEW ==========
     if (showJourneysList) {
         return (
-            <JourneysListView
-                conversations={conversations}
-                onSelect={(id) => {
-                    setActiveConversationId(id);
-                    setShowJourneysList(false);
-                }}
-                onNew={createConversation}
-                onRename={renameConversation}
-                onDelete={deleteConversation}
-                onClose={() => setShowJourneysList(false)}
-                activeId={activeConversationId}
-            />
+            <div className="h-full w-full bg-black flex flex-col">
+                {/* Header */}
+                <div className="flex items-center justify-between px-5 pt-safe pb-4 border-b border-white/10">
+                    <button 
+                        onClick={() => setShowJourneysList(false)}
+                        className="p-2 -ml-2 rounded-xl text-white/50 active:text-white"
+                    >
+                        <Icons.ArrowLeft className="w-5 h-5" />
+                    </button>
+                    <h1 className="text-white font-bold text-lg">Your Journeys</h1>
+                    <button 
+                        onClick={createConversation}
+                        className="p-2 -mr-2 rounded-xl text-white/50 active:text-white"
+                    >
+                        <Icons.Plus className="w-5 h-5" />
+                    </button>
+                </div>
+
+                {/* List */}
+                <div className="flex-1 overflow-y-auto px-5 py-4 pb-safe">
+                    {/* New Journey Button */}
+                    <button
+                        onClick={createConversation}
+                        className="w-full p-4 mb-4 border-2 border-dashed border-white/20 rounded-2xl text-white/50 active:text-white active:border-white/40 transition-all flex items-center justify-center gap-3"
+                    >
+                        <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
+                            <Icons.Plus className="w-5 h-5" />
+                        </div>
+                        <span className="font-medium">Start New Journey</span>
+                    </button>
+
+                    {conversations.length === 0 ? (
+                        <div className="text-center py-12">
+                            <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4">
+                                <Icons.MessageCircle className="w-8 h-8 text-white/20" />
+                            </div>
+                            <p className="text-white/40 text-sm">No journeys yet</p>
+                            <p className="text-white/30 text-xs mt-1">Start a conversation to begin</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {conversations.map(convo => (
+                                <div
+                                    key={convo.id}
+                                    className={`rounded-2xl transition-all overflow-hidden ${
+                                        convo.id === activeConversationId 
+                                            ? 'bg-white/10 ring-2 ring-white/20' 
+                                            : 'bg-white/5 active:bg-white/10'
+                                    }`}
+                                >
+                                    <div className="p-4 flex items-center gap-4">
+                                        {/* Planet Icon */}
+                                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-white/20 to-white/5 flex items-center justify-center flex-shrink-0 relative">
+                                            <div className="absolute inset-1 rounded-full border border-white/20" />
+                                            <span className="text-white/60 text-xs font-bold">
+                                                {convo.journeySteps?.length || convo.messages?.length || 0}
+                                            </span>
+                                        </div>
+
+                                        {/* Info */}
+                                        <button
+                                            onClick={() => {
+                                                setActiveConversationId(convo.id);
+                                                setShowJourneysList(false);
+                                            }}
+                                            className="flex-1 text-left min-w-0"
+                                        >
+                                            <h3 className="text-white font-semibold text-sm truncate">
+                                                {convo.name}
+                                            </h3>
+                                            <p className="text-white/40 text-xs mt-0.5">
+                                                {convo.messages?.length || 0} messages · {new Date(convo.createdAt).toLocaleDateString()}
+                                            </p>
+                                        </button>
+
+                                        {/* Delete */}
+                                        <button
+                                            onClick={() => {
+                                                if (confirm('Delete this journey?')) {
+                                                    deleteConversation(convo.id);
+                                                }
+                                            }}
+                                            className="p-2 text-white/30 active:text-red-400 rounded-lg"
+                                        >
+                                            <Icons.Trash className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
         );
     }
 
-    const activeConvo = conversations.find(c => c.id === activeConversationId);
+    // ========== CHAT VIEW (for old conversations) ==========
+    if (viewMode === 'chat' && activeConvo && activeConvo.messages.length > 0) {
+        return (
+            <div className="h-full w-full bg-black flex flex-col">
+                {/* Header */}
+                <div className="relative z-10 flex items-center justify-between px-4 pt-safe pb-2 border-b border-white/10 flex-shrink-0">
+                    <button 
+                        onClick={() => setView(AppView.DASHBOARD)}
+                        className="p-2 rounded-xl text-white/50 active:text-white"
+                    >
+                        <Icons.ArrowLeft className="w-5 h-5" />
+                    </button>
+                    
+                    <button 
+                        onClick={() => setShowJourneysList(true)}
+                        className="text-center px-3 py-1 rounded-xl active:bg-white/10"
+                    >
+                        <h1 className="text-white font-bold text-sm">
+                            {activeConvo.name}
+                        </h1>
+                        <p className="text-white/30 text-[10px]">Tap to see all journeys</p>
+                    </button>
 
+                    <button 
+                        onClick={createConversation}
+                        className="p-2 rounded-xl text-white/50 active:text-white"
+                    >
+                        <Icons.Plus className="w-5 h-5" />
+                    </button>
+                </div>
+
+                {/* Messages */}
+                <div className="flex-1 overflow-y-auto px-4 py-4">
+                    <div className="space-y-4">
+                        {activeConvo.messages.map((msg) => (
+                            <div
+                                key={msg.id}
+                                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                            >
+                                <div className={`max-w-[85%] ${msg.role === 'user' ? '' : ''}`}>
+                                    {msg.role !== 'user' && (
+                                        <div className="flex items-center gap-2 mb-1.5">
+                                            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-white/20 to-white/5 flex items-center justify-center">
+                                                <span className="text-xs">✨</span>
+                                            </div>
+                                            <span className="text-white/40 text-xs">Guide</span>
+                                        </div>
+                                    )}
+                                    <div
+                                        className={`rounded-2xl px-4 py-3 ${
+                                            msg.role === 'user'
+                                                ? 'bg-white text-gray-900 rounded-br-md'
+                                                : 'bg-white/10 text-white/90 border border-white/10 rounded-bl-md'
+                                        }`}
+                                    >
+                                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                                    </div>
+                                    <p className={`text-[10px] text-white/30 mt-1 ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>
+                                        {msg.timestamp ? formatTime(msg.timestamp) : ''}
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
+                        
+                        {isChatLoading && (
+                            <div className="flex justify-start">
+                                <div className="bg-white/10 rounded-2xl rounded-bl-md px-4 py-3 border border-white/10">
+                                    <div className="flex items-center gap-1.5">
+                                        <div className="w-2 h-2 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                        <div className="w-2 h-2 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                        <div className="w-2 h-2 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        
+                        <div ref={messagesEndRef} />
+                    </div>
+                </div>
+
+                {/* Input */}
+                <div className="relative z-10 px-4 pb-4 flex-shrink-0" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
+                    <div className="bg-white/5 backdrop-blur rounded-xl border border-white/10">
+                        <div className="flex items-center gap-2 px-3 py-2">
+                            <input
+                                type="text"
+                                value={chatInput}
+                                onChange={e => setChatInput(e.target.value)}
+                                placeholder="Continue the conversation..."
+                                className="flex-1 bg-transparent text-white text-sm placeholder:text-white/30 focus:outline-none"
+                                style={{ fontSize: '16px' }}
+                                onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
+                            />
+                            <button
+                                onClick={handleSend}
+                                disabled={!chatInput.trim() || isChatLoading}
+                                className={`p-2 rounded-lg transition-colors ${
+                                    chatInput.trim() && !isChatLoading ? 'bg-white text-black' : 'bg-white/10 text-white/30'
+                                }`}
+                            >
+                                <Icons.Send className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // ========== JOURNEY VIEW (main planet view) ==========
     return (
         <div ref={containerRef} className="h-full w-full bg-black flex flex-col overflow-hidden">
-            {/* Canvas */}
+            {/* Canvas - with touch-action for dragging */}
             <canvas 
                 ref={canvasRef} 
                 className="absolute inset-0 w-full h-full"
@@ -585,8 +901,8 @@ export default function ChatView() {
             </div>
 
             {/* Content */}
-            <div className="flex-1 relative z-10 min-h-0">
-                <div className="absolute left-0 top-0 bottom-0 w-[52%] flex flex-col justify-center pl-4 pr-2">
+            <div className="flex-1 relative z-10 min-h-0 pointer-events-none">
+                <div className="absolute left-0 top-0 bottom-0 w-[52%] flex flex-col justify-center pl-4 pr-2 pointer-events-auto">
                     {!isJourneyActive && !isChatLoading && (
                         <div>
                             <p className="text-white/30 text-[10px] uppercase tracking-widest mb-2">Welcome</p>
@@ -617,15 +933,14 @@ export default function ChatView() {
                             </p>
 
                             <h3 className="text-white text-base font-bold mb-2">
-                                {journeySteps[currentStepIndex]?.title}
+                                {journeySteps[currentStepIndex]?.title || `Step ${currentStepIndex + 1}`}
                             </h3>
 
-                            {/* Text - FIXED OVERFLOW */}
+                            {/* Text with scroll */}
                             <div 
-                                className="text-white/90 text-xs leading-relaxed mb-3 pr-1"
+                                className="text-white/90 text-xs leading-relaxed mb-3 pr-1 overflow-y-auto"
                                 style={{ 
-                                    maxHeight: '100px',
-                                    overflowY: 'auto',
+                                    maxHeight: '120px',
                                     WebkitOverflowScrolling: 'touch'
                                 }}
                             >
@@ -633,7 +948,7 @@ export default function ChatView() {
                                 {isTyping && <span className="inline-block w-0.5 h-3 bg-white ml-0.5 animate-pulse" />}
                             </div>
 
-                            {/* Buttons - FIXED */}
+                            {/* Navigation buttons */}
                             <div className="flex gap-2 mb-2">
                                 <button
                                     onClick={goPrev}
@@ -659,7 +974,7 @@ export default function ChatView() {
                                 </button>
                             </div>
 
-                            {/* Dots */}
+                            {/* Step dots */}
                             <div className="flex gap-1.5">
                                 {journeySteps.map((_, i) => (
                                     <button
@@ -676,7 +991,7 @@ export default function ChatView() {
                 </div>
             </div>
 
-            {/* Input - FIXED POSITIONING */}
+            {/* Input */}
             <div className="relative z-10 px-4 pb-4 flex-shrink-0" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
                 <div className="bg-white/5 backdrop-blur rounded-xl border border-white/10">
                     <div className="flex items-center gap-2 px-3 py-2">
@@ -687,7 +1002,7 @@ export default function ChatView() {
                             placeholder="Ask anything..."
                             className="flex-1 bg-transparent text-white text-sm placeholder:text-white/30 focus:outline-none"
                             style={{ fontSize: '16px' }}
-                            onKeyDown={e => e.key === 'Enter' && handleSend()}
+                            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
                         />
                         <button
                             onClick={handleSend}

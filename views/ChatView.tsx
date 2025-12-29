@@ -1,9 +1,12 @@
 // views/ChatView.tsx
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, Suspense } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { AppView, ChatMessage } from '../types';
 import { Icons } from '../components/UIComponents';
 import { getChatResponse, checkContentSafety } from '../services/geminiService';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { OrbitControls, Sphere, Line } from '@react-three/drei';
+import * as THREE from 'three';
 
 // Types for journey steps
 interface JourneyStep {
@@ -13,6 +16,279 @@ interface JourneyStep {
     position: { lat: number; lng: number };
     isActive: boolean;
     isCompleted: boolean;
+}
+
+// Convert lat/lng to 3D position on sphere
+const latLngToVector3 = (lat: number, lng: number, radius: number): THREE.Vector3 => {
+    const phi = (90 - lat) * (Math.PI / 180);
+    const theta = (lng + 180) * (Math.PI / 180);
+    const x = -(radius * Math.sin(phi) * Math.cos(theta));
+    const z = radius * Math.sin(phi) * Math.sin(theta);
+    const y = radius * Math.cos(phi);
+    return new THREE.Vector3(x, y, z);
+};
+
+// Wireframe Globe Component
+function WireframeGlobe() {
+    const meshRef = useRef<THREE.Mesh>(null);
+    
+    useFrame(() => {
+        if (meshRef.current) {
+            meshRef.current.rotation.y += 0.001;
+        }
+    });
+
+    // Generate latitude lines
+    const latLines = [];
+    for (let lat = -60; lat <= 60; lat += 30) {
+        const points: THREE.Vector3[] = [];
+        for (let lng = 0; lng <= 360; lng += 5) {
+            points.push(latLngToVector3(lat, lng, 2));
+        }
+        latLines.push(points);
+    }
+
+    // Generate longitude lines
+    const lngLines = [];
+    for (let lng = 0; lng < 360; lng += 30) {
+        const points: THREE.Vector3[] = [];
+        for (let lat = -90; lat <= 90; lat += 5) {
+            points.push(latLngToVector3(lat, lng, 2));
+        }
+        lngLines.push(points);
+    }
+
+    return (
+        <group ref={meshRef}>
+            {/* Base sphere for subtle fill */}
+            <Sphere args={[1.98, 32, 32]}>
+                <meshBasicMaterial color="#050508" transparent opacity={0.9} />
+            </Sphere>
+            
+            {/* Outer glow sphere */}
+            <Sphere args={[2.15, 32, 32]}>
+                <meshBasicMaterial color="#ffffff" transparent opacity={0.02} />
+            </Sphere>
+
+            {/* Latitude lines */}
+            {latLines.map((points, i) => (
+                <Line
+                    key={`lat-${i}`}
+                    points={points}
+                    color="#ffffff"
+                    lineWidth={0.5}
+                    transparent
+                    opacity={0.15}
+                />
+            ))}
+
+            {/* Longitude lines */}
+            {lngLines.map((points, i) => (
+                <Line
+                    key={`lng-${i}`}
+                    points={points}
+                    color="#ffffff"
+                    lineWidth={0.5}
+                    transparent
+                    opacity={0.15}
+                />
+            ))}
+
+            {/* Equator highlight */}
+            <Line
+                points={Array.from({ length: 73 }, (_, i) => latLngToVector3(0, i * 5, 2))}
+                color="#ffffff"
+                lineWidth={1}
+                transparent
+                opacity={0.25}
+            />
+        </group>
+    );
+}
+
+// Journey Marker Component
+function JourneyMarker({ 
+    step, 
+    index, 
+    isActive, 
+    isCompleted,
+    onClick 
+}: { 
+    step: JourneyStep; 
+    index: number;
+    isActive: boolean;
+    isCompleted: boolean;
+    onClick: () => void;
+}) {
+    const meshRef = useRef<THREE.Mesh>(null);
+    const glowRef = useRef<THREE.Mesh>(null);
+    const position = latLngToVector3(step.position.lat, step.position.lng, 2.05);
+    
+    useFrame(({ clock }) => {
+        if (glowRef.current && isActive) {
+            const scale = 1 + Math.sin(clock.elapsedTime * 3) * 0.3;
+            glowRef.current.scale.setScalar(scale);
+        }
+    });
+
+    return (
+        <group position={position}>
+            {/* Glow effect for active marker */}
+            {isActive && (
+                <mesh ref={glowRef}>
+                    <sphereGeometry args={[0.15, 16, 16]} />
+                    <meshBasicMaterial color="#ffffff" transparent opacity={0.3} />
+                </mesh>
+            )}
+            
+            {/* Main marker */}
+            <mesh ref={meshRef} onClick={onClick}>
+                <sphereGeometry args={[0.08, 16, 16]} />
+                <meshBasicMaterial 
+                    color={isActive ? "#ffffff" : isCompleted ? "#888888" : "#444444"} 
+                />
+            </mesh>
+
+            {/* Marker ring */}
+            <mesh>
+                <ringGeometry args={[0.1, 0.12, 32]} />
+                <meshBasicMaterial 
+                    color="#ffffff" 
+                    transparent 
+                    opacity={isActive ? 0.8 : 0.3} 
+                    side={THREE.DoubleSide}
+                />
+            </mesh>
+        </group>
+    );
+}
+
+// Connection lines between markers
+function ConnectionLines({ steps }: { steps: JourneyStep[] }) {
+    if (steps.length < 2) return null;
+
+    const points: THREE.Vector3[] = steps.map(step => 
+        latLngToVector3(step.position.lat, step.position.lng, 2.05)
+    );
+
+    return (
+        <Line
+            points={points}
+            color="#ffffff"
+            lineWidth={1}
+            transparent
+            opacity={0.3}
+            dashed
+            dashSize={0.1}
+            gapSize={0.05}
+        />
+    );
+}
+
+// Camera controller for smooth rotation to markers
+function CameraController({ targetPosition }: { targetPosition: THREE.Vector3 | null }) {
+    const { camera } = useThree();
+    const targetRef = useRef<THREE.Vector3>(new THREE.Vector3(5, 2, 5));
+    
+    useEffect(() => {
+        if (targetPosition) {
+            // Calculate camera position to look at the marker
+            const direction = targetPosition.clone().normalize();
+            targetRef.current = direction.multiplyScalar(6);
+        }
+    }, [targetPosition]);
+
+    useFrame(() => {
+        camera.position.lerp(targetRef.current, 0.02);
+        camera.lookAt(0, 0, 0);
+    });
+
+    return null;
+}
+
+// Stars background
+function Stars() {
+    const starsRef = useRef<THREE.Points>(null);
+    
+    const starPositions = React.useMemo(() => {
+        const positions = new Float32Array(1000 * 3);
+        for (let i = 0; i < 1000; i++) {
+            positions[i * 3] = (Math.random() - 0.5) * 50;
+            positions[i * 3 + 1] = (Math.random() - 0.5) * 50;
+            positions[i * 3 + 2] = (Math.random() - 0.5) * 50;
+        }
+        return positions;
+    }, []);
+
+    useFrame(() => {
+        if (starsRef.current) {
+            starsRef.current.rotation.y += 0.0001;
+        }
+    });
+
+    return (
+        <points ref={starsRef}>
+            <bufferGeometry>
+                <bufferAttribute
+                    attach="attributes-position"
+                    count={1000}
+                    array={starPositions}
+                    itemSize={3}
+                />
+            </bufferGeometry>
+            <pointsMaterial size={0.05} color="#ffffff" transparent opacity={0.6} />
+        </points>
+    );
+}
+
+// Main 3D Scene
+function Scene({ 
+    journeySteps, 
+    currentStepIndex,
+    onMarkerClick 
+}: { 
+    journeySteps: JourneyStep[];
+    currentStepIndex: number;
+    onMarkerClick: (index: number) => void;
+}) {
+    const targetPosition = currentStepIndex >= 0 && journeySteps[currentStepIndex]
+        ? latLngToVector3(
+            journeySteps[currentStepIndex].position.lat,
+            journeySteps[currentStepIndex].position.lng,
+            2.05
+          )
+        : null;
+
+    return (
+        <>
+            <ambientLight intensity={0.5} />
+            <pointLight position={[10, 10, 10]} intensity={0.5} />
+            
+            <Stars />
+            <WireframeGlobe />
+            <ConnectionLines steps={journeySteps} />
+            
+            {journeySteps.map((step, index) => (
+                <JourneyMarker
+                    key={step.id}
+                    step={step}
+                    index={index}
+                    isActive={index === currentStepIndex}
+                    isCompleted={index < currentStepIndex}
+                    onClick={() => onMarkerClick(index)}
+                />
+            ))}
+
+            <CameraController targetPosition={targetPosition} />
+            <OrbitControls 
+                enableZoom={false} 
+                enablePan={false}
+                rotateSpeed={0.5}
+                minPolarAngle={Math.PI * 0.3}
+                maxPolarAngle={Math.PI * 0.7}
+            />
+        </>
+    );
 }
 
 export default function ChatView() {
@@ -28,238 +304,7 @@ export default function ChatView() {
     const [displayedText, setDisplayedText] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     
-    // Canvas refs
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const animationRef = useRef<number>();
-    const rotationRef = useRef({ x: 0, y: 0, targetY: 0 });
-    const starsRef = useRef<{ x: number; y: number; z: number; brightness: number }[]>([]);
-    
     const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-    // Initialize stars
-    useEffect(() => {
-        starsRef.current = Array.from({ length: 150 }, () => ({
-            x: Math.random() * 2 - 1,
-            y: Math.random() * 2 - 1,
-            z: Math.random(),
-            brightness: Math.random()
-        }));
-    }, []);
-
-    // 3D Planet Rendering with Canvas
-    useEffect(() => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-
-        let width = 0;
-        let height = 0;
-
-        const resize = () => {
-            const rect = canvas.parentElement?.getBoundingClientRect();
-            if (rect) {
-                width = rect.width * window.devicePixelRatio;
-                height = rect.height * window.devicePixelRatio;
-                canvas.width = width;
-                canvas.height = height;
-                canvas.style.width = rect.width + 'px';
-                canvas.style.height = rect.height + 'px';
-            }
-        };
-        
-        resize();
-        window.addEventListener('resize', resize);
-
-        const drawPlanet = () => {
-            const w = width / window.devicePixelRatio;
-            const h = height / window.devicePixelRatio;
-            
-            ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
-            
-            // Clear with black
-            ctx.fillStyle = '#000000';
-            ctx.fillRect(0, 0, w, h);
-
-            // Draw twinkling stars
-            starsRef.current.forEach(star => {
-                const twinkle = 0.3 + Math.sin(Date.now() * 0.002 + star.brightness * 10) * 0.7;
-                const alpha = star.z * twinkle * 0.6;
-                ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-                ctx.beginPath();
-                ctx.arc(
-                    (star.x + 1) * w / 2,
-                    (star.y + 1) * h / 2,
-                    star.brightness * 1.5 + 0.5,
-                    0,
-                    Math.PI * 2
-                );
-                ctx.fill();
-            });
-
-            // Planet center - positioned to right side
-            const centerX = w * 0.65;
-            const centerY = h * 0.5;
-            const radius = Math.min(w, h) * 0.35;
-
-            // Smooth rotation
-            rotationRef.current.y += (rotationRef.current.targetY - rotationRef.current.y) * 0.03;
-            const rotation = rotationRef.current.y;
-
-            // Planet outer glow
-            const glowGradient = ctx.createRadialGradient(centerX, centerY, radius * 0.9, centerX, centerY, radius * 1.6);
-            glowGradient.addColorStop(0, 'rgba(255, 255, 255, 0.1)');
-            glowGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.03)');
-            glowGradient.addColorStop(1, 'transparent');
-            ctx.fillStyle = glowGradient;
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, radius * 1.6, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Planet body - subtle dark fill
-            ctx.fillStyle = 'rgba(10, 10, 15, 0.95)';
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Wireframe grid - longitude lines
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-            ctx.lineWidth = 1;
-            
-            for (let i = 0; i < 12; i++) {
-                const angle = (i / 12) * Math.PI + rotation;
-                const xScale = Math.cos(angle);
-                
-                if (Math.abs(xScale) > 0.01) {
-                    ctx.beginPath();
-                    ctx.ellipse(centerX, centerY, Math.abs(xScale) * radius, radius, 0, 0, Math.PI * 2);
-                    ctx.stroke();
-                }
-            }
-
-            // Latitude lines
-            for (let i = 1; i < 6; i++) {
-                const latRadius = radius * Math.sin((i / 6) * Math.PI);
-                const y = centerY - radius * Math.cos((i / 6) * Math.PI);
-                ctx.beginPath();
-                ctx.ellipse(centerX, y, latRadius, latRadius * 0.3, 0, 0, Math.PI * 2);
-                ctx.stroke();
-            }
-
-            // Draw journey markers
-            journeySteps.forEach((step, index) => {
-                const lat = step.position.lat * Math.PI / 180;
-                const lng = (step.position.lng * Math.PI / 180) + rotation;
-                
-                // Check visibility (front of planet)
-                const visibility = Math.cos(lng);
-                if (visibility < -0.1) return;
-
-                const x = centerX + Math.sin(lng) * Math.cos(lat) * radius;
-                const y = centerY - Math.sin(lat) * radius;
-                const scale = 0.5 + visibility * 0.5;
-                const markerSize = 8 * scale;
-
-                // Connection lines between markers
-                if (index > 0 && (step.isCompleted || step.isActive || journeySteps[index - 1].isCompleted)) {
-                    const prevStep = journeySteps[index - 1];
-                    const prevLat = prevStep.position.lat * Math.PI / 180;
-                    const prevLng = (prevStep.position.lng * Math.PI / 180) + rotation;
-                    const prevVisibility = Math.cos(prevLng);
-                    
-                    if (prevVisibility > -0.1) {
-                        const prevX = centerX + Math.sin(prevLng) * Math.cos(prevLat) * radius;
-                        const prevY = centerY - Math.sin(prevLat) * radius;
-                        
-                        ctx.beginPath();
-                        ctx.moveTo(prevX, prevY);
-                        ctx.lineTo(x, y);
-                        ctx.strokeStyle = step.isCompleted || journeySteps[index - 1].isCompleted 
-                            ? 'rgba(255, 255, 255, 0.4)' 
-                            : 'rgba(255, 255, 255, 0.15)';
-                        ctx.lineWidth = 1.5;
-                        ctx.setLineDash([4, 4]);
-                        ctx.stroke();
-                        ctx.setLineDash([]);
-                    }
-                }
-
-                // Marker glow for active
-                if (step.isActive) {
-                    const pulseSize = markerSize * (2 + Math.sin(Date.now() * 0.005) * 0.5);
-                    const glowGrad = ctx.createRadialGradient(x, y, 0, x, y, pulseSize * 2);
-                    glowGrad.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
-                    glowGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.1)');
-                    glowGrad.addColorStop(1, 'transparent');
-                    ctx.fillStyle = glowGrad;
-                    ctx.beginPath();
-                    ctx.arc(x, y, pulseSize * 2, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-
-                // Marker circle
-                ctx.beginPath();
-                ctx.arc(x, y, markerSize, 0, Math.PI * 2);
-                
-                if (step.isActive) {
-                    ctx.fillStyle = '#FFFFFF';
-                    ctx.shadowColor = '#FFFFFF';
-                    ctx.shadowBlur = 15;
-                } else if (step.isCompleted) {
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-                    ctx.shadowBlur = 0;
-                } else {
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
-                    ctx.shadowBlur = 0;
-                }
-                ctx.fill();
-                ctx.shadowBlur = 0;
-
-                // Marker ring
-                ctx.strokeStyle = step.isActive ? '#FFFFFF' : 'rgba(255, 255, 255, 0.3)';
-                ctx.lineWidth = step.isActive ? 2 : 1;
-                ctx.stroke();
-
-                // Step number
-                ctx.fillStyle = step.isActive ? '#000000' : 'rgba(255, 255, 255, 0.8)';
-                ctx.font = `bold ${9 * scale}px Inter, sans-serif`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(`${index + 1}`, x, y);
-            });
-
-            // Planet edge highlight
-            const edgeGradient = ctx.createRadialGradient(
-                centerX - radius * 0.3, centerY - radius * 0.3, 0,
-                centerX, centerY, radius
-            );
-            edgeGradient.addColorStop(0, 'rgba(255, 255, 255, 0.08)');
-            edgeGradient.addColorStop(0.7, 'transparent');
-            ctx.fillStyle = edgeGradient;
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Planet border
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-            ctx.stroke();
-
-            animationRef.current = requestAnimationFrame(drawPlanet);
-        };
-
-        drawPlanet();
-
-        return () => {
-            window.removeEventListener('resize', resize);
-            if (animationRef.current) {
-                cancelAnimationFrame(animationRef.current);
-            }
-        };
-    }, [journeySteps]);
 
     // Auto-resize textarea
     useEffect(() => {
@@ -284,7 +329,7 @@ export default function ChatView() {
                 setIsTyping(false);
                 onComplete?.();
             }
-        }, 15);
+        }, 12);
 
         return () => clearInterval(interval);
     }, []);
@@ -295,9 +340,6 @@ export default function ChatView() {
 
         const step = journeySteps[stepIndex];
         
-        // Rotate planet to focus on marker
-        rotationRef.current.targetY = -step.position.lng * Math.PI / 180;
-
         // Update step states
         setJourneySteps(prev => prev.map((s, i) => ({
             ...s,
@@ -313,7 +355,6 @@ export default function ChatView() {
 
     // Parse AI response into steps
     const parseAIResponseToSteps = (response: string): JourneyStep[] => {
-        // Try to extract numbered steps from AI response
         const stepPatterns = [
             /(?:^|\n)(\d+)[.)]\s*(.+?)(?=\n\d+[.)]|\n\n|$)/gs,
             /(?:^|\n)(?:Step\s*)?(\d+)[.:]\s*(.+?)(?=\n(?:Step\s*)?\d+[.:]|\n\n|$)/gis,
@@ -322,7 +363,6 @@ export default function ChatView() {
 
         let steps: JourneyStep[] = [];
         
-        // Try numbered patterns first
         for (const pattern of stepPatterns.slice(0, 2)) {
             const matches = [...response.matchAll(pattern)];
             if (matches.length >= 2) {
@@ -331,8 +371,8 @@ export default function ChatView() {
                     title: `Step ${index + 1}`,
                     content: match[2]?.trim() || match[1]?.trim() || '',
                     position: {
-                        lat: (Math.random() - 0.5) * 120,
-                        lng: (index * 60) - 90 + (Math.random() - 0.5) * 30
+                        lat: (Math.random() - 0.5) * 100,
+                        lng: (index * 72) - 144 + (Math.random() - 0.5) * 20
                     },
                     isActive: false,
                     isCompleted: false
@@ -341,7 +381,6 @@ export default function ChatView() {
             }
         }
 
-        // Try bullet points
         if (steps.length < 2) {
             const bulletMatches = [...response.matchAll(stepPatterns[2])];
             if (bulletMatches.length >= 2) {
@@ -350,8 +389,8 @@ export default function ChatView() {
                     title: `Step ${index + 1}`,
                     content: match[1]?.trim() || '',
                     position: {
-                        lat: (Math.random() - 0.5) * 120,
-                        lng: (index * 60) - 90 + (Math.random() - 0.5) * 30
+                        lat: (Math.random() - 0.5) * 100,
+                        lng: (index * 72) - 144 + (Math.random() - 0.5) * 20
                     },
                     isActive: false,
                     isCompleted: false
@@ -359,7 +398,6 @@ export default function ChatView() {
             }
         }
 
-        // If no steps found, split by sentences or paragraphs
         if (steps.length < 2) {
             const paragraphs = response.split(/\n\n+/).filter(p => p.trim().length > 20);
             if (paragraphs.length >= 2) {
@@ -368,14 +406,13 @@ export default function ChatView() {
                     title: `Step ${index + 1}`,
                     content: p.trim(),
                     position: {
-                        lat: (Math.random() - 0.5) * 120,
-                        lng: (index * 60) - 90 + (Math.random() - 0.5) * 30
+                        lat: (Math.random() - 0.5) * 100,
+                        lng: (index * 72) - 144 + (Math.random() - 0.5) * 20
                     },
                     isActive: false,
                     isCompleted: false
                 }));
             } else {
-                // Single response - show as one step
                 steps = [{
                     id: 'step-0',
                     title: 'Guidance',
@@ -401,7 +438,6 @@ export default function ChatView() {
             return;
         }
 
-        // Save user message to chat history
         const userMessage: ChatMessage = {
             id: Date.now().toString(),
             role: 'user',
@@ -428,7 +464,6 @@ export default function ChatView() {
                 user.extraLogs
             );
 
-            // Save AI response to chat history
             const aiMessage: ChatMessage = {
                 id: (Date.now() + 1).toString(),
                 role: 'ai',
@@ -437,12 +472,10 @@ export default function ChatView() {
             };
             setUser(prev => ({ ...prev, chatHistory: [...prev.chatHistory, aiMessage] }));
 
-            // Parse into journey steps
             const steps = parseAIResponseToSteps(response);
             setJourneySteps(steps);
             setIsJourneyActive(true);
 
-            // Start journey after short delay
             setTimeout(() => {
                 navigateToStep(0);
             }, 500);
@@ -455,7 +488,6 @@ export default function ChatView() {
         }
     };
 
-    // Navigation controls
     const goToNextStep = () => {
         if (currentStepIndex < journeySteps.length - 1) {
             navigateToStep(currentStepIndex + 1);
@@ -473,19 +505,25 @@ export default function ChatView() {
         setCurrentStepIndex(-1);
         setIsJourneyActive(false);
         setDisplayedText('');
-        rotationRef.current.targetY = 0;
     };
 
     return (
         <div className="h-full w-full bg-black flex flex-col overflow-hidden relative">
-            {/* 3D Planet Canvas - Full Screen Background */}
-            <canvas 
-                ref={canvasRef} 
-                className="absolute inset-0 w-full h-full"
-            />
+            {/* 3D Canvas - Full Screen Background */}
+            <div className="absolute inset-0">
+                <Canvas camera={{ position: [5, 2, 5], fov: 45 }}>
+                    <Suspense fallback={null}>
+                        <Scene 
+                            journeySteps={journeySteps}
+                            currentStepIndex={currentStepIndex}
+                            onMarkerClick={navigateToStep}
+                        />
+                    </Suspense>
+                </Canvas>
+            </div>
 
             {/* Top Header */}
-            <div className="relative z-10 flex items-center justify-between px-5 pt-safe pb-3">
+            <div className="relative z-10 flex items-center justify-between px-6 pt-safe pb-3">
                 <button 
                     onClick={() => setView(AppView.DASHBOARD)}
                     className="p-2 rounded-xl text-white/50 hover:text-white hover:bg-white/10 transition-all"
@@ -510,17 +548,16 @@ export default function ChatView() {
                 )}
             </div>
 
-            {/* Content Overlay - Left Side Text */}
-            <div className="flex-1 relative z-10 flex">
-                {/* Left Panel - AI Text */}
-                <div className="w-1/2 flex flex-col justify-center px-6 py-8">
+            {/* Content Overlay - Left Side Text (FIXED POSITIONING) */}
+            <div className="flex-1 relative z-10 pointer-events-none">
+                <div className="absolute left-0 top-0 bottom-0 w-[45%] flex flex-col justify-center px-8 py-8 pointer-events-auto">
                     {!isJourneyActive && !isChatLoading && (
                         <div className="animate-fade-in">
                             <p className="text-white/30 text-xs uppercase tracking-widest mb-3">Welcome</p>
                             <h2 className="text-white text-2xl font-bold leading-tight mb-4">
-                                What would you like guidance on today?
+                                What would you like<br />guidance on today?
                             </h2>
-                            <p className="text-white/50 text-sm leading-relaxed">
+                            <p className="text-white/50 text-sm leading-relaxed max-w-[320px]">
                                 Share your challenges, questions, or goals. I'll guide you through step by step on your journey.
                             </p>
                         </div>
@@ -537,7 +574,7 @@ export default function ChatView() {
                         </div>
                     )}
 
-                    {isJourneyActive && journeySteps.length > 0 && (
+                    {isJourneyActive && journeySteps.length > 0 && currentStepIndex >= 0 && (
                         <div className="animate-fade-in">
                             {/* Step indicator */}
                             <div className="flex items-center gap-2 mb-4">
@@ -552,7 +589,7 @@ export default function ChatView() {
                             </h3>
 
                             {/* AI explanation with typewriter */}
-                            <div className="text-white/80 text-sm leading-relaxed mb-6 min-h-[100px]">
+                            <div className="text-white/80 text-sm leading-relaxed mb-6 min-h-[120px] max-w-[380px]">
                                 {displayedText}
                                 {isTyping && <span className="inline-block w-0.5 h-4 bg-white ml-1 animate-pulse" />}
                             </div>
@@ -581,12 +618,12 @@ export default function ChatView() {
                                     <button
                                         key={idx}
                                         onClick={() => navigateToStep(idx)}
-                                        className={`w-2 h-2 rounded-full transition-all ${
+                                        className={`h-2 rounded-full transition-all ${
                                             idx === currentStepIndex 
                                                 ? 'bg-white w-6' 
                                                 : idx < currentStepIndex 
-                                                    ? 'bg-white/50' 
-                                                    : 'bg-white/20'
+                                                    ? 'bg-white/50 w-2' 
+                                                    : 'bg-white/20 w-2'
                                         }`}
                                     />
                                 ))}
@@ -594,13 +631,10 @@ export default function ChatView() {
                         </div>
                     )}
                 </div>
-
-                {/* Right Panel - Planet (handled by canvas) */}
-                <div className="w-1/2" />
             </div>
 
             {/* Bottom Input */}
-            <div className="relative z-10 px-5 pb-safe">
+            <div className="relative z-10 px-6 pb-safe">
                 <div className={`bg-white/5 backdrop-blur-xl rounded-2xl border transition-all ${
                     isInputFocused ? 'border-white/30' : 'border-white/10'
                 }`}>

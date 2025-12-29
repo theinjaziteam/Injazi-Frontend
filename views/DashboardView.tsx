@@ -27,19 +27,30 @@ export default function DashboardView() {
     const adgemTransactions = (user as any).adgemTransactions || [];
     const currentGoal = user.goal || { title: "Loading...", category: "General", durationDays: 30, mode: "Standard" };
 
-    // FIXED: Only count non-lesson tasks for daily progress
+    // Daily tasks only (for the progress counter)
     const dailyOnlyTasks = dailyTasks.filter(t => !t.isLessonTask);
     
-    const pendingDailyTasks = dailyOnlyTasks.filter(t => 
+    // ALL pending tasks (daily + lesson) for the missions list
+    const allPendingTasks = dailyTasks.filter(t => 
         t.status !== TaskStatus.APPROVED && 
         t.status !== TaskStatus.COMPLETED
     );
 
-    const completedTodayCount = dailyOnlyTasks.filter(t => 
+    // Separate them for display purposes
+    const pendingDailyTasks = allPendingTasks.filter(t => !t.isLessonTask);
+    const pendingLessonTasks = allPendingTasks.filter(t => t.isLessonTask);
+
+    // Daily progress counts (only daily tasks)
+    const completedDailyCount = dailyOnlyTasks.filter(t => 
         t.status === TaskStatus.APPROVED || t.status === TaskStatus.COMPLETED
     ).length;
-
     const totalDailyTasks = dailyOnlyTasks.length;
+
+    // All tasks complete check (daily only for the progress badge)
+    const allDailyTasksComplete = pendingDailyTasks.length === 0 && totalDailyTasks > 0;
+    
+    // Check if ALL tasks (including lessons) are complete
+    const allTasksComplete = allPendingTasks.length === 0 && dailyTasks.length > 0;
 
     // Animate progress on mount
     useEffect(() => {
@@ -173,37 +184,54 @@ export default function DashboardView() {
         return num.toLocaleString();
     };
 
-    // Difficulty styling
+    // UPDATED: Difficulty styling using PRIMARY color shades
+    // Easy = Lightest, Medium = Mid, Hard = Darkest
     const getDifficultyLabel = (difficulty?: number | string) => {
         if (difficulty === Difficulty.EASY || difficulty === 'EASY' || difficulty === 1) return 'Easy';
         if (difficulty === Difficulty.HARD || difficulty === 'HARD' || difficulty === 3) return 'Hard';
         return 'Medium';
     };
 
+    // Primary color shades for difficulty badges
     const getDifficultyColor = (difficulty?: number | string) => {
+        // Easy - Lightest primary shade
         if (difficulty === Difficulty.EASY || difficulty === 'EASY' || difficulty === 1) {
-            return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+            return 'bg-[#E8E8F0] text-[#3423A6] border border-[#D0D0E0]';
         }
+        // Hard - Darkest primary shade
         if (difficulty === Difficulty.HARD || difficulty === 'HARD' || difficulty === 3) {
-            return 'bg-rose-50 text-rose-700 border border-rose-200';
+            return 'bg-[#171738] text-white border border-[#171738]';
         }
-        return 'bg-amber-50 text-amber-700 border border-amber-200';
+        // Medium - Mid primary shade
+        return 'bg-[#3423A6] text-white border border-[#3423A6]';
     };
 
+    // Background colors for task icons - primary shades
     const getDifficultyBgColor = (difficulty?: number | string) => {
+        // Easy - Very light primary
         if (difficulty === Difficulty.EASY || difficulty === 'EASY' || difficulty === 1) {
-            return 'bg-gradient-to-br from-emerald-50 to-emerald-100';
+            return 'bg-gradient-to-br from-[#F0F0F8] to-[#E8E8F0]';
         }
+        // Hard - Dark primary
         if (difficulty === Difficulty.HARD || difficulty === 'HARD' || difficulty === 3) {
-            return 'bg-gradient-to-br from-rose-50 to-rose-100';
+            return 'bg-gradient-to-br from-[#2A2A5C] to-[#171738]';
         }
-        return 'bg-gradient-to-br from-amber-50 to-amber-100';
+        // Medium - Mid primary
+        return 'bg-gradient-to-br from-[#4834C7]/20 to-[#3423A6]/20';
     };
 
+    // Icon colors for tasks - primary shades
     const getDifficultyIconColor = (difficulty?: number | string) => {
-        if (difficulty === Difficulty.EASY || difficulty === 'EASY' || difficulty === 1) return 'text-emerald-600';
-        if (difficulty === Difficulty.HARD || difficulty === 'HARD' || difficulty === 3) return 'text-rose-600';
-        return 'text-amber-600';
+        // Easy - Medium primary for contrast on light bg
+        if (difficulty === Difficulty.EASY || difficulty === 'EASY' || difficulty === 1) {
+            return 'text-[#3423A6]';
+        }
+        // Hard - Light color for contrast on dark bg
+        if (difficulty === Difficulty.HARD || difficulty === 'HARD' || difficulty === 3) {
+            return 'text-[#A5A5D0]';
+        }
+        // Medium
+        return 'text-[#3423A6]';
     };
 
     const TaskIcon = ({ difficulty }: { difficulty?: string }) => {
@@ -231,18 +259,23 @@ export default function DashboardView() {
         );
     };
 
+    // Lesson Task Icon
+    const LessonIcon = () => (
+        <svg className="w-5 h-5 text-[#3423A6]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+            <path d="M8 7h8"/>
+            <path d="M8 11h6"/>
+        </svg>
+    );
+
     // Custom Coin Icon Component
     const CoinIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
         <svg className={className} viewBox="0 0 24 24" fill="none">
-            {/* Coin base - 3D effect */}
             <ellipse cx="12" cy="14" rx="9" ry="4" fill="#D97706"/>
-            {/* Coin face */}
             <ellipse cx="12" cy="12" rx="9" ry="4" fill="url(#coinGradient)"/>
-            {/* Coin inner ring */}
             <ellipse cx="12" cy="12" rx="6.5" ry="2.8" fill="none" stroke="#D97706" strokeWidth="0.8"/>
-            {/* Dollar/Star symbol in center */}
             <circle cx="12" cy="12" r="2" fill="#D97706"/>
-            {/* Shine effect */}
             <ellipse cx="9" cy="11" rx="1.5" ry="0.8" fill="white" fillOpacity="0.4"/>
             <defs>
                 <linearGradient id="coinGradient" x1="3" y1="8" x2="21" y2="16">
@@ -255,7 +288,6 @@ export default function DashboardView() {
     );
 
     const progressPercent = Math.round((user.currentDay / (currentGoal.durationDays || 365)) * 100);
-    const allTasksComplete = pendingDailyTasks.length === 0 && totalDailyTasks > 0;
 
     return (
         <div 
@@ -284,7 +316,7 @@ export default function DashboardView() {
                                 style={{
                                     width: `${8 + Math.random() * 8}px`,
                                     height: `${8 + Math.random() * 8}px`,
-                                    background: ['#3423A6', '#10B981', '#F59E0B', '#EC4899', '#6366F1', '#14B8A6'][Math.floor(Math.random() * 6)],
+                                    background: ['#3423A6', '#171738', '#4834C7', '#6B5DD3', '#DFF3E4', '#A7F3D0'][Math.floor(Math.random() * 6)],
                                     borderRadius: Math.random() > 0.5 ? '50%' : '2px',
                                     transform: `rotate(${Math.random() * 360}deg)`,
                                 }}
@@ -302,7 +334,7 @@ export default function DashboardView() {
                     <div className="absolute bottom-0 left-0 w-60 h-60 bg-[#DFF3E4]/10 rounded-full blur-[80px] translate-y-1/3 -translate-x-1/4" />
                     <div className="absolute top-1/2 left-1/2 w-40 h-40 bg-[#3423A6]/10 rounded-full blur-[60px] -translate-x-1/2 -translate-y-1/2" />
                     
-                    {/* Top Bar - Credits integrated naturally */}
+                    {/* Top Bar */}
                     <div className="flex justify-between items-start relative z-20 pt-4 mb-6">
                         <div>
                             <p className="text-white/50 text-[11px] font-medium tracking-wide uppercase">{getGreeting()}</p>
@@ -310,7 +342,7 @@ export default function DashboardView() {
                         </div>
                         
                         <div className="flex items-center gap-2">
-                            {/* Credits - Integrated design that belongs */}
+                            {/* Credits - Integrated design */}
                             <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-3 py-1.5 border border-white/10">
                                 <CoinIcon className="w-5 h-5" />
                                 <span className="text-sm font-bold text-white/90">{formatCredits(user.credits || 0)}</span>
@@ -350,7 +382,7 @@ export default function DashboardView() {
                         </div>
                     </div>
 
-                    {/* Progress Circle - Liquid Fill Effect */}
+                    {/* Progress Circle */}
                     <div className="flex flex-col items-center text-center relative z-10">
                         <div className="relative w-44 h-44 flex items-center justify-center mb-5">
                             <div className="absolute inset-0 bg-[#DFF3E4]/10 rounded-full blur-2xl scale-110" />
@@ -422,7 +454,7 @@ export default function DashboardView() {
                     </div>
                 </div>
 
-                {/* Daily Progress Card - FIXED: Shows correct count */}
+                {/* Daily Progress Card */}
                 <div className="px-5 -mt-8 relative z-20 mb-5">
                     <div 
                         className="bg-white rounded-2xl p-4 flex items-center justify-between"
@@ -432,11 +464,11 @@ export default function DashboardView() {
                     >
                         <div className="flex items-center gap-3">
                             <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${
-                                allTasksComplete 
+                                allDailyTasksComplete 
                                     ? 'bg-gradient-to-br from-emerald-400 to-emerald-500' 
                                     : 'bg-gradient-to-br from-[#3423A6]/10 to-[#3423A6]/5'
                             }`}>
-                                {allTasksComplete ? (
+                                {allDailyTasksComplete ? (
                                     <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                                         <polyline points="20 6 9 17 4 12"/>
                                     </svg>
@@ -449,9 +481,9 @@ export default function DashboardView() {
                             <div>
                                 <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Daily Progress</p>
                                 <p className="text-lg font-black text-[#171738]">
-                                    {completedTodayCount}/{totalDailyTasks}
+                                    {completedDailyCount}/{totalDailyTasks}
                                     <span className="text-sm font-medium text-gray-400 ml-1.5">
-                                        {allTasksComplete ? 'Complete!' : 'tasks'}
+                                        {allDailyTasksComplete ? 'Complete!' : 'tasks'}
                                     </span>
                                 </p>
                             </div>
@@ -494,7 +526,7 @@ export default function DashboardView() {
                         </div>
                     ))}
 
-                    {/* Today's Missions - FIXED: Only shows daily tasks, not lesson tasks */}
+                    {/* Today's Missions - Shows ALL tasks (daily + lesson) */}
                     <div 
                         className="bg-white rounded-2xl overflow-hidden"
                         style={{
@@ -507,15 +539,15 @@ export default function DashboardView() {
                                     <h3 className="font-black text-[#171738] text-lg tracking-tight">Today's Missions</h3>
                                     <p className="text-[11px] text-gray-400 mt-0.5 font-medium">Small steps, big progress</p>
                                 </div>
-                                {pendingDailyTasks.length > 0 && (
+                                {allPendingTasks.length > 0 && (
                                     <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#3423A6]/10 text-[#3423A6]">
-                                        {pendingDailyTasks.length} remaining
+                                        {allPendingTasks.length} remaining
                                     </span>
                                 )}
                             </div>
                             
                             {allTasksComplete ? (
-                                /* Completion State - FIXED: Prompts to go to AI Guide */
+                                /* All Tasks Complete State */
                                 <div className="py-6 px-4">
                                     <div className="flex items-start gap-4">
                                         <div className="relative flex-shrink-0">
@@ -525,16 +557,16 @@ export default function DashboardView() {
                                                     <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                                                 </svg>
                                             </div>
-                                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-amber-300 rounded-full" />
-                                            <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-[#3423A6]/40 rounded-full" />
+                                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#3423A6]/60 rounded-full" />
+                                            <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-[#3423A6]/30 rounded-full" />
                                         </div>
                                         
                                         <div className="flex-1 pt-1">
                                             <h4 className="font-bold text-[#171738] text-base mb-1">You crushed it today!</h4>
                                             <p className="text-gray-400 text-sm leading-relaxed mb-3">
-                                                All {totalDailyTasks} tasks complete. Ready to plan what's next?
+                                                All tasks complete. Ready to plan what's next?
                                             </p>
-                                            {/* FIXED: Now navigates to AI Chat */}
+                                            {/* Navigate to AI Chat */}
                                             <button 
                                                 onClick={() => setView(AppView.CHAT)}
                                                 className="text-[#3423A6] font-bold text-sm flex items-center gap-1.5 group"
@@ -542,7 +574,7 @@ export default function DashboardView() {
                                                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                                                 </svg>
-                                                <span>Tell your AI Guide what's next</span>
+                                                <span>Share your next steps with the Guide</span>
                                                 <svg className="w-4 h-4 transition-transform group-hover:translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                                     <path d="M5 12h14M12 5l7 7-7 7"/>
                                                 </svg>
@@ -550,7 +582,7 @@ export default function DashboardView() {
                                         </div>
                                     </div>
                                 </div>
-                            ) : totalDailyTasks === 0 ? (
+                            ) : dailyTasks.length === 0 ? (
                                 /* No tasks state */
                                 <div className="py-8 text-center">
                                     <div className="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
@@ -560,16 +592,14 @@ export default function DashboardView() {
                                     <p className="text-gray-400 text-xs">Check in to generate your daily missions</p>
                                 </div>
                             ) : (
-                                /* Task List - Only daily tasks, no lesson tasks */
+                                /* Task List - Daily tasks first, then lesson tasks */
                                 <div className="space-y-2.5">
+                                    {/* Daily Tasks */}
                                     {pendingDailyTasks.map((task, index) => (
                                         <div 
                                             key={task.id} 
                                             onClick={() => handleTaskSelect(task.id)} 
                                             className="group bg-gray-50/80 hover:bg-gray-50 border border-gray-100 p-3.5 rounded-xl cursor-pointer active:scale-[0.98] transition-all"
-                                            style={{
-                                                animationDelay: `${index * 50}ms`
-                                            }}
                                         >
                                             <div className="flex items-center gap-3">
                                                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${getDifficultyBgColor(task.difficulty)}`}>
@@ -593,7 +623,7 @@ export default function DashboardView() {
                                                 {(task.timeLeft !== undefined && task.timeLeft > 0 && task.timeLeft < ((task.estimatedTimeMinutes || 20) * 60)) ? (
                                                     <div className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold flex-shrink-0 ${
                                                         task.isTimerActive 
-                                                            ? 'bg-emerald-100 text-emerald-700' 
+                                                            ? 'bg-[#DFF3E4] text-[#171738]' 
                                                             : 'bg-gray-100 text-gray-600'
                                                     }`}>
                                                         {calculateRealTimeRemaining(task)}
@@ -606,10 +636,56 @@ export default function DashboardView() {
                                             </div>
                                         </div>
                                     ))}
+
+                                    {/* Lesson Tasks Section */}
+                                    {pendingLessonTasks.length > 0 && (
+                                        <>
+                                            {/* Divider if there are daily tasks above */}
+                                            {pendingDailyTasks.length > 0 && (
+                                                <div className="flex items-center gap-3 py-2">
+                                                    <div className="flex-1 h-px bg-gray-200" />
+                                                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">From Lessons</span>
+                                                    <div className="flex-1 h-px bg-gray-200" />
+                                                </div>
+                                            )}
+                                            
+                                            {pendingLessonTasks.map((task) => (
+                                                <div 
+                                                    key={task.id} 
+                                                    onClick={() => handleTaskSelect(task.id)} 
+                                                    className="group bg-[#3423A6]/5 hover:bg-[#3423A6]/10 border border-[#3423A6]/10 p-3.5 rounded-xl cursor-pointer active:scale-[0.98] transition-all"
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#3423A6]/10 to-[#3423A6]/20 flex items-center justify-center flex-shrink-0">
+                                                            <LessonIcon />
+                                                        </div>
+                                                        
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center gap-2 mb-0.5">
+                                                                <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-md bg-[#3423A6]/10 text-[#3423A6] border border-[#3423A6]/20">
+                                                                    Lesson
+                                                                </span>
+                                                                <span className="text-[10px] font-medium text-gray-400">
+                                                                    ~{task.estimatedTimeMinutes || 15} min
+                                                                </span>
+                                                            </div>
+                                                            <h4 className="font-semibold text-[#171738] text-[13px] leading-snug line-clamp-1 group-hover:text-[#3423A6] transition-colors">
+                                                                {task.title}
+                                                            </h4>
+                                                        </div>
+                                                        
+                                                        <div className="w-8 h-8 rounded-full bg-[#3423A6]/10 group-hover:bg-[#3423A6]/20 flex items-center justify-center flex-shrink-0 transition-colors">
+                                                            <Icons.ChevronRight className="w-4 h-4 text-[#3423A6]/60 group-hover:text-[#3423A6] transition-colors" />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </>
+                                    )}
                                 </div>
                             )}
                             
-                            {totalDailyTasks > 0 && (
+                            {dailyTasks.length > 0 && (
                                 <button 
                                     onClick={() => setView(AppView.TASK_SELECTION)} 
                                     className="w-full mt-4 py-3 bg-gray-50 hover:bg-gray-100 text-[#171738] font-semibold text-sm rounded-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2 border border-gray-100"
@@ -621,7 +697,7 @@ export default function DashboardView() {
                         </div>
                     </div>
 
-                    {/* Earn Credits Section - Better coin icon */}
+                    {/* Earn Credits Section */}
                     <div 
                         className="bg-white rounded-2xl overflow-hidden"
                         style={{
@@ -633,7 +709,6 @@ export default function DashboardView() {
                             onClick={() => setIsEarnExpanded(!isEarnExpanded)}
                         >
                             <div className="flex items-center gap-3">
-                                {/* Better 3D Coin Icon */}
                                 <div className="w-11 h-11 bg-gradient-to-br from-amber-100 to-amber-200 rounded-xl flex items-center justify-center shadow-sm">
                                     <CoinIcon className="w-7 h-7" />
                                 </div>
@@ -681,7 +756,6 @@ export default function DashboardView() {
                                                     </p>
                                                 </div>
                                                 
-                                                {/* Coin reward badge */}
                                                 <div className="flex items-center gap-1 bg-gradient-to-r from-amber-50 to-amber-100 border border-amber-200 px-2 py-1.5 rounded-lg flex-shrink-0">
                                                     <CoinIcon className="w-4 h-4" />
                                                     <span className="font-black text-xs text-amber-700">+{offer.amount}</span>

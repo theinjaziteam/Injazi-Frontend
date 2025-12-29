@@ -1,5 +1,5 @@
 // App.tsx
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { AppProvider, useApp } from './contexts/AppContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { AppView } from './types';
@@ -20,29 +20,6 @@ import TaskSelectionView from './views/TaskSelectionView';
 function AppContent() {
     const { view, setView, isAuthenticated, showAdOverlay, adCountdown } = useApp();
     const { theme } = useTheme();
-    const [keyboardVisible, setKeyboardVisible] = useState(false);
-
-    // Detect keyboard visibility
-    useEffect(() => {
-        const detectKeyboard = () => {
-            if (window.visualViewport) {
-                const heightDiff = window.innerHeight - window.visualViewport.height;
-                setKeyboardVisible(heightDiff > 150);
-            }
-        };
-
-        if (window.visualViewport) {
-            window.visualViewport.addEventListener('resize', detectKeyboard);
-        }
-        window.addEventListener('resize', detectKeyboard);
-
-        return () => {
-            if (window.visualViewport) {
-                window.visualViewport.removeEventListener('resize', detectKeyboard);
-            }
-            window.removeEventListener('resize', detectKeyboard);
-        };
-    }, []);
 
     if (!isAuthenticated) return <LoginView />;
 
@@ -53,20 +30,27 @@ function AppContent() {
         AppView.SETTINGS,
         AppView.TASK_HISTORY,
         AppView.TASK_SELECTION,
-        AppView.CHAT // Chat has its own UI
+        AppView.CHAT
     ];
 
-    const showNav = !hideNavViews.includes(view) && !keyboardVisible;
+    const showNav = !hideNavViews.includes(view);
 
     return (
         <div 
-            className={`keyboard-fix bg-background flex flex-col font-sans ${theme === 'light' ? 'light-mode' : ''}`}
+            className={`flex flex-col font-sans ${theme === 'light' ? 'light-mode' : ''}`}
+            style={{ 
+                height: '100dvh',
+                width: '100vw',
+                backgroundColor: '#000000',
+                overflow: 'hidden',
+                position: 'relative'
+            }}
         >
             {/* Main Content */}
             <div 
                 className="flex-1 overflow-hidden relative"
-                style={{
-                    height: showNav ? 'calc(100% - 60px)' : '100%'
+                style={{ 
+                    marginBottom: showNav ? '60px' : '0'
                 }}
             >
                 {view === AppView.ONBOARDING && <OnboardingView />}
@@ -81,10 +65,12 @@ function AppContent() {
                 {view === AppView.TASK_SELECTION && <TaskSelectionView />}
                 
                 {(view === AppView.PLANS || view === AppView.USER_PROFILE) && (
-                    <div className="p-10 text-center flex flex-col items-center justify-center h-full">
-                        <h1 className="text-2xl font-bold mb-2 text-primary">View: {view}</h1>
-                        <p className="text-gray-500 mb-6">This section is under construction.</p>
-                        <button onClick={() => setView(AppView.DASHBOARD)} className="px-6 py-3 bg-primary text-white rounded-full font-bold">Back to Dashboard</button>
+                    <div className="p-10 text-center flex flex-col items-center justify-center h-full bg-black">
+                        <h1 className="text-2xl font-bold mb-2 text-white">View: {view}</h1>
+                        <p className="text-gray-400 mb-6">This section is under construction.</p>
+                        <button onClick={() => setView(AppView.DASHBOARD)} className="px-6 py-3 bg-white text-black rounded-full font-bold">
+                            Back to Dashboard
+                        </button>
                     </div>
                 )}
             </div>
@@ -104,9 +90,20 @@ function AppContent() {
                 </div>
             )}
 
-            {/* Bottom Navigation - Fixed, doesn't move with keyboard */}
+            {/* Bottom Navigation */}
             {showNav && (
-                <div className="fixed-bottom-nav bg-background border-t border-border">
+                <div 
+                    style={{
+                        position: 'fixed',
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        zIndex: 50,
+                        backgroundColor: '#000000',
+                        borderTop: '1px solid rgba(255,255,255,0.1)',
+                        paddingBottom: 'env(safe-area-inset-bottom, 0px)'
+                    }}
+                >
                     <BottomNav 
                         activeTab={
                             view === AppView.DASHBOARD ? 'dashboard' :

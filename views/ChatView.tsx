@@ -4,9 +4,6 @@ import { useApp } from '../contexts/AppContext';
 import { AppView, ChatMessage } from '../types';
 import { Icons } from '../components/UIComponents';
 import { getChatResponse, checkContentSafety } from '../services/geminiService';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, Sphere, Line } from '@react-three/drei';
-import * as THREE from 'three';
 
 // Types for journey steps
 interface JourneyStep {
@@ -18,277 +15,184 @@ interface JourneyStep {
     isCompleted: boolean;
 }
 
-// Convert lat/lng to 3D position on sphere
-const latLngToVector3 = (lat: number, lng: number, radius: number): THREE.Vector3 => {
-    const phi = (90 - lat) * (Math.PI / 180);
-    const theta = (lng + 180) * (Math.PI / 180);
-    const x = -(radius * Math.sin(phi) * Math.cos(theta));
-    const z = radius * Math.sin(phi) * Math.sin(theta);
-    const y = radius * Math.cos(phi);
-    return new THREE.Vector3(x, y, z);
-};
-
-// Wireframe Globe Component
-function WireframeGlobe() {
-    const meshRef = useRef<THREE.Mesh>(null);
-    
-    useFrame(() => {
-        if (meshRef.current) {
-            meshRef.current.rotation.y += 0.001;
-        }
-    });
-
-    // Generate latitude lines
-    const latLines = [];
-    for (let lat = -60; lat <= 60; lat += 30) {
-        const points: THREE.Vector3[] = [];
-        for (let lng = 0; lng <= 360; lng += 5) {
-            points.push(latLngToVector3(lat, lng, 2));
-        }
-        latLines.push(points);
+// Error boundary for 3D canvas
+class Canvas3DErrorBoundary extends React.Component<
+    { children: React.ReactNode; fallback: React.ReactNode },
+    { hasError: boolean }
+> {
+    constructor(props: { children: React.ReactNode; fallback: React.ReactNode }) {
+        super(props);
+        this.state = { hasError: false };
     }
 
-    // Generate longitude lines
-    const lngLines = [];
-    for (let lng = 0; lng < 360; lng += 30) {
-        const points: THREE.Vector3[] = [];
-        for (let lat = -90; lat <= 90; lat += 5) {
-            points.push(latLngToVector3(lat, lng, 2));
-        }
-        lngLines.push(points);
+    static getDerivedStateFromError() {
+        return { hasError: true };
     }
 
-    return (
-        <group ref={meshRef}>
-            {/* Base sphere for subtle fill */}
-            <Sphere args={[1.98, 32, 32]}>
-                <meshBasicMaterial color="#050508" transparent opacity={0.9} />
-            </Sphere>
-            
-            {/* Outer glow sphere */}
-            <Sphere args={[2.15, 32, 32]}>
-                <meshBasicMaterial color="#ffffff" transparent opacity={0.02} />
-            </Sphere>
+    componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+        console.error('3D Canvas Error:', error, errorInfo);
+    }
 
-            {/* Latitude lines */}
-            {latLines.map((points, i) => (
-                <Line
-                    key={`lat-${i}`}
-                    points={points}
-                    color="#ffffff"
-                    lineWidth={0.5}
-                    transparent
-                    opacity={0.15}
-                />
-            ))}
-
-            {/* Longitude lines */}
-            {lngLines.map((points, i) => (
-                <Line
-                    key={`lng-${i}`}
-                    points={points}
-                    color="#ffffff"
-                    lineWidth={0.5}
-                    transparent
-                    opacity={0.15}
-                />
-            ))}
-
-            {/* Equator highlight */}
-            <Line
-                points={Array.from({ length: 73 }, (_, i) => latLngToVector3(0, i * 5, 2))}
-                color="#ffffff"
-                lineWidth={1}
-                transparent
-                opacity={0.25}
-            />
-        </group>
-    );
-}
-
-// Journey Marker Component
-function JourneyMarker({ 
-    step, 
-    index, 
-    isActive, 
-    isCompleted,
-    onClick 
-}: { 
-    step: JourneyStep; 
-    index: number;
-    isActive: boolean;
-    isCompleted: boolean;
-    onClick: () => void;
-}) {
-    const meshRef = useRef<THREE.Mesh>(null);
-    const glowRef = useRef<THREE.Mesh>(null);
-    const position = latLngToVector3(step.position.lat, step.position.lng, 2.05);
-    
-    useFrame(({ clock }) => {
-        if (glowRef.current && isActive) {
-            const scale = 1 + Math.sin(clock.elapsedTime * 3) * 0.3;
-            glowRef.current.scale.setScalar(scale);
+    render() {
+        if (this.state.hasError) {
+            return this.props.fallback;
         }
-    });
-
-    return (
-        <group position={position}>
-            {/* Glow effect for active marker */}
-            {isActive && (
-                <mesh ref={glowRef}>
-                    <sphereGeometry args={[0.15, 16, 16]} />
-                    <meshBasicMaterial color="#ffffff" transparent opacity={0.3} />
-                </mesh>
-            )}
-            
-            {/* Main marker */}
-            <mesh ref={meshRef} onClick={onClick}>
-                <sphereGeometry args={[0.08, 16, 16]} />
-                <meshBasicMaterial 
-                    color={isActive ? "#ffffff" : isCompleted ? "#888888" : "#444444"} 
-                />
-            </mesh>
-
-            {/* Marker ring */}
-            <mesh>
-                <ringGeometry args={[0.1, 0.12, 32]} />
-                <meshBasicMaterial 
-                    color="#ffffff" 
-                    transparent 
-                    opacity={isActive ? 0.8 : 0.3} 
-                    side={THREE.DoubleSide}
-                />
-            </mesh>
-        </group>
-    );
+        return this.props.children;
+    }
 }
 
-// Connection lines between markers
-function ConnectionLines({ steps }: { steps: JourneyStep[] }) {
-    if (steps.length < 2) return null;
+// Lazy load Three.js components
+const ThreeCanvas = React.lazy(() => import('./ChatView3D'));
 
-    const points: THREE.Vector3[] = steps.map(step => 
-        latLngToVector3(step.position.lat, step.position.lng, 2.05)
-    );
+// Fallback 2D Canvas Planet
+function Fallback2DPlanet({ journeySteps, currentStepIndex }: { journeySteps: JourneyStep[], currentStepIndex: number }) {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const animationRef = useRef<number>();
+    const rotationRef = useRef(0);
 
-    return (
-        <Line
-            points={points}
-            color="#ffffff"
-            lineWidth={1}
-            transparent
-            opacity={0.3}
-            dashed
-            dashSize={0.1}
-            gapSize={0.05}
-        />
-    );
-}
-
-// Camera controller for smooth rotation to markers
-function CameraController({ targetPosition }: { targetPosition: THREE.Vector3 | null }) {
-    const { camera } = useThree();
-    const targetRef = useRef<THREE.Vector3>(new THREE.Vector3(5, 2, 5));
-    
     useEffect(() => {
-        if (targetPosition) {
-            // Calculate camera position to look at the marker
-            const direction = targetPosition.clone().normalize();
-            targetRef.current = direction.multiplyScalar(6);
-        }
-    }, [targetPosition]);
+        const canvas = canvasRef.current;
+        if (!canvas) return;
 
-    useFrame(() => {
-        camera.position.lerp(targetRef.current, 0.02);
-        camera.lookAt(0, 0, 0);
-    });
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
 
-    return null;
-}
+        const resize = () => {
+            const rect = canvas.parentElement?.getBoundingClientRect();
+            if (rect) {
+                canvas.width = rect.width * window.devicePixelRatio;
+                canvas.height = rect.height * window.devicePixelRatio;
+                canvas.style.width = rect.width + 'px';
+                canvas.style.height = rect.height + 'px';
+            }
+        };
 
-// Stars background
-function Stars() {
-    const starsRef = useRef<THREE.Points>(null);
-    
-    const starPositions = React.useMemo(() => {
-        const positions = new Float32Array(1000 * 3);
-        for (let i = 0; i < 1000; i++) {
-            positions[i * 3] = (Math.random() - 0.5) * 50;
-            positions[i * 3 + 1] = (Math.random() - 0.5) * 50;
-            positions[i * 3 + 2] = (Math.random() - 0.5) * 50;
-        }
-        return positions;
-    }, []);
+        resize();
+        window.addEventListener('resize', resize);
 
-    useFrame(() => {
-        if (starsRef.current) {
-            starsRef.current.rotation.y += 0.0001;
-        }
-    });
-
-    return (
-        <points ref={starsRef}>
-            <bufferGeometry>
-                <bufferAttribute
-                    attach="attributes-position"
-                    count={1000}
-                    array={starPositions}
-                    itemSize={3}
-                />
-            </bufferGeometry>
-            <pointsMaterial size={0.05} color="#ffffff" transparent opacity={0.6} />
-        </points>
-    );
-}
-
-// Main 3D Scene
-function Scene({ 
-    journeySteps, 
-    currentStepIndex,
-    onMarkerClick 
-}: { 
-    journeySteps: JourneyStep[];
-    currentStepIndex: number;
-    onMarkerClick: (index: number) => void;
-}) {
-    const targetPosition = currentStepIndex >= 0 && journeySteps[currentStepIndex]
-        ? latLngToVector3(
-            journeySteps[currentStepIndex].position.lat,
-            journeySteps[currentStepIndex].position.lng,
-            2.05
-          )
-        : null;
-
-    return (
-        <>
-            <ambientLight intensity={0.5} />
-            <pointLight position={[10, 10, 10]} intensity={0.5} />
+        const draw = () => {
+            const w = canvas.width / window.devicePixelRatio;
+            const h = canvas.height / window.devicePixelRatio;
             
-            <Stars />
-            <WireframeGlobe />
-            <ConnectionLines steps={journeySteps} />
-            
-            {journeySteps.map((step, index) => (
-                <JourneyMarker
-                    key={step.id}
-                    step={step}
-                    index={index}
-                    isActive={index === currentStepIndex}
-                    isCompleted={index < currentStepIndex}
-                    onClick={() => onMarkerClick(index)}
-                />
-            ))}
+            ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, w, h);
 
-            <CameraController targetPosition={targetPosition} />
-            <OrbitControls 
-                enableZoom={false} 
-                enablePan={false}
-                rotateSpeed={0.5}
-                minPolarAngle={Math.PI * 0.3}
-                maxPolarAngle={Math.PI * 0.7}
-            />
-        </>
-    );
+            // Stars
+            for (let i = 0; i < 100; i++) {
+                const x = (Math.sin(i * 123.456) * 0.5 + 0.5) * w;
+                const y = (Math.cos(i * 789.012) * 0.5 + 0.5) * h;
+                const twinkle = 0.3 + Math.sin(Date.now() * 0.002 + i) * 0.4;
+                ctx.fillStyle = `rgba(255, 255, 255, ${twinkle})`;
+                ctx.beginPath();
+                ctx.arc(x, y, 1, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            const centerX = w * 0.65;
+            const centerY = h * 0.5;
+            const radius = Math.min(w, h) * 0.3;
+
+            rotationRef.current += 0.002;
+
+            // Planet glow
+            const glow = ctx.createRadialGradient(centerX, centerY, radius * 0.9, centerX, centerY, radius * 1.4);
+            glow.addColorStop(0, 'rgba(255, 255, 255, 0.1)');
+            glow.addColorStop(1, 'transparent');
+            ctx.fillStyle = glow;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius * 1.4, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Planet body
+            ctx.fillStyle = 'rgba(10, 10, 15, 0.95)';
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Grid lines
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.lineWidth = 1;
+
+            for (let i = 0; i < 8; i++) {
+                const angle = (i / 8) * Math.PI + rotationRef.current;
+                const xScale = Math.cos(angle);
+                if (Math.abs(xScale) > 0.05) {
+                    ctx.beginPath();
+                    ctx.ellipse(centerX, centerY, Math.abs(xScale) * radius, radius, 0, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            }
+
+            for (let i = 1; i < 5; i++) {
+                const latRadius = radius * Math.sin((i / 5) * Math.PI);
+                const y = centerY - radius * Math.cos((i / 5) * Math.PI);
+                ctx.beginPath();
+                ctx.ellipse(centerX, y, latRadius, latRadius * 0.3, 0, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            // Journey markers
+            journeySteps.forEach((step, index) => {
+                const lat = step.position.lat * Math.PI / 180;
+                const lng = (step.position.lng * Math.PI / 180) + rotationRef.current;
+                const visibility = Math.cos(lng);
+                if (visibility < -0.1) return;
+
+                const x = centerX + Math.sin(lng) * Math.cos(lat) * radius;
+                const y = centerY - Math.sin(lat) * radius;
+                const scale = 0.5 + visibility * 0.5;
+                const markerSize = 8 * scale;
+
+                const isActive = index === currentStepIndex;
+                const isCompleted = index < currentStepIndex;
+
+                if (isActive) {
+                    const pulseSize = markerSize * (2 + Math.sin(Date.now() * 0.005) * 0.5);
+                    const glowGrad = ctx.createRadialGradient(x, y, 0, x, y, pulseSize * 2);
+                    glowGrad.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
+                    glowGrad.addColorStop(1, 'transparent');
+                    ctx.fillStyle = glowGrad;
+                    ctx.beginPath();
+                    ctx.arc(x, y, pulseSize * 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                ctx.beginPath();
+                ctx.arc(x, y, markerSize, 0, Math.PI * 2);
+                ctx.fillStyle = isActive ? '#FFFFFF' : isCompleted ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.2)';
+                ctx.fill();
+
+                ctx.strokeStyle = isActive ? '#FFFFFF' : 'rgba(255,255,255,0.3)';
+                ctx.lineWidth = isActive ? 2 : 1;
+                ctx.stroke();
+
+                ctx.fillStyle = isActive ? '#000000' : 'rgba(255,255,255,0.8)';
+                ctx.font = `bold ${9 * scale}px Inter, sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(`${index + 1}`, x, y);
+            });
+
+            // Planet border
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+            ctx.stroke();
+
+            animationRef.current = requestAnimationFrame(draw);
+        };
+
+        draw();
+
+        return () => {
+            window.removeEventListener('resize', resize);
+            if (animationRef.current) cancelAnimationFrame(animationRef.current);
+        };
+    }, [journeySteps, currentStepIndex]);
+
+    return <canvas ref={canvasRef} className="w-full h-full" />;
 }
 
 export default function ChatView() {
@@ -296,6 +200,7 @@ export default function ChatView() {
     const [chatInput, setChatInput] = useState('');
     const [isChatLoading, setIsChatLoading] = useState(false);
     const [isInputFocused, setIsInputFocused] = useState(false);
+    const [use3D, setUse3D] = useState(true);
     
     // Journey State
     const [journeySteps, setJourneySteps] = useState<JourneyStep[]>([]);
@@ -305,6 +210,21 @@ export default function ChatView() {
     const [isTyping, setIsTyping] = useState(false);
     
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    // Check WebGL support
+    useEffect(() => {
+        try {
+            const canvas = document.createElement('canvas');
+            const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+            if (!gl) {
+                console.warn('WebGL not supported, falling back to 2D');
+                setUse3D(false);
+            }
+        } catch (e) {
+            console.warn('WebGL check failed, falling back to 2D');
+            setUse3D(false);
+        }
+    }, []);
 
     // Auto-resize textarea
     useEffect(() => {
@@ -340,7 +260,6 @@ export default function ChatView() {
 
         const step = journeySteps[stepIndex];
         
-        // Update step states
         setJourneySteps(prev => prev.map((s, i) => ({
             ...s,
             isActive: i === stepIndex,
@@ -348,8 +267,6 @@ export default function ChatView() {
         })));
         
         setCurrentStepIndex(stepIndex);
-
-        // Type the explanation
         typeText(step.content);
     }, [journeySteps, typeText]);
 
@@ -358,7 +275,7 @@ export default function ChatView() {
         const stepPatterns = [
             /(?:^|\n)(\d+)[.)]\s*(.+?)(?=\n\d+[.)]|\n\n|$)/gs,
             /(?:^|\n)(?:Step\s*)?(\d+)[.:]\s*(.+?)(?=\n(?:Step\s*)?\d+[.:]|\n\n|$)/gis,
-            /(?:^|\n)[•\-]\s*(.+?)(?=\n[•\-]|\n\n|$)/gs
+            /(?:^|\n)[\-]\s*(.+?)(?=\n[\-]|\n\n|$)/gs
         ];
 
         let steps: JourneyStep[] = [];
@@ -483,6 +400,7 @@ export default function ChatView() {
         } catch (error) {
             console.error('Chat error:', error);
             setDisplayedText("I'm having trouble connecting. Please try again.");
+            setIsJourneyActive(true);
         } finally {
             setIsChatLoading(false);
         }
@@ -509,17 +427,19 @@ export default function ChatView() {
 
     return (
         <div className="h-full w-full bg-black flex flex-col overflow-hidden relative">
-            {/* 3D Canvas - Full Screen Background */}
+            {/* 3D/2D Canvas Background */}
             <div className="absolute inset-0">
-                <Canvas camera={{ position: [5, 2, 5], fov: 45 }}>
-                    <Suspense fallback={null}>
-                        <Scene 
-                            journeySteps={journeySteps}
-                            currentStepIndex={currentStepIndex}
-                            onMarkerClick={navigateToStep}
-                        />
-                    </Suspense>
-                </Canvas>
+                <Canvas3DErrorBoundary 
+                    fallback={<Fallback2DPlanet journeySteps={journeySteps} currentStepIndex={currentStepIndex} />}
+                >
+                    {use3D ? (
+                        <Suspense fallback={<Fallback2DPlanet journeySteps={journeySteps} currentStepIndex={currentStepIndex} />}>
+                            <ThreeCanvas journeySteps={journeySteps} currentStepIndex={currentStepIndex} onMarkerClick={navigateToStep} />
+                        </Suspense>
+                    ) : (
+                        <Fallback2DPlanet journeySteps={journeySteps} currentStepIndex={currentStepIndex} />
+                    )}
+                </Canvas3DErrorBoundary>
             </div>
 
             {/* Top Header */}
@@ -548,7 +468,7 @@ export default function ChatView() {
                 )}
             </div>
 
-            {/* Content Overlay - Left Side Text (FIXED POSITIONING) */}
+            {/* Content Overlay - Left Side Text */}
             <div className="flex-1 relative z-10 pointer-events-none">
                 <div className="absolute left-0 top-0 bottom-0 w-[45%] flex flex-col justify-center px-8 py-8 pointer-events-auto">
                     {!isJourneyActive && !isChatLoading && (
@@ -576,25 +496,21 @@ export default function ChatView() {
 
                     {isJourneyActive && journeySteps.length > 0 && currentStepIndex >= 0 && (
                         <div className="animate-fade-in">
-                            {/* Step indicator */}
                             <div className="flex items-center gap-2 mb-4">
                                 <span className="text-white/30 text-xs uppercase tracking-widest">
                                     Step {currentStepIndex + 1} of {journeySteps.length}
                                 </span>
                             </div>
 
-                            {/* Step title */}
                             <h3 className="text-white text-xl font-bold mb-4">
                                 {journeySteps[currentStepIndex]?.title}
                             </h3>
 
-                            {/* AI explanation with typewriter */}
                             <div className="text-white/80 text-sm leading-relaxed mb-6 min-h-[120px] max-w-[380px]">
                                 {displayedText}
                                 {isTyping && <span className="inline-block w-0.5 h-4 bg-white ml-1 animate-pulse" />}
                             </div>
 
-                            {/* Navigation */}
                             <div className="flex items-center gap-3">
                                 <button
                                     onClick={goToPrevStep}
@@ -612,7 +528,6 @@ export default function ChatView() {
                                 </button>
                             </div>
 
-                            {/* Step dots */}
                             <div className="flex items-center gap-2 mt-6">
                                 {journeySteps.map((_, idx) => (
                                     <button
@@ -628,6 +543,12 @@ export default function ChatView() {
                                     />
                                 ))}
                             </div>
+                        </div>
+                    )}
+
+                    {isJourneyActive && displayedText && journeySteps.length === 0 && (
+                        <div className="animate-fade-in">
+                            <p className="text-white/80 text-sm leading-relaxed">{displayedText}</p>
                         </div>
                     )}
                 </div>
@@ -670,7 +591,6 @@ export default function ChatView() {
                 </div>
             </div>
 
-            {/* CSS Animations */}
             <style>{`
                 @keyframes fade-in {
                     from { opacity: 0; transform: translateY(10px); }

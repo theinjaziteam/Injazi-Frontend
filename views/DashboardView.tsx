@@ -9,7 +9,7 @@ import { api } from '../services/api';
 export default function DashboardView() {
     const { 
        user, setUser, setView, setShowCheckIn, showCheckIn,
-    lessons, showConfetti
+       lessons, showConfetti
     } = useApp();
     const [isEarnExpanded, setIsEarnExpanded] = useState(false);
     const [checkInText, setCheckInText] = useState('');
@@ -17,6 +17,7 @@ export default function DashboardView() {
     const [isLoadingOffers, setIsLoadingOffers] = useState(false);
     const [adgemOffers, setAdgemOffers] = useState<any[]>([]);
     const [progressAnimated, setProgressAnimated] = useState(false);
+    const [liquidFill, setLiquidFill] = useState(0);
     const scrollRef = useRef<HTMLDivElement>(null);
 
     // --- SAFETY CHECKS ---
@@ -37,11 +38,28 @@ export default function DashboardView() {
         t.status === TaskStatus.APPROVED || t.status === TaskStatus.COMPLETED
     ).length;
 
-    // Animate progress ring on mount
+    const totalTodayCount = dailyTasks.filter(t => !t.isLessonTask).length;
+
+    // Animate progress on mount
     useEffect(() => {
-        const timer = setTimeout(() => setProgressAnimated(true), 300);
+        const timer = setTimeout(() => {
+            setProgressAnimated(true);
+            // Animate liquid fill
+            const targetFill = Math.round((user.currentDay / (currentGoal.durationDays || 365)) * 100);
+            let current = 0;
+            const interval = setInterval(() => {
+                current += 1;
+                if (current >= targetFill) {
+                    setLiquidFill(targetFill);
+                    clearInterval(interval);
+                } else {
+                    setLiquidFill(current);
+                }
+            }, 20);
+            return () => clearInterval(interval);
+        }, 300);
         return () => clearTimeout(timer);
-    }, []);
+    }, [user.currentDay, currentGoal.durationDays]);
 
     // Get greeting based on time
     const getGreeting = () => {
@@ -63,7 +81,6 @@ export default function DashboardView() {
 
     const fetchAdgemOffers = async () => {
         if (isLoadingOffers) return;
-        
         setIsLoadingOffers(true);
         try {
             const response = await api.getAdgemOffers(user.email);
@@ -148,124 +165,80 @@ export default function DashboardView() {
         }
     };
 
-    // ============================================
-    // UPDATED: Difficulty colors using PRIMARY shades
-    // Primary: #171738 (dark navy/indigo)
-    // Easy = Light shade, Medium = Mid shade, Hard = Dark shade
-    // ============================================
+    // Format large numbers with commas
+    const formatCredits = (num: number) => {
+        return num.toLocaleString();
+    };
+
+    // Difficulty styling
     const getDifficultyLabel = (difficulty?: number | string) => {
         if (difficulty === Difficulty.EASY || difficulty === 'EASY' || difficulty === 1) return 'Easy';
         if (difficulty === Difficulty.HARD || difficulty === 'HARD' || difficulty === 3) return 'Hard';
         return 'Medium';
     };
 
-    // CHANGED: Now uses shades of primary (#171738) instead of green/yellow/red
     const getDifficultyColor = (difficulty?: number | string) => {
-        // Easy = lightest primary shade (good contrast on light bg)
         if (difficulty === Difficulty.EASY || difficulty === 'EASY' || difficulty === 1) {
-            return 'bg-[#E8E8F0] text-[#171738]';
+            return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
         }
-        // Hard = darkest primary shade
         if (difficulty === Difficulty.HARD || difficulty === 'HARD' || difficulty === 3) {
-            return 'bg-[#171738] text-white';
+            return 'bg-rose-50 text-rose-700 border border-rose-200';
         }
-        // Medium = mid primary shade
-        return 'bg-[#3423A6] text-white';
+        return 'bg-amber-50 text-amber-700 border border-amber-200';
     };
 
-    // CHANGED: Task icon background colors to match primary shades
     const getDifficultyBgColor = (difficulty?: number | string) => {
         if (difficulty === Difficulty.EASY || difficulty === 'EASY' || difficulty === 1) {
-            return 'bg-[#E8E8F0]';
+            return 'bg-gradient-to-br from-emerald-50 to-emerald-100';
         }
         if (difficulty === Difficulty.HARD || difficulty === 'HARD' || difficulty === 3) {
-            return 'bg-[#2A2A5A]';
+            return 'bg-gradient-to-br from-rose-50 to-rose-100';
         }
-        return 'bg-[#4A3DC7]/20';
+        return 'bg-gradient-to-br from-amber-50 to-amber-100';
     };
 
-    // CHANGED: Task icon colors to use primary shades
     const getDifficultyIconColor = (difficulty?: number | string) => {
-        if (difficulty === Difficulty.EASY || difficulty === 'EASY' || difficulty === 1) {
-            return 'text-[#3423A6]';
-        }
-        if (difficulty === Difficulty.HARD || difficulty === 'HARD' || difficulty === 3) {
-            return 'text-[#9B93D9]';
-        }
-        return 'text-[#3423A6]';
+        if (difficulty === Difficulty.EASY || difficulty === 'EASY' || difficulty === 1) return 'text-emerald-600';
+        if (difficulty === Difficulty.HARD || difficulty === 'HARD' || difficulty === 3) return 'text-rose-600';
+        return 'text-amber-600';
     };
 
-    // SVG Icons for tasks - UPDATED to use primary color scheme
+    // Task icons
     const TaskIcon = ({ difficulty }: { difficulty?: string }) => {
         const colorClass = getDifficultyIconColor(difficulty);
         
         if (difficulty === 'EASY' || difficulty === Difficulty.EASY) {
             return (
-                <svg className={`w-6 h-6 ${colorClass}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                <svg className={`w-5 h-5 ${colorClass}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
                 </svg>
             );
         }
         if (difficulty === 'HARD' || difficulty === Difficulty.HARD) {
             return (
-                <svg className={`w-6 h-6 ${colorClass}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg className={`w-5 h-5 ${colorClass}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
                 </svg>
             );
         }
         return (
-            <svg className={`w-6 h-6 ${colorClass}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+            <svg className={`w-5 h-5 ${colorClass}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
             </svg>
         );
     };
 
-    // SVG Icons for stats
-    const FlameIcon = () => (
-        <svg className="w-6 h-6 text-orange-500" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 23c-3.866 0-7-3.134-7-7 0-2.551 1.27-4.484 2.659-6.233.694-.875 1.436-1.707 2.095-2.57.394-.516.751-1.05 1.046-1.63.256-.504.449-1.04.578-1.567-.418 1.573-.075 3.156.64 4.424.715 1.27 1.782 2.262 2.982 2.965V9c0-1 .5-3 2-4.5 0 2.5 1 4 2 5s2 3 2 5c0 3.866-3.134 7-7 7z"/>
-        </svg>
-    );
-
-    const CheckCircleIcon = () => (
-        <svg className="w-6 h-6 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-            <polyline points="22 4 12 14.01 9 11.01"/>
-        </svg>
-    );
-
-    // CHANGED: Credits icon now uses a warm gold/amber color (not gradient)
-    const CoinsIcon = () => (
-        <svg className="w-6 h-6 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="8" cy="8" r="6"/>
-            <path d="M18.09 10.37A6 6 0 1 1 10.34 18"/>
-            <path d="M7 6h1v4"/>
-        </svg>
-    );
-
-    const CelebrationIcon = () => (
-        <svg className="w-12 h-12 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M5.8 11.3 2 22l10.7-3.79"/>
-            <path d="M4 3h.01"/>
-            <path d="M22 8h.01"/>
-            <path d="M15 2h.01"/>
-            <path d="M22 20h.01"/>
-            <path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12v0c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10"/>
-            <path d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11v0c-.11.7-.72 1.22-1.43 1.22H17"/>
-            <path d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98v0C9.52 4.9 9 5.52 9 6.23V7"/>
-            <path d="M11 13c1.93 1.93 2.83 4.17 2 5-.83.83-3.07-.07-5-2-1.93-1.93-2.83-4.17-2-5 .83-.83 3.07.07 5 2Z"/>
-        </svg>
-    );
-
     // Progress calculation
     const progressPercent = Math.round((user.currentDay / (currentGoal.durationDays || 365)) * 100);
-    const circumference = 2 * Math.PI * 42;
-    const strokeDashoffset = progressAnimated ? circumference - (circumference * progressPercent / 100) : circumference;
+
+    // All tasks completed check
+    const allTasksComplete = pendingDailyTasks.length === 0 && totalTodayCount > 0;
 
     return (
         <div 
             ref={scrollRef}
-            className="h-full overflow-y-auto overflow-x-hidden overscroll-none"
+            className="h-full overflow-y-auto overflow-x-hidden overscroll-none bg-[#F7F8FC]"
             style={{ 
                 WebkitOverflowScrolling: 'touch',
                 overscrollBehavior: 'none'
@@ -274,77 +247,77 @@ export default function DashboardView() {
             {/* Confetti Animation */}
             {showConfetti && (
                 <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
-                    {[...Array(30)].map((_, i) => (
+                    {[...Array(40)].map((_, i) => (
                         <div
                             key={i}
                             className="absolute"
                             style={{
                                 left: `${Math.random() * 100}%`,
                                 top: '-20px',
-                                animation: `confetti-fall ${2 + Math.random() * 1.5}s ease-out forwards`,
-                                animationDelay: `${Math.random() * 0.5}s`,
+                                animation: `confetti-fall ${2.5 + Math.random() * 2}s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards`,
+                                animationDelay: `${Math.random() * 0.8}s`,
                             }}
                         >
-                            <svg 
-                                width="12" 
-                                height="12" 
-                                viewBox="0 0 12 12"
+                            <div 
                                 style={{
+                                    width: `${8 + Math.random() * 8}px`,
+                                    height: `${8 + Math.random() * 8}px`,
+                                    background: ['#3423A6', '#10B981', '#F59E0B', '#EC4899', '#6366F1', '#14B8A6'][Math.floor(Math.random() * 6)],
+                                    borderRadius: Math.random() > 0.5 ? '50%' : '2px',
                                     transform: `rotate(${Math.random() * 360}deg)`,
-                                    fill: ['#3423A6', '#DFF3E4', '#F59E0B', '#171738', '#4ECDC4', '#9B59B6'][Math.floor(Math.random() * 6)],
                                 }}
-                            >
-                                {Math.random() > 0.5 ? (
-                                    <rect width="12" height="12" rx="2" />
-                                ) : (
-                                    <circle cx="6" cy="6" r="6" />
-                                )}
-                            </svg>
+                            />
                         </div>
                     ))}
                 </div>
             )}
 
-            <div className="min-h-full bg-gray-50">
-                {/* Header Section - Fixed visual at top */}
-                <div className="bg-primary text-white px-6 pt-safe pb-20 rounded-b-[2.5rem] relative overflow-hidden shadow-2xl shadow-primary/30">
-                    {/* Background decoration */}
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-secondary/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-                    <div className="absolute bottom-0 left-0 w-48 h-48 bg-accent/10 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
+            <div className="min-h-full">
+                {/* Header Section - Refined with better hierarchy */}
+                <div className="bg-gradient-to-br from-[#171738] via-[#1e1e4a] to-[#2a2a5c] text-white px-5 pt-safe pb-24 relative overflow-hidden">
+                    {/* Subtle organic background shapes */}
+                    <div className="absolute top-0 right-0 w-80 h-80 bg-[#3423A6]/20 rounded-full blur-[100px] -translate-y-1/3 translate-x-1/4" />
+                    <div className="absolute bottom-0 left-0 w-60 h-60 bg-[#DFF3E4]/10 rounded-full blur-[80px] translate-y-1/3 -translate-x-1/4" />
+                    <div className="absolute top-1/2 left-1/2 w-40 h-40 bg-[#3423A6]/10 rounded-full blur-[60px] -translate-x-1/2 -translate-y-1/2" />
                     
-                    {/* Top Bar */}
-                    <div className="flex justify-between items-center relative z-20 pt-4 mb-8">
+                    {/* Top Bar with Credits Pill */}
+                    <div className="flex justify-between items-start relative z-20 pt-4 mb-6">
                         <div>
-                            <p className="text-white/60 text-xs font-medium">{getGreeting()}</p>
-                            <h2 className="text-xl font-black tracking-tight">{firstName}</h2>
+                            <p className="text-white/50 text-[11px] font-medium tracking-wide uppercase">{getGreeting()}</p>
+                            <h2 className="text-2xl font-black tracking-tight mt-0.5">{firstName}</h2>
                         </div>
-                        <div className="flex gap-2">
-                            <button 
-                                onClick={() => setShowCheckIn(true)} 
-                                className="p-2.5 bg-accent text-primary rounded-xl hover:bg-white transition-all shadow-lg active:scale-95"
-                            >
-                                <Icons.Check className="w-5 h-5" />
-                            </button>
+                        
+                        <div className="flex items-center gap-2">
+                            {/* Credits Pill - Prominent placement */}
+                            <div className="flex items-center gap-2 bg-gradient-to-r from-amber-400/20 to-amber-500/10 backdrop-blur-md border border-amber-400/30 rounded-full px-3 py-1.5">
+                                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-amber-300 to-amber-500 flex items-center justify-center shadow-sm">
+                                    <svg className="w-3 h-3 text-amber-900" viewBox="0 0 24 24" fill="currentColor">
+                                        <circle cx="12" cy="12" r="8"/>
+                                    </svg>
+                                </div>
+                                <span className="text-sm font-bold text-amber-100">{formatCredits(user.credits || 0)}</span>
+                            </div>
+                            
                             <button 
                                 onClick={() => setView(AppView.SETTINGS)} 
-                                className="p-2.5 bg-white/10 rounded-xl hover:bg-white/20 transition-all active:scale-95"
+                                className="p-2 bg-white/10 rounded-xl hover:bg-white/20 transition-all active:scale-95 backdrop-blur-sm"
                             >
-                                <Icons.Settings className="w-5 h-5" />
+                                <Icons.Settings className="w-5 h-5 text-white/80" />
                             </button>
                         </div>
                     </div>
                     
-                    {/* Goal Tabs */}
+                    {/* Goal Tabs - More subtle */}
                     <div className="relative z-20 w-full mb-8">
-                        <div className="flex justify-center items-center flex-wrap gap-2">
+                        <div className="flex justify-center items-center flex-wrap gap-1.5">
                             {allGoals.map((g, idx) => (
                                 <button 
                                     key={g.id}
                                     onClick={() => switchGoal(g)} 
-                                    className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all active:scale-95 ${
+                                    className={`px-3.5 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all active:scale-95 ${
                                         g.id === currentGoal.id 
-                                            ? 'bg-white text-primary shadow-lg' 
-                                            : 'bg-white/10 text-white/60 hover:bg-white/20 hover:text-white'
+                                            ? 'bg-white text-[#171738] shadow-lg shadow-black/20' 
+                                            : 'bg-white/8 text-white/50 hover:bg-white/15 hover:text-white/80'
                                     }`}
                                 >
                                     Goal {idx + 1}
@@ -352,186 +325,273 @@ export default function DashboardView() {
                             ))}
                             <button 
                                 onClick={handleAddGoal} 
-                                className="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-white/5 text-white/40 hover:bg-white/10 hover:text-white transition-all border border-dashed border-white/20 active:scale-95"
+                                className="px-3.5 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-transparent text-white/30 hover:text-white/60 transition-all border border-dashed border-white/20 active:scale-95"
                             >
                                 + Add
                             </button>
                         </div>
                     </div>
 
-                    {/* Progress Ring */}
+                    {/* Reimagined Progress Circle - Liquid Fill Effect */}
                     <div className="flex flex-col items-center text-center relative z-10">
-                        <div className="relative w-40 h-40 flex items-center justify-center mb-4">
-                            {/* Glow effect */}
-                            <div className="absolute inset-2 bg-accent/20 rounded-full blur-xl" />
+                        <div className="relative w-44 h-44 flex items-center justify-center mb-5">
+                            {/* Outer glow */}
+                            <div className="absolute inset-0 bg-[#DFF3E4]/10 rounded-full blur-2xl scale-110" />
                             
-                            <svg className="w-full h-full -rotate-90 relative z-10" viewBox="0 0 100 100">
-                                <circle 
-                                    cx="50" cy="50" r="42" 
-                                    stroke="currentColor" 
-                                    strokeWidth="8" 
-                                    fill="none" 
-                                    className="text-white/10" 
-                                />
-                                <circle 
-                                    cx="50" cy="50" r="42" 
-                                    stroke="currentColor" 
-                                    strokeWidth="8" 
-                                    fill="none" 
-                                    className="text-accent transition-all duration-1000 ease-out" 
-                                    strokeDasharray={circumference}
-                                    strokeDashoffset={strokeDashoffset}
-                                    strokeLinecap="round"
-                                />
-                            </svg>
-                            
-                            <div className="absolute inset-0 flex items-center justify-center flex-col">
-                                <span className="text-4xl font-black text-white tracking-tighter">{progressPercent}%</span>
-                                <span className="text-white/40 text-[10px] font-medium mt-0.5">Complete</span>
+                            {/* Main circle container */}
+                            <div className="relative w-full h-full">
+                                {/* Background circle */}
+                                <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                                    {/* Outer ring - subtle */}
+                                    <circle 
+                                        cx="50" cy="50" r="46" 
+                                        fill="none"
+                                        stroke="rgba(255,255,255,0.05)" 
+                                        strokeWidth="2"
+                                    />
+                                    
+                                    {/* Progress track */}
+                                    <circle 
+                                        cx="50" cy="50" r="42" 
+                                        fill="none"
+                                        stroke="rgba(255,255,255,0.1)" 
+                                        strokeWidth="8"
+                                        strokeLinecap="round"
+                                    />
+                                    
+                                    {/* Gradient definition */}
+                                    <defs>
+                                        <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                            <stop offset="0%" stopColor="#DFF3E4" />
+                                            <stop offset="50%" stopColor="#A7F3D0" />
+                                            <stop offset="100%" stopColor="#6EE7B7" />
+                                        </linearGradient>
+                                        <filter id="glow">
+                                            <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+                                            <feMerge>
+                                                <feMergeNode in="coloredBlur"/>
+                                                <feMergeNode in="SourceGraphic"/>
+                                            </feMerge>
+                                        </filter>
+                                    </defs>
+                                    
+                                    {/* Progress arc - thick gradient stroke */}
+                                    <circle 
+                                        cx="50" cy="50" r="42" 
+                                        fill="none"
+                                        stroke="url(#progressGradient)" 
+                                        strokeWidth="8"
+                                        strokeLinecap="round"
+                                        strokeDasharray={`${2 * Math.PI * 42}`}
+                                        strokeDashoffset={progressAnimated ? 2 * Math.PI * 42 * (1 - liquidFill / 100) : 2 * Math.PI * 42}
+                                        className="transition-all duration-1000 ease-out"
+                                        filter="url(#glow)"
+                                    />
+                                </svg>
+                                
+                                {/* Center content */}
+                                <div className="absolute inset-0 flex items-center justify-center flex-col">
+                                    <div className="relative">
+                                        <span className="text-5xl font-black text-white tracking-tighter">{liquidFill}</span>
+                                        <span className="text-xl font-bold text-white/60">%</span>
+                                    </div>
+                                    <span className="text-white/40 text-[10px] font-semibold tracking-wider uppercase mt-1">Complete</span>
+                                </div>
                             </div>
                         </div>
                         
-                        <h3 className="font-bold text-xl leading-tight mb-2 max-w-[85%] mx-auto">{currentGoal.title}</h3>
-                        
-                        <span className="text-white/50 text-xs font-bold uppercase tracking-wide bg-white/10 px-4 py-1.5 rounded-full">
-                            Day {user.currentDay} of {currentGoal.durationDays}
-                        </span>
+                        {/* Goal Title Group - Tighter hierarchy */}
+                        <div className="space-y-1.5">
+                            <h3 className="font-black text-[22px] leading-tight max-w-[280px] mx-auto tracking-tight">
+                                {currentGoal.title}
+                            </h3>
+                            <p className="text-white/40 text-xs font-medium">
+                                Day {user.currentDay} of {currentGoal.durationDays}
+                            </p>
+                        </div>
                     </div>
                 </div>
 
-                {/* Quick Stats Bar */}
-                <div className="px-5 -mt-6 relative z-20 mb-5">
-                    <div className="bg-white rounded-2xl shadow-lg shadow-gray-200/50 p-3 flex justify-around items-center border border-gray-100">
-                        <div className="text-center flex-1">
-                            <div className="flex items-center justify-center gap-1.5 mb-0.5">
-                                <FlameIcon />
-                                <span className="text-xl font-black text-primary">{user.streak || 0}</span>
+                {/* Daily Progress Card - Floating overlap */}
+                <div className="px-5 -mt-8 relative z-20 mb-5">
+                    <div 
+                        className="bg-white rounded-2xl p-4 flex items-center justify-between"
+                        style={{
+                            boxShadow: '0 4px 20px -2px rgba(23, 23, 56, 0.08), 0 2px 8px -2px rgba(23, 23, 56, 0.04)'
+                        }}
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${
+                                allTasksComplete 
+                                    ? 'bg-gradient-to-br from-emerald-400 to-emerald-500' 
+                                    : 'bg-gradient-to-br from-[#3423A6]/10 to-[#3423A6]/5'
+                            }`}>
+                                {allTasksComplete ? (
+                                    <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                        <polyline points="20 6 9 17 4 12"/>
+                                    </svg>
+                                ) : (
+                                    <svg className="w-5 h-5 text-[#3423A6]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                                    </svg>
+                                )}
                             </div>
-                            <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Streak</p>
+                            <div>
+                                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Daily Progress</p>
+                                <p className="text-lg font-black text-[#171738]">
+                                    {completedTodayCount}/{totalTodayCount || '—'}
+                                    <span className="text-sm font-medium text-gray-400 ml-1.5">
+                                        {allTasksComplete ? 'Complete!' : 'tasks'}
+                                    </span>
+                                </p>
+                            </div>
                         </div>
                         
-                        <div className="w-px h-8 bg-gray-100" />
-                        
-                        <div className="text-center flex-1">
-                            <div className="flex items-center justify-center gap-1.5 mb-0.5">
-                                <CheckCircleIcon />
-                                <span className="text-xl font-black text-primary">{completedTodayCount}</span>
-                            </div>
-                            <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Done</p>
-                        </div>
-                        
-                        <div className="w-px h-8 bg-gray-100" />
-                        
-                        <div className="text-center flex-1">
-                            <div className="flex items-center justify-center gap-1.5 mb-0.5">
-                                <CoinsIcon />
-                                <span className="text-xl font-black text-primary">{user.credits || 0}</span>
-                            </div>
-                            <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Credits</p>
-                        </div>
+                        <button 
+                            onClick={() => setShowCheckIn(true)} 
+                            className="px-4 py-2.5 bg-gradient-to-r from-[#3423A6] to-[#4834c7] text-white rounded-xl text-xs font-bold shadow-lg shadow-[#3423A6]/20 hover:shadow-[#3423A6]/30 transition-all active:scale-95"
+                        >
+                            Check In
+                        </button>
                     </div>
                 </div>
 
-                <div className="px-5 relative z-20 space-y-5 pb-32">
-                    {/* Agent Alerts */}
+                <div className="px-5 relative z-20 space-y-4 pb-32">
+                    {/* Agent Alerts - Softer design */}
                     {agentAlerts.filter(a => !a.isRead).map(alert => (
                         <div 
                             key={alert.id}
                             onClick={() => setView(AppView.STATS)} 
-                            className={`rounded-2xl border-l-4 shadow-md bg-white p-4 flex items-center justify-between cursor-pointer active:scale-[0.98] transition-transform ${
-                                alert.severity === 'high' ? 'border-rose-500' : 'border-blue-500'
+                            className={`rounded-2xl bg-white p-4 flex items-center gap-3 cursor-pointer active:scale-[0.98] transition-transform border-l-4 ${
+                                alert.severity === 'high' ? 'border-rose-400' : 'border-blue-400'
                             }`}
+                            style={{
+                                boxShadow: '0 2px 12px -2px rgba(23, 23, 56, 0.06)'
+                            }}
                         >
-                            <div className="flex items-center gap-3 overflow-hidden">
-                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                                    alert.severity === 'high' ? 'bg-rose-100' : 'bg-blue-100'
-                                }`}>
-                                    <Icons.AlertTriangle className={`w-5 h-5 ${
-                                        alert.severity === 'high' ? 'text-rose-500' : 'text-blue-500'
-                                    }`}/>
-                                </div>
-                                <div className="min-w-0">
-                                    <h3 className="font-bold text-primary text-sm truncate">{alert.title}</h3>
-                                    <p className="text-[10px] text-gray-400">Tap to view</p>
-                                </div>
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                                alert.severity === 'high' ? 'bg-rose-50' : 'bg-blue-50'
+                            }`}>
+                                <Icons.AlertTriangle className={`w-5 h-5 ${
+                                    alert.severity === 'high' ? 'text-rose-500' : 'text-blue-500'
+                                }`}/>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <h3 className="font-bold text-[#171738] text-sm truncate">{alert.title}</h3>
+                                <p className="text-[10px] text-gray-400 mt-0.5">Tap to view details</p>
                             </div>
                             <Icons.ChevronRight className="w-5 h-5 text-gray-300 flex-shrink-0" />
                         </div>
                     ))}
 
-                    {/* Daily Missions Card */}
-                    <div className="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100">
+                    {/* Today's Missions - Refined card */}
+                    <div 
+                        className="bg-white rounded-2xl overflow-hidden"
+                        style={{
+                            boxShadow: '0 4px 24px -4px rgba(23, 23, 56, 0.08), 0 2px 8px -4px rgba(23, 23, 56, 0.04)'
+                        }}
+                    >
                         <div className="p-5">
-                            <div className="flex justify-between items-center mb-4">
+                            <div className="flex justify-between items-start mb-5">
                                 <div>
-                                    <h3 className="font-black text-primary text-lg">Today's Missions</h3>
-                                    <p className="text-[10px] text-gray-400 mt-0.5">Complete tasks to build momentum</p>
+                                    <h3 className="font-black text-[#171738] text-lg tracking-tight">Today's Missions</h3>
+                                    <p className="text-[11px] text-gray-400 mt-0.5 font-medium">Small steps, big progress</p>
                                 </div>
-                                <div className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                                    pendingDailyTasks.length === 0 
-                                        ? 'bg-emerald-100 text-emerald-700' 
-                                        : 'bg-secondary/10 text-secondary'
-                                }`}>
-                                    {pendingDailyTasks.length === 0 ? ' DONE' : `${pendingDailyTasks.length} LEFT`}
-                                </div>
+                                {pendingDailyTasks.length > 0 && (
+                                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#3423A6]/10 text-[#3423A6]">
+                                        {pendingDailyTasks.length} remaining
+                                    </span>
+                                )}
                             </div>
                             
-                            {pendingDailyTasks.length === 0 ? (
-                                <div className="text-center py-8 px-4">
-                                    <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                                        <CelebrationIcon />
+                            {allTasksComplete ? (
+                                /* Completion State - More organic, less generic */
+                                <div className="py-6 px-4">
+                                    <div className="flex items-start gap-4">
+                                        {/* Custom illustration instead of generic icon */}
+                                        <div className="relative flex-shrink-0">
+                                            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-100 to-emerald-50 flex items-center justify-center">
+                                                <svg className="w-8 h-8 text-emerald-500" viewBox="0 0 24 24" fill="none">
+                                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="currentColor" fillOpacity="0.2"/>
+                                                    <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                                </svg>
+                                            </div>
+                                            {/* Small decorative dots */}
+                                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-amber-300 rounded-full" />
+                                            <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-[#3423A6]/40 rounded-full" />
+                                        </div>
+                                        
+                                        <div className="flex-1 pt-1">
+                                            <h4 className="font-bold text-[#171738] text-base mb-1">You crushed it today!</h4>
+                                            <p className="text-gray-400 text-sm leading-relaxed mb-3">
+                                                All {totalTodayCount} tasks complete. Your consistency is building real momentum.
+                                            </p>
+                                            <button 
+                                                onClick={() => setShowCheckIn(true)}
+                                                className="text-[#3423A6] font-bold text-sm flex items-center gap-1.5 group"
+                                            >
+                                                <span>Reflect on your day</span>
+                                                <svg className="w-4 h-4 transition-transform group-hover:translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                                                </svg>
+                                            </button>
+                                        </div>
                                     </div>
-                                    <h4 className="font-bold text-primary text-base mb-1">All tasks complete!</h4>
-                                    <p className="text-gray-400 text-xs mb-3">Amazing work. Keep the momentum!</p>
-                                    <button 
-                                        onClick={() => setShowCheckIn(true)}
-                                        className="text-secondary font-bold text-xs active:scale-95 transition-transform"
-                                    >
-                                        Log your progress 
-                                    </button>
+                                </div>
+                            ) : totalTodayCount === 0 ? (
+                                /* No tasks state */
+                                <div className="py-8 text-center">
+                                    <div className="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                                        <Icons.Sun className="w-6 h-6 text-gray-300" />
+                                    </div>
+                                    <p className="text-gray-500 font-medium text-sm mb-1">No tasks yet</p>
+                                    <p className="text-gray-400 text-xs">Check in to generate your daily missions</p>
                                 </div>
                             ) : (
+                                /* Task List - Refined cards */
                                 <div className="space-y-2.5">
-                                    {pendingDailyTasks.map((task) => (
+                                    {pendingDailyTasks.map((task, index) => (
                                         <div 
                                             key={task.id} 
                                             onClick={() => handleTaskSelect(task.id)} 
-                                            className="bg-gray-50 border border-gray-100 p-3.5 rounded-xl cursor-pointer active:scale-[0.98] transition-transform"
+                                            className="group bg-gray-50/80 hover:bg-gray-50 border border-gray-100 p-3.5 rounded-xl cursor-pointer active:scale-[0.98] transition-all"
+                                            style={{
+                                                animationDelay: `${index * 50}ms`
+                                            }}
                                         >
                                             <div className="flex items-center gap-3">
-                                                {/* Task Icon - CHANGED: Uses primary color shades */}
-                                                <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${getDifficultyBgColor(task.difficulty)}`}>
+                                                {/* Task Icon */}
+                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${getDifficultyBgColor(task.difficulty)}`}>
                                                     <TaskIcon difficulty={task.difficulty as string} />
                                                 </div>
                                                 
                                                 {/* Task Content */}
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-2 mb-0.5">
-                                                        {/* CHANGED: Difficulty badge uses primary shades */}
-                                                        <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${getDifficultyColor(task.difficulty)}`}>
+                                                        <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-md ${getDifficultyColor(task.difficulty)}`}>
                                                             {getDifficultyLabel(task.difficulty)}
                                                         </span>
-                                                        <span className="text-[9px] font-medium text-gray-400">
-                                                            {task.estimatedTimeMinutes || 15}m
+                                                        <span className="text-[10px] font-medium text-gray-400">
+                                                            ~{task.estimatedTimeMinutes || 15} min
                                                         </span>
                                                     </div>
-                                                    <h4 className="font-bold text-primary text-sm leading-tight truncate">
+                                                    <h4 className="font-semibold text-[#171738] text-[13px] leading-snug line-clamp-1 group-hover:text-[#3423A6] transition-colors">
                                                         {task.title}
                                                     </h4>
                                                 </div>
                                                 
-                                                {/* Timer/Arrow */}
+                                                {/* Timer or Arrow */}
                                                 {(task.timeLeft !== undefined && task.timeLeft > 0 && task.timeLeft < ((task.estimatedTimeMinutes || 20) * 60)) ? (
-                                                    <div className={`px-2 py-1 rounded-lg text-[10px] font-bold flex-shrink-0 ${
+                                                    <div className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold flex-shrink-0 ${
                                                         task.isTimerActive 
-                                                            ? 'bg-[#DFF3E4] text-[#171738]' 
-                                                            : 'bg-[#E8E8F0] text-[#171738]'
+                                                            ? 'bg-emerald-100 text-emerald-700' 
+                                                            : 'bg-gray-100 text-gray-600'
                                                     }`}>
                                                         {calculateRealTimeRemaining(task)}
                                                     </div>
                                                 ) : (
-                                                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                                                        <Icons.ChevronRight className="w-4 h-4 text-gray-400" />
+                                                    <div className="w-8 h-8 rounded-full bg-gray-100 group-hover:bg-[#3423A6]/10 flex items-center justify-center flex-shrink-0 transition-colors">
+                                                        <Icons.ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-[#3423A6] transition-colors" />
                                                     </div>
                                                 )}
                                             </div>
@@ -540,65 +600,64 @@ export default function DashboardView() {
                                 </div>
                             )}
                             
-                            <button 
-                                onClick={() => setView(AppView.TASK_SELECTION)} 
-                                className="w-full mt-4 py-3 bg-gray-100 text-primary font-bold text-sm rounded-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-                            >
-                                <Icons.Grid className="w-4 h-4" />
-                                Browse All Tasks
-                            </button>
+                            {totalTodayCount > 0 && (
+                                <button 
+                                    onClick={() => setView(AppView.TASK_SELECTION)} 
+                                    className="w-full mt-4 py-3 bg-gray-50 hover:bg-gray-100 text-[#171738] font-semibold text-sm rounded-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2 border border-gray-100"
+                                >
+                                    <Icons.Grid className="w-4 h-4 text-gray-400" />
+                                    <span>Browse All Tasks</span>
+                                </button>
+                            )}
                         </div>
                     </div>
 
-                    {/* Earn Credits Section - CHANGED: Solid amber/gold instead of gradient */}
-                    <div className="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100">
+                    {/* Earn Credits Section - Cleaner */}
+                    <div 
+                        className="bg-white rounded-2xl overflow-hidden"
+                        style={{
+                            boxShadow: '0 2px 16px -4px rgba(23, 23, 56, 0.06)'
+                        }}
+                    >
                         <div 
-                            className="p-5 flex items-center justify-between cursor-pointer active:bg-gray-50 transition-colors" 
+                            className="p-4 flex items-center justify-between cursor-pointer active:bg-gray-50 transition-colors" 
                             onClick={() => setIsEarnExpanded(!isEarnExpanded)}
                         >
                             <div className="flex items-center gap-3">
-                                {/* CHANGED: Solid amber background instead of gradient */}
-                                <div className="w-12 h-12 bg-amber-400 rounded-xl flex items-center justify-center shadow-lg shadow-amber-400/30">
-                                    <svg className="w-6 h-6 text-amber-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <circle cx="8" cy="8" r="6"/>
-                                        <path d="M18.09 10.37A6 6 0 1 1 10.34 18"/>
-                                        <path d="M7 6h1v4"/>
+                                <div className="w-11 h-11 bg-gradient-to-br from-amber-300 to-amber-400 rounded-xl flex items-center justify-center shadow-md shadow-amber-400/30">
+                                    <svg className="w-5 h-5 text-amber-800" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <circle cx="12" cy="12" r="8"/>
+                                        <path d="M12 6v12M6 12h12"/>
                                     </svg>
                                 </div>
                                 <div>
-                                    <h3 className="text-base font-black text-primary">Earn Credits</h3>
-                                    <p className="text-[10px] text-gray-400">Complete offers for rewards</p>
+                                    <h3 className="text-[15px] font-bold text-[#171738]">Earn More Credits</h3>
+                                    <p className="text-[10px] text-gray-400 font-medium">Complete offers for rewards</p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <div className="text-right">
-                                    <span className="text-xl font-black text-primary">{user.credits || 0}</span>
-                                    <span className="text-[10px] text-gray-400 ml-0.5">CR</span>
-                                </div>
-                                <div className={`w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center transition-transform duration-300 ${isEarnExpanded ? 'rotate-180' : ''}`}>
-                                    <Icons.ChevronDown className="w-4 h-4 text-gray-400" />
-                                </div>
+                            <div className={`w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center transition-transform duration-300 ${isEarnExpanded ? 'rotate-180' : ''}`}>
+                                <Icons.ChevronDown className="w-4 h-4 text-gray-400" />
                             </div>
                         </div>
                         
                         {isEarnExpanded && (
-                            <div className="px-5 pb-5 border-t border-gray-50">
+                            <div className="px-4 pb-4 border-t border-gray-50">
                                 {isLoadingOffers && (
                                     <div className="py-8 text-center">
-                                        <div className="w-10 h-10 border-3 border-secondary border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+                                        <div className="w-8 h-8 border-2 border-[#3423A6] border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
                                         <p className="text-xs text-gray-400">Finding offers...</p>
                                     </div>
                                 )}
 
                                 {!isLoadingOffers && adgemOffers.length > 0 && (
-                                    <div className="space-y-2.5 pt-4">
+                                    <div className="space-y-2 pt-4">
                                         {adgemOffers.map(offer => (
                                             <div 
                                                 key={offer.id} 
                                                 onClick={() => handleOfferClick(offer)}
-                                                className="bg-gray-50 border border-gray-100 p-3 rounded-xl flex items-center gap-3 cursor-pointer active:scale-[0.98] transition-transform"
+                                                className="bg-gray-50 border border-gray-100 p-3 rounded-xl flex items-center gap-3 cursor-pointer active:scale-[0.98] transition-transform hover:bg-gray-100"
                                             >
-                                                <div className="w-12 h-12 rounded-xl bg-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                                <div className="w-11 h-11 rounded-xl bg-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">
                                                     {offer.icon ? (
                                                         <img src={offer.icon} alt={offer.name} className="w-full h-full object-cover" />
                                                     ) : (
@@ -607,7 +666,7 @@ export default function DashboardView() {
                                                 </div>
                                                 
                                                 <div className="flex-1 min-w-0">
-                                                    <h4 className="font-bold text-primary text-sm leading-tight truncate">
+                                                    <h4 className="font-semibold text-[#171738] text-sm leading-tight truncate">
                                                         {offer.name}
                                                     </h4>
                                                     <p className="text-[10px] text-gray-400 mt-0.5 truncate">
@@ -615,8 +674,7 @@ export default function DashboardView() {
                                                     </p>
                                                 </div>
                                                 
-                                                {/* CHANGED: Solid amber badge instead of gradient */}
-                                                <div className="bg-amber-400 text-amber-900 px-2.5 py-1.5 rounded-lg flex-shrink-0">
+                                                <div className="bg-gradient-to-r from-amber-400 to-amber-500 text-amber-900 px-2.5 py-1.5 rounded-lg flex-shrink-0">
                                                     <span className="font-black text-xs">+{offer.amount}</span>
                                                 </div>
                                             </div>
@@ -626,15 +684,15 @@ export default function DashboardView() {
 
                                 {!isLoadingOffers && adgemOffers.length === 0 && (
                                     <div className="py-8 text-center">
-                                        <div className="w-14 h-14 bg-gray-100 rounded-xl flex items-center justify-center mx-auto mb-3">
-                                            <svg className="w-7 h-7 text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mx-auto mb-3">
+                                            <svg className="w-6 h-6 text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                                 <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
                                                 <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
                                                 <line x1="12" y1="22.08" x2="12" y2="12"/>
                                             </svg>
                                         </div>
-                                        <p className="text-sm text-gray-500 font-medium">No offers right now</p>
-                                        <p className="text-[10px] text-gray-400 mt-1">Check back later</p>
+                                        <p className="text-sm text-gray-500 font-medium">No offers available</p>
+                                        <p className="text-[10px] text-gray-400 mt-1">Check back later for new opportunities</p>
                                     </div>
                                 )}
 
@@ -646,7 +704,7 @@ export default function DashboardView() {
                                         <div className="space-y-1.5">
                                             {adgemTransactions.slice(-3).reverse().map((t: any) => (
                                                 <div key={t.transactionId} className="bg-emerald-50 p-2.5 rounded-lg flex items-center gap-2.5">
-                                                    <div className="w-7 h-7 rounded-md bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                                                    <div className="w-6 h-6 rounded-md bg-emerald-100 flex items-center justify-center flex-shrink-0">
                                                         <Icons.Check className="w-3.5 h-3.5 text-emerald-600" />
                                                     </div>
                                                     <span className="flex-1 font-medium text-emerald-700 text-xs truncate">{t.offerName}</span>
@@ -660,7 +718,7 @@ export default function DashboardView() {
                                 <button 
                                     onClick={(e) => { e.stopPropagation(); fetchAdgemOffers(); }}
                                     disabled={isLoadingOffers}
-                                    className="w-full mt-4 py-2.5 text-[10px] font-bold text-secondary uppercase tracking-wider active:bg-secondary/5 rounded-lg transition-colors disabled:opacity-50"
+                                    className="w-full mt-4 py-2.5 text-[11px] font-bold text-[#3423A6] uppercase tracking-wider hover:bg-[#3423A6]/5 rounded-lg transition-colors disabled:opacity-50"
                                 >
                                     {isLoadingOffers ? 'Refreshing...' : 'Refresh Offers'}
                                 </button>
@@ -670,39 +728,51 @@ export default function DashboardView() {
                 </div>
             </div>
 
-            {/* Check-in Modal */}
+            {/* Check-in Modal - Softer design */}
             {showCheckIn && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-5">
-                    <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-5">
+                    <div 
+                        className="bg-white rounded-3xl w-full max-w-sm p-6 animate-scale-in"
+                        style={{
+                            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+                        }}
+                    >
                         <div className="text-center mb-5">
-                            <div className="w-14 h-14 bg-accent rounded-xl flex items-center justify-center mx-auto mb-3">
-                                <svg className="w-7 h-7 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <div className="w-14 h-14 bg-gradient-to-br from-[#DFF3E4] to-[#A7F3D0] rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-[#DFF3E4]/50">
+                                <svg className="w-7 h-7 text-[#171738]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                                 </svg>
                             </div>
-                            <h2 className="text-xl font-black text-primary">Daily Check-in</h2>
-                            <p className="text-xs text-gray-400 mt-1">What did you accomplish today?</p>
+                            <h2 className="text-xl font-black text-[#171738] tracking-tight">Daily Check-in</h2>
+                            <p className="text-xs text-gray-400 mt-1.5 font-medium">What did you accomplish today?</p>
                         </div>
                         
                         <textarea 
                             value={checkInText} 
                             onChange={(e) => setCheckInText(e.target.value)} 
-                            className="w-full h-28 p-3.5 bg-gray-50 rounded-xl border-2 border-gray-100 focus:border-secondary focus:outline-none resize-none text-primary text-sm placeholder-gray-300 transition-colors" 
+                            className="w-full h-28 p-4 bg-gray-50 rounded-2xl border-2 border-gray-100 focus:border-[#3423A6] focus:bg-white focus:outline-none resize-none text-[#171738] text-sm placeholder-gray-300 transition-all" 
                             placeholder="I researched 3 competitors, drafted the intro..." 
                         />
                         
                         <div className="mt-5 space-y-2.5">
-                            <Button 
-                                onClick={submitDailyCheckIn} 
-                                isLoading={isProcessingCheckIn} 
-                                disabled={!checkInText.trim()}
+                            <button 
+                                onClick={submitDailyCheckIn}
+                                disabled={!checkInText.trim() || isProcessingCheckIn}
+                                className="w-full py-4 bg-gradient-to-r from-[#171738] to-[#2a2a5c] text-white rounded-2xl font-bold text-sm tracking-wide transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-[#171738]/20"
                             >
-                                Submit & Generate Tasks
-                            </Button>
+                                {isProcessingCheckIn ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        <span>Processing...</span>
+                                    </>
+                                ) : (
+                                    <span>Submit & Generate Tasks</span>
+                                )}
+                            </button>
                             <button 
                                 onClick={() => setShowCheckIn(false)} 
-                                className="w-full py-2.5 text-xs font-bold text-gray-400 active:text-gray-600 transition-colors"
+                                className="w-full py-3 text-xs font-bold text-gray-400 hover:text-gray-600 transition-colors"
                             >
                                 Cancel
                             </button>
@@ -711,17 +781,42 @@ export default function DashboardView() {
                 </div>
             )}
 
-            {/* Confetti CSS */}
+            {/* Animations */}
             <style>{`
                 @keyframes confetti-fall {
                     0% {
-                        transform: translateY(0) rotate(0deg);
+                        transform: translateY(0) rotate(0deg) scale(1);
+                        opacity: 1;
+                    }
+                    50% {
                         opacity: 1;
                     }
                     100% {
-                        transform: translateY(100vh) rotate(720deg);
+                        transform: translateY(100vh) rotate(720deg) scale(0.5);
                         opacity: 0;
                     }
+                }
+                
+                @keyframes scale-in {
+                    0% {
+                        opacity: 0;
+                        transform: scale(0.95);
+                    }
+                    100% {
+                        opacity: 1;
+                        transform: scale(1);
+                    }
+                }
+                
+                .animate-scale-in {
+                    animation: scale-in 0.2s ease-out;
+                }
+                
+                .line-clamp-1 {
+                    display: -webkit-box;
+                    -webkit-line-clamp: 1;
+                    -webkit-box-orient: vertical;
+                    overflow: hidden;
                 }
             `}</style>
         </div>

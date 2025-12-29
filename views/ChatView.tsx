@@ -1,7 +1,7 @@
 // views/ChatView.tsx
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useApp } from '../contexts/AppContext';
-import { AppView, ChatMessage } from '../types';
+import { AppView, ChatMessage, ChatAttachment } from '../types';
 import { Icons } from '../components/UIComponents';
 import { getChatResponse, checkContentSafety } from '../services/geminiService';
 
@@ -22,20 +22,40 @@ interface GuideConversation {
     journeySteps: JourneyStep[];
 }
 
+// Helper to convert file to base64
+const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => {
+            const result = reader.result as string;
+            const base64 = result.split(',')[1];
+            resolve(base64);
+        };
+        reader.onerror = error => reject(error);
+    });
+};
+
 export default function ChatView() {
     const { user, setUser, setView } = useApp();
     const [chatInput, setChatInput] = useState('');
     const [isChatLoading, setIsChatLoading] = useState(false);
     const [isInputFocused, setIsInputFocused] = useState(false);
     
+    // Attachment state
+    const [attachment, setAttachment] = useState<ChatAttachment | null>(null);
+    const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    
     // Conversations state
-    const [conversations, setConversations] = useState<GuideConversation[]>(() => {
-        return (user as any).guideConversations || [];
-    });
+    const [conversations, setConversations] = useState<GuideConversation[]>([]);
     const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
     const [showJourneysList, setShowJourneysList] = useState(false);
     const [editingJourneyId, setEditingJourneyId] = useState<string | null>(null);
     const [editingName, setEditingName] = useState('');
+    
+    // View mode - planet or chat
+    const [viewMode, setViewMode] = useState<'planet' | 'chat'>('planet');
     
     // Journey State
     const [journeySteps, setJourneySteps] = useState<JourneyStep[]>([]);
@@ -47,20 +67,41 @@ export default function ChatView() {
     
     // Canvas refs
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const animationRef = useRef<number>();
+    const animationRef = useRef<number | null>(null);
     const rotationRef = useRef({ y: 0, targetY: 0, velocity: 0 });
     const dragRef = useRef({ isDragging: false, lastX: 0 });
     const starsRef = useRef<{ x: number; y: number; z: number; brightness: number }[]>([]);
+    
+    // Chat scroll ref
+    const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    // Save conversations to user state
+    // Initialize conversations from user on mount
     useEffect(() => {
-        setUser(prev => ({ ...prev, guideConversations: conversations } as any));
-    }, [conversations, setUser]);
+        const saved = (user as any).guideConversations;
+        if (Array.isArray(saved)) {
+            setConversations(saved);
+        }
+    }, []);
+
+    // Save conversations to user state when they change
+    useEffect(() => {
+        if (conversations.length > 0 || (user as any).guideConversations?.length > 0) {
+            setUser(prev => ({ ...prev, guideConversations: conversations } as any));
+        }
+    }, [conversations]);
 
     // Load conversation when switching
     useEffect(() => {
+        if (!activeConversationId) {
+            setJourneySteps([]);
+            setIsJourneyActive(false);
+            setCurrentStepIndex(-1);
+            setDisplayedText('');
+            return;
+        }
+        
         const convo = conversations.find(c => c.id === activeConversationId);
-        if (convo && convo.journeySteps?.length > 0) {
+        if (convo && Array.isArray(convo.journeySteps) && convo.journeySteps.length > 0) {
             setJourneySteps(convo.journeySteps);
             setIsJourneyActive(true);
             setCurrentStepIndex(0);
@@ -72,6 +113,13 @@ export default function ChatView() {
             setDisplayedText('');
         }
     }, [activeConversationId, conversations]);
+
+    // Auto-scroll chat
+    useEffect(() => {
+        if (viewMode === 'chat' && messagesEndRef.current) {
+            messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [viewMode, conversations, activeConversationId]);
 
     // Initialize stars
     useEffect(() => {
@@ -91,8 +139,10 @@ export default function ChatView() {
         }
     }, [currentStepIndex, journeySteps]);
 
-    // 2D Canvas Planet Rendering
+    // Canvas rendering
     useEffect(() => {
+        if (viewMode !== 'planet') return;
+        
         const canvas = canvasRef.current;
         if (!canvas) return;
 
@@ -136,17 +186,17 @@ export default function ChatView() {
             const centerY = h * 0.45;
             const radius = Math.min(w, h) * 0.32;
 
-            // Rotation with momentum
+            // Rotation
             if (!dragRef.current.isDragging) {
                 rotationRef.current.y += (rotationRef.current.targetY - rotationRef.current.y) * 0.05;
                 rotationRef.current.velocity *= 0.96;
                 rotationRef.current.y += rotationRef.current.velocity;
                 rotationRef.current.targetY = rotationRef.current.y;
-            }
-            
-            if (!dragRef.current.isDragging && Math.abs(rotationRef.current.velocity) < 0.001 && journeySteps.length === 0) {
-                rotationRef.current.y += 0.002;
-                rotationRef.current.targetY = rotationRef.current.y;
+                
+                if (Math.abs(rotationRef.current.velocity) < 0.001 && journeySteps.length === 0) {
+                    rotationRef.current.y += 0.002;
+                    rotationRef.current.targetY = rotationRef.current.y;
+                }
             }
             
             const rotation = rotationRef.current.y;
@@ -154,7 +204,6 @@ export default function ChatView() {
             // Planet glow
             const glowGradient = ctx.createRadialGradient(centerX, centerY, radius * 0.9, centerX, centerY, radius * 1.5);
             glowGradient.addColorStop(0, 'rgba(100, 120, 255, 0.08)');
-            glowGradient.addColorStop(0.5, 'rgba(100, 120, 255, 0.02)');
             glowGradient.addColorStop(1, 'transparent');
             ctx.fillStyle = glowGradient;
             ctx.beginPath();
@@ -207,10 +256,7 @@ export default function ChatView() {
                     const lat2 = nextStep.position.lat * Math.PI / 180;
                     const lng2 = (nextStep.position.lng * Math.PI / 180) + rotation;
                     
-                    const vis1 = Math.cos(lng1);
-                    const vis2 = Math.cos(lng2);
-                    
-                    if (vis1 > -0.1 && vis2 > -0.1) {
+                    if (Math.cos(lng1) > -0.1 && Math.cos(lng2) > -0.1) {
                         const x1 = centerX + Math.sin(lng1) * Math.cos(lat1) * radius;
                         const y1 = centerY - Math.sin(lat1) * radius;
                         const x2 = centerX + Math.sin(lng2) * Math.cos(lat2) * radius;
@@ -244,7 +290,6 @@ export default function ChatView() {
                     const pulseSize = markerSize * (2.5 + Math.sin(Date.now() * 0.004) * 0.8);
                     const glowGrad = ctx.createRadialGradient(x, y, 0, x, y, pulseSize * 2);
                     glowGrad.addColorStop(0, 'rgba(255, 255, 255, 0.5)');
-                    glowGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.15)');
                     glowGrad.addColorStop(1, 'transparent');
                     ctx.fillStyle = glowGrad;
                     ctx.beginPath();
@@ -254,27 +299,11 @@ export default function ChatView() {
 
                 ctx.beginPath();
                 ctx.arc(x, y, markerSize, 0, Math.PI * 2);
-                
-                if (isActive) {
-                    ctx.fillStyle = '#FFFFFF';
-                    ctx.shadowColor = '#FFFFFF';
-                    ctx.shadowBlur = 20;
-                } else if (isCompleted) {
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-                    ctx.shadowBlur = 0;
-                } else {
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
-                    ctx.shadowBlur = 0;
-                }
+                ctx.fillStyle = isActive ? '#FFFFFF' : isCompleted ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.25)';
                 ctx.fill();
-                ctx.shadowBlur = 0;
 
-                ctx.strokeStyle = isActive ? '#FFFFFF' : 'rgba(255, 255, 255, 0.4)';
-                ctx.lineWidth = isActive ? 2.5 : 1.5;
-                ctx.stroke();
-
-                ctx.fillStyle = isActive ? '#000000' : 'rgba(255, 255, 255, 0.9)';
-                ctx.font = `bold ${11 * scale}px system-ui, sans-serif`;
+                ctx.fillStyle = isActive ? '#000000' : 'rgba(255,255,255,0.9)';
+                ctx.font = `bold ${11 * scale}px system-ui`;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillText(`${index + 1}`, x, y);
@@ -296,10 +325,12 @@ export default function ChatView() {
             window.removeEventListener('resize', resize);
             if (animationRef.current) cancelAnimationFrame(animationRef.current);
         };
-    }, [journeySteps, currentStepIndex]);
+    }, [viewMode, journeySteps, currentStepIndex]);
 
-    // Canvas pointer handlers - SEPARATE from canvas effect
+    // Canvas pointer handlers
     useEffect(() => {
+        if (viewMode !== 'planet') return;
+        
         const canvas = canvasRef.current;
         if (!canvas) return;
 
@@ -335,9 +366,9 @@ export default function ChatView() {
             canvas.removeEventListener('pointerup', handlePointerUp);
             canvas.removeEventListener('pointerleave', handlePointerUp);
         };
-    }, []);
+    }, [viewMode]);
 
-    // Typewriter effect - FIXED to not drop first character
+    // Typewriter effect
     const typeText = useCallback((text: string) => {
         if (typingRef.current) clearInterval(typingRef.current);
         if (!text) { 
@@ -375,8 +406,54 @@ export default function ChatView() {
         typeText(journeySteps[stepIndex]?.content || '');
     }, [journeySteps, typeText]);
 
+    // Handle file attachment
+    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Check file size (max 10MB)
+        if (file.size > 10 * 1024 * 1024) {
+            alert('File too large. Maximum size is 10MB.');
+            return;
+        }
+
+        try {
+            const base64 = await fileToBase64(file);
+            
+            let type: 'image' | 'pdf' | 'audio' = 'image';
+            if (file.type.includes('pdf')) type = 'pdf';
+            else if (file.type.includes('audio')) type = 'audio';
+            
+            setAttachment({
+                type,
+                mimeType: file.type,
+                data: base64
+            });
+            
+            // Create preview URL
+            setAttachmentPreview(URL.createObjectURL(file));
+        } catch (error) {
+            console.error('Error reading file:', error);
+            alert('Could not read file. Please try again.');
+        }
+        
+        // Reset input
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    };
+
+    // Remove attachment
+    const removeAttachment = () => {
+        setAttachment(null);
+        if (attachmentPreview) {
+            URL.revokeObjectURL(attachmentPreview);
+            setAttachmentPreview(null);
+        }
+    };
+
     // Create new conversation
-    const createConversation = useCallback(() => {
+    const createConversation = () => {
         const newConvo: GuideConversation = {
             id: `j-${Date.now()}`,
             name: `Journey ${conversations.length + 1}`,
@@ -391,10 +468,10 @@ export default function ChatView() {
         setCurrentStepIndex(-1);
         setDisplayedText('');
         setShowJourneysList(false);
-    }, [conversations.length]);
+    };
 
     // Save rename
-    const saveRename = useCallback(() => {
+    const saveRename = () => {
         if (editingJourneyId && editingName.trim()) {
             setConversations(prev => prev.map(c => 
                 c.id === editingJourneyId ? { ...c, name: editingName.trim() } : c
@@ -402,10 +479,10 @@ export default function ChatView() {
         }
         setEditingJourneyId(null);
         setEditingName('');
-    }, [editingJourneyId, editingName]);
+    };
 
     // Delete conversation
-    const deleteConversation = useCallback((id: string) => {
+    const deleteConversation = (id: string) => {
         setConversations(prev => prev.filter(c => c.id !== id));
         if (activeConversationId === id) {
             setActiveConversationId(null);
@@ -414,50 +491,40 @@ export default function ChatView() {
             setCurrentStepIndex(-1);
             setDisplayedText('');
         }
-    }, [activeConversationId]);
+    };
 
-    // FIXED: Parse AI response - handles undefined properly
-    const parseAIResponseToSteps = useCallback((response: string | undefined | null): JourneyStep[] => {
-        // Handle undefined/null/empty
+    // Parse AI response to steps
+    const parseAIResponseToSteps = (response: string | undefined | null): JourneyStep[] => {
         if (!response || typeof response !== 'string' || response.trim().length === 0) {
             return [{
                 id: 's-0',
                 title: 'Guidance',
-                content: 'I apologize, but I could not generate a proper response. Please try asking again.',
+                content: 'I could not generate a proper response. Please try again.',
                 position: { lat: 20, lng: 0 },
                 isActive: false,
                 isCompleted: false
             }];
         }
 
-        // Clean the response - remove undefined, asterisks, extra whitespace
-        let clean = response
-            .replace(/undefined/gi, '')
-            .replace(/\*\*/g, '')
-            .replace(/\*/g, '')
-            .replace(/\n{3,}/g, '\n\n')
-            .trim();
+        let clean = response.replace(/undefined/gi, '').replace(/\*\*/g, '').replace(/\*/g, '').trim();
         
         if (clean.length === 0) {
             return [{
                 id: 's-0',
                 title: 'Guidance',
-                content: 'I apologize, but I could not generate a proper response. Please try asking again.',
+                content: 'I could not generate a proper response. Please try again.',
                 position: { lat: 20, lng: 0 },
                 isActive: false,
                 isCompleted: false
             }];
         }
 
-        const steps: JourneyStep[] = [];
-        
-        // Generate spread positions
         const getPosition = (index: number, total: number) => ({
             lat: 35 - (index * (70 / Math.max(total - 1, 1))) + (Math.random() - 0.5) * 10,
             lng: -120 + (index * (240 / Math.max(total - 1, 1))) + (Math.random() - 0.5) * 10
         });
 
-        // Pattern 1: Numbered steps (1. or 1) or Step 1:)
+        // Try numbered patterns
         const numberedRegex = /(?:^|\n)\s*(?:Step\s*)?(\d+)[.):\-]\s*([^\n]+(?:\n(?!\s*(?:Step\s*)?\d+[.):\-])[^\n]*)*)/gi;
         let match;
         const numberedSteps: { num: number; content: string }[] = [];
@@ -482,7 +549,7 @@ export default function ChatView() {
             }));
         }
 
-        // Pattern 2: Bullet points
+        // Try bullet points
         const bulletRegex = /(?:^|\n)\s*[-•]\s*([^\n]+)/g;
         const bulletSteps: string[] = [];
         
@@ -505,7 +572,7 @@ export default function ChatView() {
             }));
         }
 
-        // Pattern 3: Paragraphs
+        // Try paragraphs
         const paragraphs = clean.split(/\n\n+/).filter(p => p.trim().length > 30);
         if (paragraphs.length >= 2) {
             const total = Math.min(paragraphs.length, 5);
@@ -519,7 +586,7 @@ export default function ChatView() {
             }));
         }
 
-        // Pattern 4: Split by sentences
+        // Split by sentences
         const sentences = clean.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 15);
         if (sentences.length >= 3) {
             const numSteps = Math.min(Math.max(Math.ceil(sentences.length / 2), 3), 5);
@@ -543,7 +610,7 @@ export default function ChatView() {
             }
         }
 
-        // Fallback: single step with full content
+        // Fallback
         return [{
             id: 's-0',
             title: 'Guidance',
@@ -552,21 +619,15 @@ export default function ChatView() {
             isActive: false,
             isCompleted: false
         }];
-    }, []);
+    };
 
     // Send message
     const handleSendMessage = async () => {
         const message = chatInput.trim();
-        if (!message || !user.goal) return;
-
-        try {
-            const safetyCheck = await checkContentSafety(message);
-            if (!safetyCheck.isSafe) {
-                alert("Please keep the conversation appropriate.");
-                return;
-            }
-        } catch (e) {
-            // Continue if safety check fails
+        if (!message && !attachment) return;
+        if (!user.goal) {
+            alert('Please set a goal first.');
+            return;
         }
 
         // Auto-create conversation if needed
@@ -584,12 +645,13 @@ export default function ChatView() {
             setActiveConversationId(convoId);
         }
 
-        // Save user message
+        // Create user message
         const userMessage: ChatMessage = {
             id: Date.now().toString(),
             role: 'user',
-            text: message,
-            timestamp: Date.now()
+            text: message || (attachment ? `[Sent ${attachment.type}]` : ''),
+            timestamp: Date.now(),
+            attachment: attachment || undefined
         };
         
         const currentConvoId = convoId;
@@ -598,6 +660,7 @@ export default function ChatView() {
         ));
 
         setChatInput('');
+        removeAttachment();
         setIsChatLoading(true);
         setJourneySteps([]);
         setCurrentStepIndex(-1);
@@ -615,21 +678,19 @@ export default function ChatView() {
                 user.userProfile || '',
                 user.dailyTasks || [],
                 user.connectedApps || [],
-                undefined,
+                attachment || undefined,
                 user.extraLogs || []
             );
 
-            // Ensure response is a valid string
             let validResponse = '';
             if (response && typeof response === 'string') {
                 validResponse = response.replace(/undefined/gi, '').trim();
             }
             
             if (!validResponse || validResponse.length === 0) {
-                validResponse = 'I apologize, but I had trouble generating a response. Could you please rephrase your question?';
+                validResponse = 'I had trouble generating a response. Could you please rephrase your question?';
             }
 
-            // Save AI response
             const aiMessage: ChatMessage = {
                 id: (Date.now() + 1).toString(),
                 role: 'model',
@@ -637,10 +698,8 @@ export default function ChatView() {
                 timestamp: Date.now()
             };
 
-            // Parse into steps
             const steps = parseAIResponseToSteps(validResponse);
 
-            // Update conversation
             setConversations(prev => prev.map(c => 
                 c.id === currentConvoId ? { 
                     ...c, 
@@ -652,7 +711,6 @@ export default function ChatView() {
             setJourneySteps(steps);
             setIsJourneyActive(true);
 
-            // Navigate to first step after a short delay
             setTimeout(() => {
                 setCurrentStepIndex(0);
                 if (steps[0]?.content) {
@@ -665,7 +723,7 @@ export default function ChatView() {
             const errorSteps: JourneyStep[] = [{
                 id: 's-error',
                 title: 'Connection Issue',
-                content: 'I\'m having trouble connecting right now. Please check your connection and try again.',
+                content: 'I\'m having trouble connecting. Please check your connection and try again.',
                 position: { lat: 20, lng: 0 },
                 isActive: true,
                 isCompleted: false
@@ -689,6 +747,17 @@ export default function ChatView() {
         if (currentStepIndex > 0) {
             navigateToStep(currentStepIndex - 1);
         }
+    };
+
+    const resetJourney = () => {
+        setJourneySteps([]);
+        setIsJourneyActive(false);
+        setCurrentStepIndex(-1);
+        setDisplayedText('');
+    };
+
+    const formatTime = (ts: number) => {
+        return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     };
 
     const activeConvo = conversations.find(c => c.id === activeConversationId);
@@ -746,12 +815,13 @@ export default function ChatView() {
                             {conversations.map((convo, index) => {
                                 const isActive = convo.id === activeConversationId;
                                 const hue = (index * 47) % 360;
+                                const stepsCount = Array.isArray(convo.journeySteps) ? convo.journeySteps.length : 0;
+                                const messagesCount = Array.isArray(convo.messages) ? convo.messages.length : 0;
                                 
                                 return (
                                     <div
                                         key={convo.id}
-                                        className={`rounded-2xl overflow-hidden transition-all ${isActive ? 'ring-2 ring-white/30' : ''}`}
-                                        style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+                                        className={`rounded-2xl overflow-hidden transition-all bg-white/5 ${isActive ? 'ring-2 ring-white/30' : ''}`}
                                     >
                                         {editingJourneyId === convo.id ? (
                                             <div className="p-4">
@@ -759,7 +829,7 @@ export default function ChatView() {
                                                     type="text"
                                                     value={editingName}
                                                     onChange={e => setEditingName(e.target.value)}
-                                                    className="w-full bg-white/10 border border-white/30 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-white/50 mb-3"
+                                                    className="w-full bg-white/10 border border-white/30 rounded-xl px-4 py-3 text-white text-sm focus:outline-none mb-3"
                                                     autoFocus
                                                     onKeyDown={e => { 
                                                         if (e.key === 'Enter') saveRename(); 
@@ -770,7 +840,7 @@ export default function ChatView() {
                                                 <div className="flex gap-2">
                                                     <button 
                                                         onClick={() => setEditingJourneyId(null)} 
-                                                        className="flex-1 py-2.5 rounded-xl border border-white/20 text-white/60 text-sm font-medium"
+                                                        className="flex-1 py-2.5 rounded-xl border border-white/20 text-white/60 text-sm"
                                                     >
                                                         Cancel
                                                     </button>
@@ -784,20 +854,17 @@ export default function ChatView() {
                                             </div>
                                         ) : (
                                             <div className="p-4 flex items-center gap-4">
-                                                {/* Mini planet */}
                                                 <div 
                                                     className="w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center"
                                                     style={{ 
-                                                        background: `radial-gradient(circle at 30% 30%, hsl(${hue}, 40%, 25%), #0a0a12)`,
-                                                        boxShadow: `0 0 15px hsla(${hue}, 50%, 40%, 0.3)`
+                                                        background: `radial-gradient(circle at 30% 30%, hsl(${hue}, 40%, 25%), #0a0a12)`
                                                     }}
                                                 >
                                                     <span className="text-white font-bold text-xs">
-                                                        {convo.journeySteps?.length || convo.messages?.length || 0}
+                                                        {stepsCount || messagesCount}
                                                     </span>
                                                 </div>
 
-                                                {/* Info */}
                                                 <button
                                                     onClick={() => { 
                                                         setActiveConversationId(convo.id); 
@@ -805,17 +872,16 @@ export default function ChatView() {
                                                     }}
                                                     className="flex-1 text-left min-w-0"
                                                 >
-                                                    <h3 className="text-white font-semibold text-sm truncate">{convo.name}</h3>
+                                                    <h3 className="text-white font-semibold text-sm truncate">{convo.name || 'Untitled'}</h3>
                                                     <p className="text-white/40 text-xs mt-1">
-                                                        {convo.journeySteps?.length || 0} steps • {new Date(convo.createdAt).toLocaleDateString()}
+                                                        {stepsCount} steps • {new Date(convo.createdAt).toLocaleDateString()}
                                                     </p>
                                                 </button>
 
-                                                {/* Actions */}
                                                 <button 
                                                     onClick={() => {
                                                         setEditingJourneyId(convo.id);
-                                                        setEditingName(convo.name);
+                                                        setEditingName(convo.name || '');
                                                     }} 
                                                     className="p-2 text-white/30 active:text-white rounded-lg"
                                                 >
@@ -843,17 +909,175 @@ export default function ChatView() {
         );
     }
 
-    // ========== MAIN PLANET VIEW ==========
+    // ========== CHAT VIEW ==========
+    if (viewMode === 'chat') {
+        return (
+            <div className="h-full w-full flex flex-col bg-black">
+                {/* Header */}
+                <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+                    <button 
+                        onClick={() => setView(AppView.DASHBOARD)} 
+                        className="p-2 rounded-xl text-white/50 active:text-white"
+                    >
+                        <Icons.ArrowLeft className="w-5 h-5" />
+                    </button>
+                    <button 
+                        onClick={() => setShowJourneysList(true)} 
+                        className="text-center px-3 py-1 rounded-xl active:bg-white/10"
+                    >
+                        <h1 className="text-white font-bold text-sm">{activeConvo?.name || 'THE GUIDE'}</h1>
+                        <p className="text-white/30 text-[10px]">Tap to see journeys</p>
+                    </button>
+                    <button 
+                        onClick={() => setViewMode('planet')} 
+                        className="p-2 rounded-xl text-white/50 active:text-white"
+                    >
+                        <Icons.Globe className="w-5 h-5" />
+                    </button>
+                </div>
+
+                {/* Messages */}
+                <div className="flex-1 overflow-y-auto px-4 py-4">
+                    {(!activeConvo || activeConvo.messages.length === 0) && (
+                        <div className="text-center py-12">
+                            <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4">
+                                <Icons.Zap className="w-8 h-8 text-white/30" />
+                            </div>
+                            <h2 className="text-white font-bold text-lg mb-2">Ask Your Guide</h2>
+                            <p className="text-white/40 text-sm">What do you need help with?</p>
+                        </div>
+                    )}
+
+                    {activeConvo?.messages.map((msg) => (
+                        <div key={msg.id} className={`flex mb-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                            <div className="max-w-[85%]">
+                                {msg.role !== 'user' && (
+                                    <div className="flex items-center gap-2 mb-1.5">
+                                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-white/20 to-white/5 flex items-center justify-center">
+                                            <Icons.Zap className="w-3 h-3 text-white/60" />
+                                        </div>
+                                        <span className="text-white/40 text-xs">Guide</span>
+                                    </div>
+                                )}
+                                
+                                {/* Attachment preview */}
+                                {msg.attachment && msg.attachment.type === 'image' && (
+                                    <img 
+                                        src={`data:${msg.attachment.mimeType};base64,${msg.attachment.data}`}
+                                        alt="Attachment"
+                                        className="max-w-full rounded-xl mb-2"
+                                    />
+                                )}
+                                {msg.attachment && msg.attachment.type === 'pdf' && (
+                                    <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-2 mb-2">
+                                        <Icons.FileText className="w-5 h-5 text-white/60" />
+                                        <span className="text-white/60 text-sm">PDF Document</span>
+                                    </div>
+                                )}
+                                
+                                <div className={`rounded-2xl px-4 py-3 ${
+                                    msg.role === 'user' 
+                                        ? 'bg-white text-gray-900 rounded-br-md' 
+                                        : 'bg-white/10 text-white/90 border border-white/10 rounded-bl-md'
+                                }`}>
+                                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                                </div>
+                                <p className={`text-[10px] text-white/30 mt-1 ${msg.role === 'user' ? 'text-right' : ''}`}>
+                                    {msg.timestamp ? formatTime(msg.timestamp) : ''}
+                                </p>
+                            </div>
+                        </div>
+                    ))}
+                    
+                    {isChatLoading && (
+                        <div className="flex justify-start mb-4">
+                            <div className="bg-white/10 rounded-2xl rounded-bl-md px-4 py-3 border border-white/10">
+                                <div className="flex gap-1.5">
+                                    {[0, 1, 2].map(i => (
+                                        <div key={i} className="w-2 h-2 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: `${i * 150}ms` }} />
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    <div ref={messagesEndRef} />
+                </div>
+
+                {/* Input */}
+                <div className="px-4 pb-4">
+                    {/* Attachment preview */}
+                    {attachment && (
+                        <div className="mb-2 flex items-center gap-2 bg-white/5 rounded-xl p-2">
+                            {attachment.type === 'image' && attachmentPreview && (
+                                <img src={attachmentPreview} alt="Preview" className="w-12 h-12 rounded-lg object-cover" />
+                            )}
+                            {attachment.type === 'pdf' && (
+                                <div className="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center">
+                                    <Icons.FileText className="w-6 h-6 text-white/60" />
+                                </div>
+                            )}
+                            <span className="flex-1 text-white/60 text-sm truncate">{attachment.type} attached</span>
+                            <button onClick={removeAttachment} className="p-1 text-white/40 hover:text-white">
+                                <Icons.X className="w-4 h-4" />
+                            </button>
+                        </div>
+                    )}
+                    
+                    <div className={`bg-white/5 backdrop-blur rounded-xl border ${isInputFocused ? 'border-white/30' : 'border-white/10'}`}>
+                        <div className="flex items-center gap-2 px-3 py-2">
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handleFileSelect}
+                                accept="image/*,.pdf,audio/*"
+                                className="hidden"
+                            />
+                            <button 
+                                onClick={() => fileInputRef.current?.click()}
+                                className="p-2 text-white/40 hover:text-white rounded-lg"
+                            >
+                                <Icons.Paperclip className="w-5 h-5" />
+                            </button>
+                            <input
+                                type="text"
+                                value={chatInput}
+                                onChange={e => setChatInput(e.target.value)}
+                                onFocus={() => setIsInputFocused(true)}
+                                onBlur={() => setIsInputFocused(false)}
+                                placeholder="Ask anything..."
+                                className="flex-1 bg-transparent text-white text-sm placeholder:text-white/30 focus:outline-none"
+                                style={{ fontSize: '16px' }}
+                                onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
+                            />
+                            <button
+                                onClick={handleSendMessage}
+                                disabled={(!chatInput.trim() && !attachment) || isChatLoading}
+                                className={`p-2 rounded-lg ${
+                                    (chatInput.trim() || attachment) && !isChatLoading 
+                                        ? 'bg-white text-black' 
+                                        : 'bg-white/10 text-white/30'
+                                }`}
+                            >
+                                <Icons.Send className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // ========== PLANET VIEW ==========
     return (
         <div className="h-full w-full flex flex-col overflow-hidden relative bg-black">
-            {/* Canvas - FULL SCREEN, receives all pointer events */}
+            {/* Canvas */}
             <canvas 
                 ref={canvasRef} 
                 className="absolute inset-0 w-full h-full z-0"
                 style={{ touchAction: 'none' }}
             />
 
-            {/* Header - pointer-events-auto so buttons work */}
+            {/* Header */}
             <div className="relative z-10 flex items-center justify-between px-5 py-3 pointer-events-none">
                 <button 
                     onClick={() => setView(AppView.DASHBOARD)} 
@@ -870,12 +1094,17 @@ export default function ChatView() {
                     <p className="text-white/30 text-[10px]">Tap to see journeys</p>
                 </button>
 
-                <div className="w-9" /> {/* Spacer */}
+                {/* Chat mode toggle */}
+                <button 
+                    onClick={() => setViewMode('chat')} 
+                    className="p-2 rounded-xl text-white/50 active:text-white pointer-events-auto"
+                >
+                    <Icons.MessageCircle className="w-5 h-5" />
+                </button>
             </div>
 
-            {/* Journey Info Panel - LEFT SIDE, pointer-events-none except for buttons */}
+            {/* Journey Panel - Left side */}
             <div className="flex-1 relative z-10 pointer-events-none">
-                {/* Show welcome OR journey steps */}
                 {!isJourneyActive && !isChatLoading && (
                     <div className="absolute left-5 top-1/2 -translate-y-1/2 w-[45%] max-w-[200px]">
                         <p className="text-white/30 text-xs uppercase tracking-widest mb-2">Welcome</p>
@@ -892,11 +1121,7 @@ export default function ChatView() {
                     <div className="absolute left-5 top-1/2 -translate-y-1/2">
                         <div className="flex gap-1.5 mb-2">
                             {[0, 1, 2].map(i => (
-                                <div 
-                                    key={i} 
-                                    className="w-2 h-2 bg-white rounded-full animate-bounce" 
-                                    style={{ animationDelay: `${i * 150}ms` }} 
-                                />
+                                <div key={i} className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: `${i * 150}ms` }} />
                             ))}
                         </div>
                         <p className="text-white/50 text-sm">Charting your journey...</p>
@@ -918,14 +1143,13 @@ export default function ChatView() {
                             {isTyping && <span className="inline-block w-0.5 h-4 bg-white ml-1 animate-pulse" />}
                         </div>
 
-                        {/* Navigation buttons - pointer-events-auto */}
                         <div className="flex gap-2 mb-2 pointer-events-auto">
                             <button
                                 onClick={goToPrevStep}
                                 disabled={currentStepIndex === 0}
                                 className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 ${
                                     currentStepIndex === 0 
-                                        ? 'bg-white/5 text-white/30 cursor-not-allowed' 
+                                        ? 'bg-white/5 text-white/30' 
                                         : 'bg-white/15 text-white active:bg-white/25'
                                 }`}
                             >
@@ -942,12 +1166,7 @@ export default function ChatView() {
                                 </button>
                             ) : (
                                 <button
-                                    onClick={() => {
-                                        setJourneySteps([]);
-                                        setIsJourneyActive(false);
-                                        setCurrentStepIndex(-1);
-                                        setDisplayedText('');
-                                    }}
+                                    onClick={resetJourney}
                                     className="px-3 py-1.5 rounded-lg bg-green-500 text-white text-xs font-bold flex items-center gap-1 active:bg-green-600"
                                 >
                                     <Icons.Check className="w-3 h-3" /> Done
@@ -955,7 +1174,6 @@ export default function ChatView() {
                             )}
                         </div>
 
-                        {/* Step dots - pointer-events-auto */}
                         <div className="flex gap-1.5 pointer-events-auto">
                             {journeySteps.map((_, idx) => (
                                 <button
@@ -975,10 +1193,41 @@ export default function ChatView() {
                 )}
             </div>
 
-            {/* Input - SMALLER, at bottom */}
+            {/* Input */}
             <div className="relative z-10 px-5 pb-4 pointer-events-auto">
+                {/* Attachment preview */}
+                {attachment && (
+                    <div className="mb-2 flex items-center gap-2 bg-black/60 backdrop-blur rounded-xl p-2">
+                        {attachment.type === 'image' && attachmentPreview && (
+                            <img src={attachmentPreview} alt="Preview" className="w-10 h-10 rounded-lg object-cover" />
+                        )}
+                        {attachment.type === 'pdf' && (
+                            <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
+                                <Icons.FileText className="w-5 h-5 text-white/60" />
+                            </div>
+                        )}
+                        <span className="flex-1 text-white/60 text-xs truncate">{attachment.type}</span>
+                        <button onClick={removeAttachment} className="p-1 text-white/40 hover:text-white">
+                            <Icons.X className="w-4 h-4" />
+                        </button>
+                    </div>
+                )}
+                
                 <div className={`bg-white/5 backdrop-blur-xl rounded-xl border transition-all ${isInputFocused ? 'border-white/30' : 'border-white/10'}`}>
                     <div className="flex items-center gap-2 px-3 py-2">
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleFileSelect}
+                            accept="image/*,.pdf,audio/*"
+                            className="hidden"
+                        />
+                        <button 
+                            onClick={() => fileInputRef.current?.click()}
+                            className="p-1.5 text-white/40 hover:text-white rounded-lg"
+                        >
+                            <Icons.Paperclip className="w-4 h-4" />
+                        </button>
                         <input
                             type="text"
                             value={chatInput}
@@ -997,9 +1246,9 @@ export default function ChatView() {
                         />
                         <button
                             onClick={handleSendMessage}
-                            disabled={!chatInput.trim() || isChatLoading}
+                            disabled={(!chatInput.trim() && !attachment) || isChatLoading}
                             className={`p-2 rounded-lg transition-all ${
-                                chatInput.trim() && !isChatLoading 
+                                (chatInput.trim() || attachment) && !isChatLoading 
                                     ? 'bg-white text-black' 
                                     : 'bg-white/10 text-white/30'
                             }`}

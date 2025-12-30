@@ -98,3 +98,28 @@ html {
     overscroll-behavior: none;
     background-color: #171738;
 }
+
+/* Fix Settings View input text colors */
+.bg-white input,
+.bg-white textarea,
+.bg-white select,
+.bg-gray-50 input,
+.bg-gray-50 textarea {
+    color: #171738 !important;
+}
+
+/* Ensure placeholder is visible */
+.bg-white input::placeholder,
+.bg-gray-50 input::placeholder {
+    color: rgba(23, 23, 56, 0.4) !important;
+}
+
+/* Fix any white-on-white text issues */
+.text-primary {
+    color: #171738 !important;
+}
+
+/* Status bar area background */
+html {
+    background-color: #171738 !important;
+}

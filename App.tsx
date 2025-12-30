@@ -1,4 +1,3 @@
-// App.tsx
 import React from 'react';
 import { AppProvider, useApp } from './contexts/AppContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
@@ -35,10 +34,12 @@ function AppContent() {
 
     const showNav = !hideNavViews.includes(view);
     
-    // Background color based on view
+    // Background color based on view - MUST MATCH each view's actual background
     const getBgColor = () => {
         if (view === AppView.CHAT) return '#000000';
         if (view === AppView.SETTINGS) return '#FFFFFF';
+        if (view === AppView.STATS) return '#FFFFFF';
+        if (view === AppView.SHOP) return '#171738';
         return '#171738';
     };
 
@@ -145,3 +146,4 @@ export default function App() {
         </ThemeProvider>
     );
 }
+

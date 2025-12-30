@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-    <meta name="theme-color" content="#000000" />
+    <meta name="theme-color" content="#171738" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="InJazi" />
@@ -35,58 +35,34 @@
               slideUp: { '0%': { opacity: '0', transform: 'translateY(15px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
               slideInRight: { '0%': { opacity: '0', transform: 'translateX(15px)' }, '100%': { opacity: '1', transform: 'translateX(0)' } },
               scaleIn: { '0%': { opacity: '0', transform: 'scale(0.96)' }, '100%': { opacity: '1', transform: 'scale(1)' } },
-            },
-            spacing: {
-              'safe-top': 'env(safe-area-inset-top)',
-              'safe-bottom': 'env(safe-area-inset-bottom)',
-              'safe-left': 'env(safe-area-inset-left)',
-              'safe-right': 'env(safe-area-inset-right)',
             }
           }
         }
       }
     </script>
     <style>
-      /* CRITICAL: Set background color for status bar area on iOS */
-      html {
-        background-color: #000000 !important;
-      }
-      
       *, *::before, *::after {
         box-sizing: border-box;
         margin: 0;
         padding: 0;
       }
       
-      html, body {
+      html, body, #root {
         height: 100%;
         width: 100%;
         margin: 0;
         padding: 0;
         overflow: hidden;
-        overscroll-behavior: none;
-        background-color: #000000 !important;
+        background-color: #171738;
       }
       
       body {
+        overscroll-behavior: none;
         touch-action: pan-x pan-y;
         -webkit-text-size-adjust: 100%;
         font-family: 'Inter', sans-serif;
       }
       
-      #root {
-        height: 100%;
-        width: 100%;
-        overflow: hidden;
-        background-color: #000000;
-        /* Fill the safe area with black */
-        padding-top: env(safe-area-inset-top);
-        padding-bottom: env(safe-area-inset-bottom);
-        padding-left: env(safe-area-inset-left);
-        padding-right: env(safe-area-inset-right);
-      }
-      
-      /* iOS PWA viewport fix */
       @supports (-webkit-touch-callout: none) {
         html, body, #root {
           min-height: -webkit-fill-available;
@@ -94,30 +70,19 @@
         }
       }
       
-      /* Input styling */
       input, textarea, select {
         font-size: 16px !important;
       }
       
-      /* Light background inputs */
       .bg-white input,
       .bg-white textarea,
-      .bg-white select,
       .bg-gray-50 input,
-      .bg-gray-50 textarea,
-      .bg-gray-50 select {
+      .bg-gray-50 textarea {
         color: #171738 !important;
       }
       
-      .bg-white input::placeholder,
-      .bg-gray-50 input::placeholder {
-        color: rgba(23, 23, 56, 0.4) !important;
-      }
-      
-      /* Hide scrollbars */
       ::-webkit-scrollbar {
         width: 0px;
-        background: transparent;
         display: none;
       }
       
@@ -127,16 +92,11 @@
         -webkit-tap-highlight-color: transparent;
       }
       
-      /* Safe area utilities - but don't use for top padding in dark views */
       .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
       .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
-      .mb-safe { margin-bottom: env(safe-area-inset-bottom, 0px); }
       
       .no-scrollbar::-webkit-scrollbar { display: none; }
       .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-      
-      .select-none { user-select: none; -webkit-user-select: none; }
-      input, textarea { user-select: text; -webkit-user-select: text; }
     </style>
     <script type="importmap">
 {

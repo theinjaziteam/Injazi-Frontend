@@ -38,6 +38,7 @@ export default function LoginView() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const [showLegal, setShowLegal] = useState<'terms' | 'privacy' | null>(null);
 
     // Cooldown timer (in seconds)
     const [cooldown, setCooldown] = useState(0);
@@ -660,20 +661,35 @@ export default function LoginView() {
                     )}
 
                     {/* Privacy Policy */}
-                    {mode === 'register' && (
-                        <div className="flex items-start gap-3 p-2">
-                            <input 
-                                type="checkbox" 
-                                checked={privacyAccepted} 
-                                onChange={e => setPrivacyAccepted(e.target.checked)}
-                                className="mt-1 w-5 h-5 accent-[#3423A6] cursor-pointer" 
-                                required
-                            />
-                            <p className="text-white/50 text-[10px] leading-tight font-medium">
-                                I accept the <span className="text-[#DFF3E4] underline cursor-pointer">Privacy Policy</span> and <span className="text-[#DFF3E4] underline cursor-pointer">Terms of Service</span>.
-                            </p>
-                        </div>
-                    )}
+{mode === 'register' && (
+    <div className="flex items-start gap-3 p-2">
+        <input 
+            type="checkbox" 
+            checked={privacyAccepted} 
+            onChange={e => setPrivacyAccepted(e.target.checked)}
+            className="mt-1 w-5 h-5 accent-[#3423A6] cursor-pointer" 
+            required
+        />
+        <p className="text-white/50 text-[10px] leading-tight font-medium">
+            I accept the{' '}
+            <button 
+                type="button"
+                onClick={() => setShowLegal('privacy')}
+                className="text-[#DFF3E4] underline"
+            >
+                Privacy Policy
+            </button>
+            {' '}and{' '}
+            <button 
+                type="button"
+                onClick={() => setShowLegal('terms')}
+                className="text-[#DFF3E4] underline"
+            >
+                Terms of Service
+            </button>.
+        </p>
+    </div>
+)}
                 </div>
                 
                 <button 
@@ -860,10 +876,162 @@ const renderVerifyForm = () => (
                 </div>
 
                 {/* Footer */}
-                <p className="mt-6 text-white/30 text-[10px] text-center">
-                    By continuing, you agree to our Terms of Service
-                </p>
+<p className="mt-6 text-white/30 text-[10px] text-center">
+    By continuing, you agree to our{' '}
+    <button 
+        type="button"
+        onClick={() => setShowLegal('terms')}
+        className="underline hover:text-white/50"
+    >
+        Terms of Service
+    </button>
+</p>
             </div>
+            {/* Legal Modal */}
+{showLegal && (
+    <div className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-md overflow-hidden">
+        <div className="h-full bg-white flex flex-col">
+            {/* Modal Header */}
+            <div className="flex-shrink-0 bg-white border-b border-gray-200 p-4 flex items-center justify-between">
+                <h2 className="text-lg font-bold text-[#171738]">
+                    {showLegal === 'terms' ? 'Terms of Service' : 'Privacy Policy'}
+                </h2>
+                <button 
+                    onClick={() => setShowLegal(null)}
+                    className="p-2 bg-gray-100 rounded-full"
+                >
+                    <Icons.X className="w-5 h-5 text-[#171738]" />
+                </button>
+            </div>
+            
+            {/* Modal Content */}
+            <div className="flex-1 overflow-y-auto p-6 pb-20 text-[#171738] text-sm leading-relaxed">
+                {showLegal === 'terms' ? (
+                    <div className="space-y-6">
+                        <p className="text-xs text-gray-400">Last Updated: December 30, 2024</p>
+                        
+                        <section>
+                            <h3 className="font-bold text-base mb-2">1. Acceptance of Terms</h3>
+                            <p className="text-gray-600">By accessing or using InJazi, you agree to be bound by these Terms of Service. InJazi is a goal achievement and personal development platform that uses artificial intelligence to help users set, track, and accomplish their personal and professional goals.</p>
+                        </section>
+                        
+                        <section>
+                            <h3 className="font-bold text-base mb-2">2. Eligibility</h3>
+                            <p className="text-gray-600">You must be at least 13 years of age to use InJazi. If you are under 18, you must have parental or guardian consent.</p>
+                        </section>
+                        
+                        <section>
+                            <h3 className="font-bold text-base mb-2">3. Account Registration</h3>
+                            <p className="text-gray-600">You agree to provide accurate information, keep your password secure, and be responsible for all activities under your account.</p>
+                        </section>
+                        
+                        <section>
+                            <h3 className="font-bold text-base mb-2">4. Credits and Virtual Currency</h3>
+                            <p className="text-gray-600">Architect Credits have no real-world monetary value until redeemed. Minimum redemption: 3,000 Credits = $1.00 USD. We reserve the right to modify Credit values and redemption terms at any time. Fraudulent activity will result in account termination.</p>
+                        </section>
+                        
+                        <section>
+                            <h3 className="font-bold text-base mb-2">5. Subscription Plans</h3>
+                            <p className="text-gray-600">Free Plan: 3 goals, 3 AI tasks/day. Premium ($9.99/mo): Unlimited goals and tasks. Creator ($19.99/mo): All Premium features plus marketplace publishing. Subscriptions auto-renew unless cancelled.</p>
+                        </section>
+                        
+                        <section>
+                            <h3 className="font-bold text-base mb-2">6. AI-Generated Content</h3>
+                            <p className="text-gray-600">AI recommendations are for informational and motivational purposes only, not professional advice. Consult qualified professionals for specific advice. We are not liable for decisions made based on AI content.</p>
+                        </section>
+                        
+                        <section>
+                            <h3 className="font-bold text-base mb-2">7. User Conduct</h3>
+                            <p className="text-gray-600">You agree NOT to upload illegal or harmful content, impersonate others, violate laws, attempt unauthorized access, or exploit bugs for unfair advantage.</p>
+                        </section>
+                        
+                        <section>
+                            <h3 className="font-bold text-base mb-2">8. Intellectual Property</h3>
+                            <p className="text-gray-600">All InJazi content is protected by intellectual property laws. You may not reproduce or distribute without permission.</p>
+                        </section>
+                        
+                        <section>
+                            <h3 className="font-bold text-base mb-2">9. Disclaimer</h3>
+                            <p className="text-gray-600">THE APP IS PROVIDED "AS IS" WITHOUT WARRANTIES. We do not guarantee uninterrupted service, accuracy of AI recommendations, or achievement of specific outcomes.</p>
+                        </section>
+                        
+                        <section>
+                            <h3 className="font-bold text-base mb-2">10. Limitation of Liability</h3>
+                            <p className="text-gray-600">InJazi shall not be liable for any indirect, incidental, or consequential damages arising from your use of the App.</p>
+                        </section>
+                        
+                        <section>
+                            <h3 className="font-bold text-base mb-2">11. Contact</h3>
+                            <p className="text-gray-600">Email: legal@injazi.app | Support: support@injazi.app</p>
+                        </section>
+                    </div>
+                ) : (
+                    <div className="space-y-6">
+                        <p className="text-xs text-gray-400">Last Updated: December 30, 2024</p>
+                        
+                        <section>
+                            <h3 className="font-bold text-base mb-2">1. Introduction</h3>
+                            <p className="text-gray-600">InJazi is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information.</p>
+                        </section>
+                        
+                        <section>
+                            <h3 className="font-bold text-base mb-2">2. Information We Collect</h3>
+                            <p className="text-gray-600 mb-2"><strong>Personal Info:</strong> Name, email, password, country, goals, preferences, task submissions, uploaded files (images, documents, audio).</p>
+                            <p className="text-gray-600 mb-2"><strong>Automatic:</strong> Device info, usage data, IP address, general location.</p>
+                            <p className="text-gray-600"><strong>Third Parties:</strong> Data from connected apps (Google Calendar, Apple Health, Notion, Todoist) and AdGem offers.</p>
+                        </section>
+                        
+                        <section>
+                            <h3 className="font-bold text-base mb-2">3. How We Use Your Information</h3>
+                            <p className="text-gray-600">To provide and improve services, personalize AI recommendations, process transactions, send communications, provide support, analyze usage, detect fraud, and comply with legal obligations.</p>
+                        </section>
+                        
+                        <section>
+                            <h3 className="font-bold text-base mb-2">4. AI and Data Processing</h3>
+                            <p className="text-gray-600">We use Google's Gemini AI. Your goals and tasks are processed for personalized recommendations. AI interactions are processed in real-time and not stored beyond your active session unless explicitly saved.</p>
+                        </section>
+                        
+                        <section>
+                            <h3 className="font-bold text-base mb-2">5. Information Sharing</h3>
+                            <p className="text-gray-600 mb-2">We share with: cloud providers, email services (EmailJS), payment processors, analytics providers, AI services (Google Gemini).</p>
+                            <p className="text-gray-600 font-semibold">We do NOT sell your personal information to third parties.</p>
+                        </section>
+                        
+                        <section>
+                            <h3 className="font-bold text-base mb-2">6. Data Security</h3>
+                            <p className="text-gray-600">We use encryption (HTTPS/TLS), secure password hashing, access controls, and regular security assessments. However, no method is 100% secure.</p>
+                        </section>
+                        
+                        <section>
+                            <h3 className="font-bold text-base mb-2">7. Data Retention</h3>
+                            <p className="text-gray-600">We retain your information while your account is active. Upon deletion, we remove your data within 30 days, except where required by law.</p>
+                        </section>
+                        
+                        <section>
+                            <h3 className="font-bold text-base mb-2">8. Your Rights</h3>
+                            <p className="text-gray-600">You may request to access, correct, delete, or export your data. Contact privacy@injazi.app or use in-app Settings.</p>
+                        </section>
+                        
+                        <section>
+                            <h3 className="font-bold text-base mb-2">9. Children's Privacy</h3>
+                            <p className="text-gray-600">InJazi is not intended for children under 13. We do not knowingly collect data from children under 13.</p>
+                        </section>
+                        
+                        <section>
+                            <h3 className="font-bold text-base mb-2">10. Changes to Policy</h3>
+                            <p className="text-gray-600">We may update this policy periodically. We will notify you of material changes via email or in-app notification.</p>
+                        </section>
+                        
+                        <section>
+                            <h3 className="font-bold text-base mb-2">11. Contact</h3>
+                            <p className="text-gray-600">Email: privacy@injazi.app | Support: support@injazi.app</p>
+                        </section>
+                    </div>
+                )}
+            </div>
+        </div>
+    </div>
+)}
         </div>
     );
 }

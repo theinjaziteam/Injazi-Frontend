@@ -37,20 +37,26 @@ function AppContent() {
 
     return (
         <div 
-            className={`flex flex-col font-sans ${theme === 'light' ? 'light-mode' : ''}`}
+            className={`font-sans ${theme === 'light' ? 'light-mode' : ''}`}
             style={{ 
-                height: '100dvh',
-                width: '100vw',
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
                 backgroundColor: '#000000',
                 overflow: 'hidden',
-                position: 'relative'
+                display: 'flex',
+                flexDirection: 'column'
             }}
         >
             {/* Main Content */}
             <div 
-                className="flex-1 overflow-hidden relative"
                 style={{ 
-                    marginBottom: showNav ? '60px' : '0'
+                    flex: 1,
+                    overflow: 'hidden',
+                    position: 'relative',
+                    paddingBottom: showNav ? '60px' : '0'
                 }}
             >
                 {view === AppView.ONBOARDING && <OnboardingView />}
@@ -90,18 +96,18 @@ function AppContent() {
                 </div>
             )}
 
-            {/* Bottom Navigation */}
+            {/* Bottom Navigation - Absolutely fixed to bottom */}
             {showNav && (
                 <div 
                     style={{
-                        position: 'fixed',
+                        position: 'absolute',
                         bottom: 0,
                         left: 0,
                         right: 0,
-                        zIndex: 50,
+                        height: '60px',
+                        zIndex: 9999,
                         backgroundColor: '#000000',
-                        borderTop: '1px solid rgba(255,255,255,0.1)',
-                        paddingBottom: 'env(safe-area-inset-bottom, 0px)'
+                        borderTop: '1px solid rgba(255,255,255,0.1)'
                     }}
                 >
                     <BottomNav 

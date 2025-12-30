@@ -39,16 +39,24 @@ function AppContent() {
         <div 
             className={`font-sans ${theme === 'light' ? 'light-mode' : ''}`}
             style={{ 
-                height: '100%',
-                width: '100%',
-                backgroundColor: '#000000',
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: '#171738',
                 overflow: 'hidden',
                 display: 'flex',
-                flexDirection: 'column',
-                position: 'relative'
+                flexDirection: 'column'
             }}
         >
-            <div style={{ flex: 1, overflow: 'hidden', paddingBottom: showNav ? '60px' : '0' }}>
+            {/* Main content area */}
+            <div style={{ 
+                flex: 1, 
+                overflow: 'hidden', 
+                position: 'relative',
+                marginBottom: showNav ? '56px' : '0'
+            }}>
                 {view === AppView.ONBOARDING && <OnboardingView />}
                 {view === AppView.DASHBOARD && <DashboardView />}
                 {view === AppView.CHAT && <ChatView />}
@@ -61,7 +69,7 @@ function AppContent() {
                 {view === AppView.TASK_SELECTION && <TaskSelectionView />}
                 
                 {(view === AppView.PLANS || view === AppView.USER_PROFILE) && (
-                    <div className="p-10 text-center flex flex-col items-center justify-center h-full bg-black">
+                    <div className="p-10 text-center flex flex-col items-center justify-center h-full" style={{ backgroundColor: '#171738' }}>
                         <h1 className="text-2xl font-bold mb-2 text-white">View: {view}</h1>
                         <p className="text-gray-400 mb-6">This section is under construction.</p>
                         <button onClick={() => setView(AppView.DASHBOARD)} className="px-6 py-3 bg-white text-black rounded-full font-bold">
@@ -71,6 +79,7 @@ function AppContent() {
                 )}
             </div>
 
+            {/* Ad Overlay */}
             {showAdOverlay && (
                 <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center p-6 animate-fade-in">
                    <div className="w-full max-w-sm bg-white rounded-3xl overflow-hidden relative">
@@ -85,15 +94,16 @@ function AppContent() {
                 </div>
             )}
 
+            {/* Bottom Navigation - Fixed at bottom */}
             {showNav && (
                 <div style={{
-                    position: 'absolute',
+                    position: 'fixed',
                     bottom: 0,
                     left: 0,
                     right: 0,
-                    height: '60px',
+                    height: '56px',
                     zIndex: 9999,
-                    backgroundColor: '#000000',
+                    backgroundColor: '#171738',
                     borderTop: '1px solid rgba(255,255,255,0.1)'
                 }}>
                     <BottomNav 

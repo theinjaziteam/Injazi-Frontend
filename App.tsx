@@ -5,6 +5,7 @@ import { AppView } from './types';
 import { BottomNav } from './components/UIComponents';
 
 import LoginView from './views/LoginView';
+import LegalView from './views/LegalView';
 import OnboardingView from './views/OnboardingView';
 import DashboardView from './views/DashboardView';
 import ChatView from './views/ChatView';
@@ -29,7 +30,8 @@ function AppContent() {
         AppView.SETTINGS,
         AppView.TASK_HISTORY,
         AppView.TASK_SELECTION,
-        AppView.CHAT
+        AppView.CHAT,
+        AppView.LEGAL
     ];
 
     const showNav = !hideNavViews.includes(view);
@@ -38,6 +40,7 @@ function AppContent() {
     const getBgColor = () => {
         if (view === AppView.CHAT) return '#000000';
         if (view === AppView.SETTINGS) return '#FFFFFF';
+        if (view === AppView.LEGAL) return '#FFFFFF';
         if (view === AppView.STATS) return '#FFFFFF';
         if (view === AppView.SHOP) return '#171738';
         return '#171738';
@@ -71,6 +74,7 @@ function AppContent() {
                 {view === AppView.DASHBOARD && <DashboardView />}
                 {view === AppView.CHAT && <ChatView />}
                 {view === AppView.TASK_EXECUTION && <TaskExecutionView />}
+                {view === AppView.LEGAL && <LegalView />}
                 {view === AppView.SOCIAL && <SocialView />}
                 {view === AppView.STATS && <StatsView />}
                 {view === AppView.SHOP && <ShopView />}

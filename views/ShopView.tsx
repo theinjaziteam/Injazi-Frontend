@@ -195,7 +195,8 @@ export default function ShopView() {
             {/* ===== MODALS ===== */}
             {showRedeem && (
                 <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm animate-fade-in">
-                    <div className="bg-white w-full max-w-lg rounded-t-[2rem] p-6 shadow-2xl animate-slide-up safe-bottom">
+                    <div className="bg-white w-full max-w-lg rounded-t-[2rem] p-6 shadow-2xl animate-slide-up"
+                         style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}>
                         <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5"/>
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-lg font-black text-[#171738]">Cash Out</h2>

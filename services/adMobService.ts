@@ -86,20 +86,22 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://injazi-backend.onrender
 
 // Ad Unit IDs - Replace with your actual AdMob ad unit IDs
 const AD_UNIT_IDS = {
-    // Test IDs (use these for development)
+const AD_UNIT_IDS = {
     test: {
         android: 'ca-app-pub-3940256099942544/5224354917',
         ios: 'ca-app-pub-3940256099942544/1712485313'
     },
-    // Production IDs (replace with your real IDs)
     production: {
-        android: import.meta.env.VITE_ADMOB_ANDROID_REWARDED || 'ca-app-pub-xxxxx/yyyyy',
-        ios: import.meta.env.VITE_ADMOB_IOS_REWARDED || 'ca-app-pub-xxxxx/zzzzz'
+        android: 'ca-app-pub-6974406235691844/7808828864', // Your Injazi_ANDROID_REWARDED
+        ios: 'ca-app-pub-6974406235691844/xxxxxx' // Add when you create iOS ad unit
     }
 };
 
+// Add your App ID as a constant for future reference
+export const ADMOB_APP_ID = 'ca-app-pub-6974406235691844~7289954110';
+
 // Maximum ads per day per user
-const MAX_DAILY_ADS = 10;
+const MAX_DAILY_ADS = 25;
 
 // Reward configurations
 const REWARD_CONFIGS: Record<AdRewardType, { defaultAmount: number; description: string }> = {

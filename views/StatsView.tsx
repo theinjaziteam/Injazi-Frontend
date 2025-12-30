@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { AppView, ConnectedApp, AgentAlert } from '../types';
@@ -28,7 +27,7 @@ export default function StatsView() {
                 <svg viewBox="0 0 100 100" className="-rotate-90 w-full h-full">
                     {data.map((slice, i) => {
                         const percent = slice.value / total;
-                        const dashArray = percent * 314; // 2 * PI * R (R=50) roughly
+                        const dashArray = percent * 314;
                         const offset = cumulativePercent * 314;
                         cumulativePercent += percent;
                         return (
@@ -139,8 +138,8 @@ export default function StatsView() {
     return (
         <div className="h-full overflow-y-auto pb-safe scroll-smooth">
             <div className="min-h-full bg-white pb-28 flex flex-col animate-fade-in">
-                {/* Header */}
-                <div className="p-6 pt-safe border-b border-gray-100 bg-white sticky top-0 z-20">
+                {/* Header - REMOVED pt-safe */}
+                <div className="p-6 border-b border-gray-100 bg-white sticky top-0 z-20">
                     <div className="flex justify-between items-center mb-4 mt-2">
                         <h1 className="text-2xl font-bold text-primary">Analytics</h1>
                         <button onClick={() => setView(AppView.DASHBOARD)} className="p-2 bg-gray-50 rounded-full"><Icons.X className="w-5 h-5 text-gray-400"/></button>

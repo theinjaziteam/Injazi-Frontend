@@ -47,17 +47,41 @@
       }
     </script>
     <style>
-      /* PWA Full Screen - No black borders */
-      html, body, #root {
+      /* Base reset and PWA full screen */
+      *, *::before, *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      
+      html {
+        height: 100%;
+        width: 100%;
+        background-color: #171738 !important;
+        overflow: hidden;
+      }
+      
+      body {
         height: 100%;
         width: 100%;
         margin: 0;
         padding: 0;
         overflow: hidden;
+        overscroll-behavior: none;
+        touch-action: pan-x pan-y;
+        -webkit-text-size-adjust: 100%;
+        background-color: #171738;
+        font-family: 'Inter', sans-serif;
+      }
+      
+      #root {
+        height: 100%;
+        width: 100%;
+        overflow: hidden;
         background-color: #171738;
       }
       
-      /* iOS PWA viewport fix */
+      /* iOS PWA viewport fix - eliminates white/black bars */
       @supports (-webkit-touch-callout: none) {
         html, body, #root {
           min-height: -webkit-fill-available;
@@ -65,25 +89,40 @@
         }
       }
       
-      body {
-        overscroll-behavior: none;
-        touch-action: pan-x pan-y;
-        -webkit-text-size-adjust: 100%;
-        font-family: 'Inter', sans-serif;
-      }
-      
-      /* Input text visibility fix */
+      /* Input text visibility - CRITICAL FIX */
       input, textarea, select {
-        color: inherit !important;
-        background-color: transparent;
         font-size: 16px !important;
       }
       
-      input::placeholder, textarea::placeholder {
-        color: rgba(255, 255, 255, 0.5);
+      /* Dark background inputs (ChatView, etc) */
+      input[style*="background: transparent"],
+      input[style*="backgroundColor: transparent"] {
+        color: #FFFFFF !important;
       }
       
-      /* Hide scrollbars */
+      /* Light background inputs (SettingsView, etc) */
+      .bg-white input,
+      .bg-white textarea,
+      .bg-white select,
+      .bg-gray-50 input,
+      .bg-gray-50 textarea,
+      .bg-gray-50 select,
+      input.text-primary,
+      textarea.text-primary {
+        color: #171738 !important;
+      }
+      
+      /* Placeholder colors */
+      .bg-white input::placeholder,
+      .bg-gray-50 input::placeholder {
+        color: rgba(23, 23, 56, 0.4) !important;
+      }
+      
+      input[style*="background: transparent"]::placeholder {
+        color: rgba(255, 255, 255, 0.5) !important;
+      }
+      
+      /* Hide scrollbars but keep functionality */
       ::-webkit-scrollbar {
         width: 0px;
         background: transparent;
@@ -94,7 +133,6 @@
         -ms-overflow-style: none;
         scrollbar-width: none;
         -webkit-tap-highlight-color: transparent;
-        box-sizing: border-box;
       }
       
       /* Safe area utilities */

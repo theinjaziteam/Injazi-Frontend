@@ -6,7 +6,6 @@
     --primary: #171738;
     --secondary: #3423A6;
     --accent: #DFF3E4;
-    --background: #171738;
 }
 
 *, *::before, *::after {
@@ -31,7 +30,6 @@ body {
     -webkit-text-size-adjust: 100%;
 }
 
-/* iOS PWA full screen fix */
 @supports (-webkit-touch-callout: none) {
     html, body, #root {
         min-height: -webkit-fill-available;
@@ -45,33 +43,19 @@ body {
     }
 }
 
-/* Light theme */
 [data-theme="light"] body,
 [data-theme="light"] #root {
     background-color: #F8FAFC;
     color: #0F172A;
 }
 
-/* Input text color fix - ensure text is always visible */
 input, textarea, select {
     font-size: 16px !important;
-    color: inherit !important;
 }
 
-input::placeholder, textarea::placeholder {
-    color: rgba(255, 255, 255, 0.4) !important;
-}
-
-[data-theme="light"] input::placeholder,
-[data-theme="light"] textarea::placeholder {
-    color: rgba(0, 0, 0, 0.4) !important;
-}
-
-/* Safe area padding */
 .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
 .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
 
-/* Animations */
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slide-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes scale-in { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
@@ -84,51 +68,17 @@ input::placeholder, textarea::placeholder {
 .animate-bounce { animation: bounce 0.6s ease-in-out infinite; }
 .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
 
-/* Hide scrollbars */
 .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 .hide-scrollbar::-webkit-scrollbar { display: none; }
 
-/* Fix purple showing when overscrolling in ChatView */
-.chat-view-bg {
-    background-color: #000000 !important;
-}
-
-/* Prevent overscroll bounce showing background */
-html {
-    overscroll-behavior: none;
-    background-color: #171738;
-}
-
-/* Fix Settings View input text colors */
 .bg-white input,
 .bg-white textarea,
-.bg-white select,
 .bg-gray-50 input,
 .bg-gray-50 textarea {
     color: #171738 !important;
 }
 
-/* Ensure placeholder is visible */
 .bg-white input::placeholder,
 .bg-gray-50 input::placeholder {
     color: rgba(23, 23, 56, 0.4) !important;
-}
-
-/* Fix any white-on-white text issues */
-.text-primary {
-    color: #171738 !important;
-}
-
-/* Status bar area background */
-html {
-    background-color: #171738 !important;
-}
-/* Force black background for status bar area */
-html {
-    background-color: #000000 !important;
-}
-
-/* Ensure ChatView has black background everywhere */
-[data-view="chat"] {
-    background-color: #000000 !important;
 }

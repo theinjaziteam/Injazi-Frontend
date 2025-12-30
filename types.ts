@@ -58,7 +58,8 @@ export enum AppView {
   STATS = 'STATS',
   SOCIAL = 'SOCIAL',
   LIVE_CALL = 'LIVE_CALL',
-  PLANS = 'PLANS'
+  PLANS = 'PLANS',
+  LEGAL = 'LEGAL'
 }
 
 // --- Journey Interfaces ---

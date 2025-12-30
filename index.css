@@ -87,3 +87,14 @@ input::placeholder, textarea::placeholder {
 /* Hide scrollbars */
 .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 .hide-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Fix purple showing when overscrolling in ChatView */
+.chat-view-bg {
+    background-color: #000000 !important;
+}
+
+/* Prevent overscroll bounce showing background */
+html {
+    overscroll-behavior: none;
+    background-color: #171738;
+}

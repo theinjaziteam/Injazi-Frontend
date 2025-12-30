@@ -186,24 +186,33 @@ export default function SettingsView() {
                     </section>
 
                     {/* Legal & Safety */}
-                    <section>
-                        <h2 className="text-lg font-black text-primary mb-4 flex items-center gap-2"><Icons.Shield className="w-5 h-5 text-secondary"/> Protocol Safety</h2>
-                        <div className="space-y-3">
-                            <button onClick={() => setShowPrivacy(true)} className="w-full text-left p-5 bg-gray-50 rounded-3xl font-black text-xs text-primary flex justify-between items-center transition-all active:scale-[0.98]">
-                                Global Privacy Protocol <Icons.ChevronRight className="w-4 h-4 opacity-30"/>
-                            </button>
-                            <div className="w-full text-left p-5 bg-gray-50 rounded-3xl font-black text-xs text-primary flex justify-between items-center transition-all opacity-50">
-                                Terms of Architecture <Icons.ChevronRight className="w-4 h-4 opacity-30"/>
-                            </div>
-                        </div>
-                    </section>
-
-                    <button onClick={() => setIsAuthenticated(false)} className="w-full flex items-center justify-center gap-2 text-red-500 font-black text-sm py-5 hover:bg-red-50 rounded-3xl transition-all">
-                        <Icons.LogOut className="w-5 h-5"/> Terminate Identity Session
-                    </button>
-                </div>
+                    <div className="space-y-2">
+    <button
+        onClick={() => setView(AppView.LEGAL)}
+        className="w-full bg-gray-50 p-4 rounded-xl text-left"
+    >
+        <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+                <Icons.FileText className="w-5 h-5 text-gray-400" />
+                <span className="font-medium text-primary">Terms of Service</span>
             </div>
-
+            <Icons.ChevronRight className="w-5 h-5 text-gray-400" />
+        </div>
+    </button>
+    
+    <button
+        onClick={() => setView(AppView.LEGAL)}
+        className="w-full bg-gray-50 p-4 rounded-xl text-left"
+    >
+        <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+                <Icons.Shield className="w-5 h-5 text-gray-400" />
+                <span className="font-medium text-primary">Privacy Policy</span>
+            </div>
+            <Icons.ChevronRight className="w-5 h-5 text-gray-400" />
+        </div>
+    </button>
+</div>
             {/* Plans Modal */}
             {showPlans && (
                 <div className="fixed inset-0 z-[110] bg-primary/95 backdrop-blur-2xl flex items-center justify-center p-6 animate-fade-in">

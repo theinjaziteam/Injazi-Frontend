@@ -49,8 +49,16 @@ export default function SettingsView() {
         updateAndSave({ connectedApps: updatedApps });
     };
 
+    const handleLogout = () => {
+        if (window.confirm('Are you sure you want to log out?')) {
+            localStorage.removeItem('injazi_token');
+            setIsAuthenticated(false);
+            setView(AppView.LOGIN);
+        }
+    };
+
     return (
-        <div className="h-full overflow-y-auto pb scroll-smooth" style={{ backgroundColor: '#FFFFFF' }}>
+        <div className="h-full overflow-y-auto pb-safe scroll-smooth" style={{ backgroundColor: '#FFFFFF' }}>
             <div className="min-h-full bg-white flex flex-col animate-fade-in pb-20">
                 {/* Header */}
                 <div className="p-6 border-b border-gray-100 flex items-center gap-4 bg-white sticky top-0 z-30">
@@ -186,33 +194,58 @@ export default function SettingsView() {
                     </section>
 
                     {/* Legal & Safety */}
-                    <div className="space-y-2">
-    <button
-        onClick={() => setView(AppView.LEGAL)}
-        className="w-full bg-gray-50 p-4 rounded-xl text-left"
-    >
-        <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-                <Icons.Book className="w-5 h-5 text-gray-400" />
-                <span className="font-medium text-primary">Terms of Service</span>
+                    <section>
+                        <h2 className="text-lg font-black text-primary mb-4 flex items-center gap-2">
+                            <Icons.Info className="w-5 h-5 text-secondary"/> Legal & Safety
+                        </h2>
+                        <div className="space-y-2">
+                            <button
+                                onClick={() => setView(AppView.LEGAL)}
+                                className="w-full bg-gray-50 p-4 rounded-xl text-left"
+                            >
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <Icons.Book className="w-5 h-5 text-gray-400" />
+                                        <span className="font-medium text-primary">Terms of Service</span>
+                                    </div>
+                                    <Icons.ChevronRight className="w-5 h-5 text-gray-400" />
+                                </div>
+                            </button>
+                            
+                            <button
+                                onClick={() => setView(AppView.LEGAL)}
+                                className="w-full bg-gray-50 p-4 rounded-xl text-left"
+                            >
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <Icons.Lock className="w-5 h-5 text-gray-400" />
+                                        <span className="font-medium text-primary">Privacy Policy</span>
+                                    </div>
+                                    <Icons.ChevronRight className="w-5 h-5 text-gray-400" />
+                                </div>
+                            </button>
+                        </div>
+                    </section>
+
+                    {/* Logout */}
+                    <section>
+                        <button 
+                            onClick={handleLogout}
+                            className="w-full p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 font-bold flex items-center justify-center gap-2 hover:bg-red-100 transition-colors"
+                        >
+                            <Icons.LogOut className="w-5 h-5" />
+                            <span>Log Out</span>
+                        </button>
+                    </section>
+
+                    {/* App Version */}
+                    <div className="text-center pt-4">
+                        <p className="text-[10px] text-gray-300 font-medium">InJazi v1.0.0</p>
+                        <p className="text-[9px] text-gray-300">© 2024 InJazi. All rights reserved.</p>
+                    </div>
+                </div>
             </div>
-            <Icons.ChevronRight className="w-5 h-5 text-gray-400" />
-        </div>
-    </button>
-    
-    <button
-        onClick={() => setView(AppView.LEGAL)}
-        className="w-full bg-gray-50 p-4 rounded-xl text-left"
-    >
-        <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-                <Icons.Lock className="w-5 h-5 text-gray-400" />
-                <span className="font-medium text-primary">Privacy Policy</span>
-            </div>
-            <Icons.ChevronRight className="w-5 h-5 text-gray-400" />
-        </div>
-    </button>
-</div>
+
             {/* Plans Modal */}
             {showPlans && (
                 <div className="fixed inset-0 z-[110] bg-primary/95 backdrop-blur-2xl flex items-center justify-center p-6 animate-fade-in">
@@ -299,23 +332,23 @@ export default function SettingsView() {
 
             {/* Privacy Modal */}
             {showPrivacy && (
-              <div className="fixed inset-0 z-[100] bg-white p-8 overflow-y-auto animate-slide-up">
-                <div className="flex justify-between items-center mb-10 mt-2">
-                  <h2 className="text-3xl font-black text-primary uppercase tracking-tighter">Global Protocol</h2>
-                  <button onClick={() => setShowPrivacy(false)} className="p-3 bg-gray-100 rounded-full"><Icons.X className="text-primary"/></button>
+                <div className="fixed inset-0 z-[100] bg-white p-8 overflow-y-auto animate-slide-up">
+                    <div className="flex justify-between items-center mb-10 mt-2">
+                        <h2 className="text-3xl font-black text-primary uppercase tracking-tighter">Global Protocol</h2>
+                        <button onClick={() => setShowPrivacy(false)} className="p-3 bg-gray-100 rounded-full"><Icons.X className="text-primary"/></button>
+                    </div>
+                    <div className="prose prose-sm text-gray-600 space-y-6 font-medium leading-relaxed">
+                        <p>InJazi leverages sovereign encryption to safeguard your success data. We understand the high-leverage nature of your architecture.</p>
+                        <div className="p-8 bg-gray-50 rounded-[2.5rem] border-2 border-gray-50">
+                            <h4 className="font-black text-primary mb-3 text-xs uppercase tracking-[0.2em]">I. Data Sovereignity</h4>
+                            <p className="text-gray-600">Your goal inputs and video proofs are analyzed by ephemeral AI instances. We do not persist raw biometric data beyond the verification cycle.</p>
+                        </div>
+                        <div className="p-8 bg-gray-50 rounded-[2.5rem] border-2 border-gray-50">
+                            <h4 className="font-black text-primary mb-3 text-xs uppercase tracking-[0.2em]">II. Financial Integrity</h4>
+                            <p className="text-gray-600">All credit redemptions are processed via Tier-1 liquidity providers. We maintain a 1:1 reserve for all redeemable architect capital.</p>
+                        </div>
+                    </div>
                 </div>
-                <div className="prose prose-sm text-gray-600 space-y-6 font-medium leading-relaxed">
-                  <p>InJazi leverages sovereign encryption to safeguard your success data. We understand the high-leverage nature of your architecture.</p>
-                  <div className="p-8 bg-gray-50 rounded-[2.5rem] border-2 border-gray-50">
-                    <h4 className="font-black text-primary mb-3 text-xs uppercase tracking-[0.2em]">I. Data Sovereignity</h4>
-                    <p className="text-gray-600">Your goal inputs and video proofs are analyzed by ephemeral AI instances. We do not persist raw biometric data beyond the verification cycle.</p>
-                  </div>
-                  <div className="p-8 bg-gray-50 rounded-[2.5rem] border-2 border-gray-50">
-                    <h4 className="font-black text-primary mb-3 text-xs uppercase tracking-[0.2em]">II. Financial Integrity</h4>
-                    <p className="text-gray-600">All credit redemptions are processed via Tier-1 liquidity providers. We maintain a 1:1 reserve for all redeemable architect capital.</p>
-                  </div>
-                </div>
-              </div>
             )}
         </div>
     );

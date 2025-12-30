@@ -123,3 +123,12 @@ html {
 html {
     background-color: #171738 !important;
 }
+/* Force black background for status bar area */
+html {
+    background-color: #000000 !important;
+}
+
+/* Ensure ChatView has black background everywhere */
+[data-view="chat"] {
+    background-color: #000000 !important;
+}

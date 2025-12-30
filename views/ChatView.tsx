@@ -170,7 +170,7 @@ export default function ChatView() {
 
             // Change planet center position - raise it higher
 const centerX = w * 0.55;
-const centerY = h * 0.38;  // Changed from 0.45 to 0.38 to raise planet
+const centerY = h * 0.45;  // Changed from 0.45 to 0.38 to raise planet
 const radius = Math.min(w, h) * 0.30;  // Slightly smaller for better fit
 
 

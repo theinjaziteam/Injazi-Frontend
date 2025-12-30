@@ -193,7 +193,7 @@ export default function SettingsView() {
     >
         <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-                <Icons.FileText className="w-5 h-5 text-gray-400" />
+                <Icons.Book className="w-5 h-5 text-gray-400" />
                 <span className="font-medium text-primary">Terms of Service</span>
             </div>
             <Icons.ChevronRight className="w-5 h-5 text-gray-400" />
@@ -206,7 +206,7 @@ export default function SettingsView() {
     >
         <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-                <Icons.Shield className="w-5 h-5 text-gray-400" />
+                <Icons.Lock className="w-5 h-5 text-gray-400" />
                 <span className="font-medium text-primary">Privacy Policy</span>
             </div>
             <Icons.ChevronRight className="w-5 h-5 text-gray-400" />

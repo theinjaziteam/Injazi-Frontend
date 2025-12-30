@@ -1210,14 +1210,16 @@ return (
         {/* Spacer to push input down */}
         <div style={{ flex: 1 }} />
 
-        {/* Input at bottom */}
-        <div style={{
-            position: 'relative',
-            zIndex: 10,
-            padding: '16px 20px',
-            paddingBottom: '20px',
-            pointerEvents: 'auto'
-        }}>
+        {/* Input at bottom - FIXED: moved higher */}
+<div style={{
+    position: 'absolute',
+    bottom: '70px',
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    padding: '16px 20px',
+    pointerEvents: 'auto'
+}}>
             {/* Attachment preview */}
             {attachment && (
                 <div className="mb-2 flex items-center gap-2 bg-white/5 rounded-xl p-2">

@@ -6,7 +6,7 @@
     --primary: #171738;
     --secondary: #3423A6;
     --accent: #DFF3E4;
-    --background: #000000;
+    --background: #171738;
 }
 
 *, *::before, *::after {
@@ -15,28 +15,28 @@
     padding: 0;
 }
 
-html {
-    font-family: 'Inter', system-ui, sans-serif;
-    background-color: #000000;
+html, body, #root {
     height: 100%;
     width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: #171738;
+    font-family: 'Inter', system-ui, sans-serif;
 }
 
 body {
-    background-color: #000000;
     color: #FFFFFF;
-    height: 100%;
-    width: 100%;
-    overflow: hidden;
     overscroll-behavior: none;
     -webkit-text-size-adjust: 100%;
 }
 
-#root {
-    height: 100%;
-    width: 100%;
-    background-color: #000000;
-    overflow: hidden;
+/* iOS PWA full screen fix */
+@supports (-webkit-touch-callout: none) {
+    html, body, #root {
+        min-height: -webkit-fill-available;
+        height: -webkit-fill-available;
+    }
 }
 
 @supports (height: 100dvh) {
@@ -45,30 +45,45 @@ body {
     }
 }
 
+/* Light theme */
 [data-theme="light"] body,
 [data-theme="light"] #root {
     background-color: #F8FAFC;
     color: #0F172A;
 }
 
-input, textarea, select, button {
+/* Input text color fix - ensure text is always visible */
+input, textarea, select {
     font-size: 16px !important;
+    color: inherit !important;
 }
 
+input::placeholder, textarea::placeholder {
+    color: rgba(255, 255, 255, 0.4) !important;
+}
+
+[data-theme="light"] input::placeholder,
+[data-theme="light"] textarea::placeholder {
+    color: rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Safe area padding */
 .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
 .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
 
+/* Animations */
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slide-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes scale-in { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
 @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
 
 .animate-fade-in { animation: fade-in 0.3s ease-out; }
 .animate-slide-up { animation: slide-up 0.4s ease-out; }
 .animate-scale-in { animation: scale-in 0.2s ease-out; }
 .animate-bounce { animation: bounce 0.6s ease-in-out infinite; }
 .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
 
+/* Hide scrollbars */
 .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 .hide-scrollbar::-webkit-scrollbar { display: none; }

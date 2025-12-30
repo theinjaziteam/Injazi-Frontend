@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { AppView, COUNTRIES } from '../types';
 import { Icons, Button, Toggle, Card, Badge } from '../components/UIComponents';
-import { api } from '../services/api'; // <--- IMPORT API
+import { api } from '../services/api';
 
 export default function SettingsView() {
     const { user, setUser, setView, setIsAuthenticated } = useApp();
@@ -15,14 +15,9 @@ export default function SettingsView() {
     const [showPrivacy, setShowPrivacy] = useState(false);
     const [showPlans, setShowPlans] = useState(false);
 
-    // --- HELPER: FORCE DB SAVE ---
     const updateAndSave = async (updates: Partial<typeof user>) => {
         const updatedUser = { ...user, ...updates };
-        
-        // 1. Update UI immediately
         setUser(updatedUser);
-        
-        // 2. Force Save to Database
         try {
             console.log("💾 Saving Settings...");
             await api.sync(updatedUser);
@@ -38,13 +33,11 @@ export default function SettingsView() {
     };
 
     const handlePlanSelect = (planId: string, isPremium: boolean) => {
-        // Force save the plan change
         updateAndSave({
             activePlanId: planId,
             isPremium: isPremium,
             maxGoalSlots: planId === 'free' ? 3 : 99,
         });
-        
         setShowPlans(false);
         alert(`Plan Update: Authorization complete for the ${planId.toUpperCase()} tier.`);
     };
@@ -57,7 +50,7 @@ export default function SettingsView() {
     };
 
     return (
-        <div className="h-full overflow-y-auto pb-safe scroll-smooth">
+        <div className="h-full overflow-y-auto pb-safe scroll-smooth" style={{ backgroundColor: '#FFFFFF' }}>
             <div className="min-h-full bg-white flex flex-col animate-fade-in pb-20">
                 {/* Header */}
                 <div className="p-6 pt-safe border-b border-gray-100 flex items-center gap-4 bg-white sticky top-0 z-30">
@@ -71,15 +64,14 @@ export default function SettingsView() {
                     {/* Wallet Section */}
                     <section className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
-                            {/* Explicitly style credit box to prevent white/empty display */}
-                            <div className="p-5 bg-primary text-white rounded-3xl shadow-xl shadow-primary/20 relative overflow-hidden group">
+                            <div className="p-5 bg-primary rounded-3xl shadow-xl shadow-primary/20 relative overflow-hidden group">
                                 <div className="relative z-10">
                                     <span className="text-[10px] font-bold text-white/50 uppercase tracking-widest">Architect Credits</span>
                                     <div className="text-2xl font-black mt-1 group-hover:scale-105 transition-transform origin-left text-white">{(user.credits || 0).toLocaleString()}</div>
                                 </div>
                                 <Icons.Coins className="absolute -bottom-4 -right-4 w-16 h-16 text-white/10 rotate-12" />
                             </div>
-                            <div className="p-5 bg-emerald-600 text-white rounded-3xl shadow-xl shadow-emerald-500/20 relative overflow-hidden group">
+                            <div className="p-5 bg-emerald-600 rounded-3xl shadow-xl shadow-emerald-500/20 relative overflow-hidden group">
                                 <div className="relative z-10">
                                     <span className="text-[10px] font-bold text-white/50 uppercase tracking-widest">Global Balance</span>
                                     <div className="text-2xl font-black mt-1 group-hover:scale-105 transition-transform origin-left text-white">${(user.realMoneyBalance || 0).toFixed(2)}</div>
@@ -113,11 +105,29 @@ export default function SettingsView() {
                             <div className="space-y-6">
                                 <div>
                                     <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Full Name</label>
-                                    {editMode ? <input value={name} onChange={e => setName(e.target.value)} className="w-full mt-2 p-3 bg-gray-50 rounded-xl border border-gray-100 font-bold" /> : <div className="text-primary font-black text-lg mt-1">{user.name}</div>}
+                                    {editMode ? (
+                                        <input 
+                                            value={name} 
+                                            onChange={e => setName(e.target.value)} 
+                                            className="w-full mt-2 p-3 bg-gray-50 rounded-xl border border-gray-100 font-bold text-primary"
+                                            style={{ color: '#171738' }}
+                                        />
+                                    ) : (
+                                        <div className="text-primary font-black text-lg mt-1">{user.name}</div>
+                                    )}
                                 </div>
                                 <div>
                                     <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Account Identity (Email)</label>
-                                    {editMode ? <input value={email} onChange={e => setEmail(e.target.value)} className="w-full mt-2 p-3 bg-gray-50 rounded-xl border border-gray-100 font-bold" /> : <div className="text-primary font-bold mt-1">{user.email}</div>}
+                                    {editMode ? (
+                                        <input 
+                                            value={email} 
+                                            onChange={e => setEmail(e.target.value)} 
+                                            className="w-full mt-2 p-3 bg-gray-50 rounded-xl border border-gray-100 font-bold text-primary"
+                                            style={{ color: '#171738' }}
+                                        />
+                                    ) : (
+                                        <div className="text-primary font-bold mt-1">{user.email}</div>
+                                    )}
                                 </div>
                                 <div>
                                     <div className="flex justify-between items-center">
@@ -129,7 +139,13 @@ export default function SettingsView() {
                                         )}
                                     </div>
                                     {editMode ? (
-                                        <input type={showPwd ? "text" : "password"} value={pwd} onChange={e => setPwd(e.target.value)} className="w-full mt-2 p-3 bg-gray-50 rounded-xl border border-gray-100 font-bold" />
+                                        <input 
+                                            type={showPwd ? "text" : "password"} 
+                                            value={pwd} 
+                                            onChange={e => setPwd(e.target.value)} 
+                                            className="w-full mt-2 p-3 bg-gray-50 rounded-xl border border-gray-100 font-bold text-primary"
+                                            style={{ color: '#171738' }}
+                                        />
                                     ) : (
                                         <div className="text-primary mt-1">••••••••</div>
                                     )}
@@ -192,7 +208,7 @@ export default function SettingsView() {
             {showPlans && (
                 <div className="fixed inset-0 z-[110] bg-primary/95 backdrop-blur-2xl flex items-center justify-center p-6 animate-fade-in">
                     <Card className="p-8 w-full max-w-sm bg-white border-none shadow-[0_40px_100px_rgba(0,0,0,0.5)] rounded-[3rem] relative overflow-hidden flex flex-col max-h-[85vh]">
-                        <button onClick={() => setShowPlans(false)} className="absolute top-6 right-6 p-2 bg-gray-100 rounded-full z-20"><Icons.X className="w-4 h-4"/></button>
+                        <button onClick={() => setShowPlans(false)} className="absolute top-6 right-6 p-2 bg-gray-100 rounded-full z-20"><Icons.X className="w-4 h-4 text-primary"/></button>
                         <h2 className="text-3xl font-black text-primary mb-6 uppercase tracking-tighter text-center">Architect Plans</h2>
                         
                         <div className="flex-1 overflow-y-auto pr-1 space-y-4 no-scrollbar">
@@ -222,15 +238,32 @@ export default function SettingsView() {
                                     isPremium: true
                                 }
                             ].map((plan, i) => (
-                                <div key={i} className={`p-6 rounded-[2.5rem] border-2 transition-all flex flex-col ${plan.isCurrent ? 'bg-primary text-white border-primary shadow-xl shadow-primary/20' : 'bg-gray-50 border-gray-100'}`}>
+                                <div 
+                                    key={i} 
+                                    className={`p-6 rounded-[2.5rem] border-2 transition-all flex flex-col ${
+                                        plan.isCurrent 
+                                            ? 'bg-primary border-primary shadow-xl shadow-primary/20' 
+                                            : 'bg-gray-50 border-gray-100'
+                                    }`}
+                                >
                                     <div className="flex justify-between items-center mb-3">
-                                        <h4 className="font-black text-sm uppercase tracking-widest">{plan.name}</h4>
-                                        <span className={`font-black text-base ${plan.isCurrent ? 'text-accent' : 'text-primary'}`}>{plan.price}</span>
+                                        <h4 className={`font-black text-sm uppercase tracking-widest ${plan.isCurrent ? 'text-white' : 'text-primary'}`}>
+                                            {plan.name}
+                                        </h4>
+                                        <span className={`font-black text-base ${plan.isCurrent ? 'text-accent' : 'text-primary'}`}>
+                                            {plan.price}
+                                        </span>
                                     </div>
                                     <ul className="space-y-2 mb-6">
                                         {plan.features.map((feat, idx) => (
-                                            <li key={idx} className="flex items-start gap-2 text-[10px] font-bold opacity-80 uppercase tracking-tight leading-none">
-                                                <Icons.Check className="w-3 h-3 flex-shrink-0 mt-[-1px]"/> {feat}
+                                            <li 
+                                                key={idx} 
+                                                className={`flex items-start gap-2 text-[10px] font-bold uppercase tracking-tight leading-none ${
+                                                    plan.isCurrent ? 'text-white/80' : 'text-primary/80'
+                                                }`}
+                                            >
+                                                <Icons.Check className={`w-3 h-3 flex-shrink-0 mt-[-1px] ${plan.isCurrent ? 'text-accent' : 'text-secondary'}`}/> 
+                                                {feat}
                                             </li>
                                         ))}
                                     </ul>
@@ -243,7 +276,11 @@ export default function SettingsView() {
                                             Authorize {plan.id === 'free' ? 'Downgrade' : 'Upgrade'}
                                         </Button>
                                     )}
-                                    {plan.isCurrent && <div className="text-center text-[10px] font-black uppercase tracking-widest text-accent py-2">Active Protocol</div>}
+                                    {plan.isCurrent && (
+                                        <div className="text-center text-[10px] font-black uppercase tracking-widest text-accent py-2">
+                                            Active Protocol
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -256,17 +293,17 @@ export default function SettingsView() {
               <div className="fixed inset-0 z-[100] bg-white p-8 pt-safe overflow-y-auto animate-slide-up">
                 <div className="flex justify-between items-center mb-10 mt-2">
                   <h2 className="text-3xl font-black text-primary uppercase tracking-tighter">Global Protocol</h2>
-                  <button onClick={() => setShowPrivacy(false)} className="p-3 bg-gray-100 rounded-full"><Icons.X/></button>
+                  <button onClick={() => setShowPrivacy(false)} className="p-3 bg-gray-100 rounded-full"><Icons.X className="text-primary"/></button>
                 </div>
                 <div className="prose prose-sm text-gray-600 space-y-6 font-medium leading-relaxed">
                   <p>InJazi leverages sovereign encryption to safeguard your success data. We understand the high-leverage nature of your architecture.</p>
                   <div className="p-8 bg-gray-50 rounded-[2.5rem] border-2 border-gray-50">
                     <h4 className="font-black text-primary mb-3 text-xs uppercase tracking-[0.2em]">I. Data Sovereignity</h4>
-                    <p>Your goal inputs and video proofs are analyzed by ephemeral AI instances. We do not persist raw biometric data beyond the verification cycle.</p>
+                    <p className="text-gray-600">Your goal inputs and video proofs are analyzed by ephemeral AI instances. We do not persist raw biometric data beyond the verification cycle.</p>
                   </div>
                   <div className="p-8 bg-gray-50 rounded-[2.5rem] border-2 border-gray-50">
                     <h4 className="font-black text-primary mb-3 text-xs uppercase tracking-[0.2em]">II. Financial Integrity</h4>
-                    <p>All credit redemptions are processed via Tier-1 liquidity providers. We maintain a 1:1 reserve for all redeemable architect capital.</p>
+                    <p className="text-gray-600">All credit redemptions are processed via Tier-1 liquidity providers. We maintain a 1:1 reserve for all redeemable architect capital.</p>
                   </div>
                 </div>
               </div>

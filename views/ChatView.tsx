@@ -776,6 +776,111 @@ export default function ChatView() {
 
     const activeConvo = conversations.find(c => c.id === activeConversationId);
 
+    // ========== E-COMMERCE AGENT FLOATING BUTTON (for Planet Mode) ==========
+    const EcommerceFloatingButton = () => (
+        <button
+            onClick={() => setView(AppView.ECOMMERCE_AGENT)}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0) scale(1)'}
+            style={{
+                position: 'absolute',
+                bottom: 180,
+                right: 20,
+                zIndex: 10,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '12px 18px',
+                borderRadius: '50px',
+                background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #A855F7 100%)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                boxShadow: '0 4px 20px rgba(99, 102, 241, 0.4), 0 0 40px rgba(139, 92, 246, 0.2)',
+                cursor: 'pointer',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                pointerEvents: 'auto'
+            }}
+        >
+            <div style={{
+                width: 32,
+                height: 32,
+                borderRadius: '50%',
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+            }}>
+                <Icons.ShoppingBag style={{ width: 18, height: 18, color: '#fff' }} />
+            </div>
+            <div style={{ textAlign: 'left' }}>
+                <p style={{ color: '#fff', fontWeight: 600, fontSize: '13px', margin: 0, letterSpacing: '0.3px' }}>
+                    E-commerce Agent
+                </p>
+                <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', margin: 0 }}>
+                    Grow your Shopify store
+                </p>
+            </div>
+            <Icons.ChevronRight style={{ width: 16, height: 16, color: 'rgba(255,255,255,0.7)' }} />
+        </button>
+    );
+
+    // ========== E-COMMERCE AGENT QUICK ACTION CARD (for Chat Mode) ==========
+    const EcommerceQuickActionCard = () => (
+        <button
+            onClick={() => setView(AppView.ECOMMERCE_AGENT)}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+            style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '16px',
+                padding: '16px',
+                marginBottom: '16px',
+                borderRadius: '16px',
+                background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%)',
+                border: '1px solid rgba(139, 92, 246, 0.3)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                textAlign: 'left'
+            }}
+        >
+            <div style={{
+                width: 48,
+                height: 48,
+                borderRadius: '14px',
+                background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0
+            }}>
+                <Icons.ShoppingBag style={{ width: 24, height: 24, color: '#fff' }} />
+            </div>
+            <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                    <h3 style={{ color: '#fff', fontWeight: 600, fontSize: '15px', margin: 0 }}>
+                        E-commerce Growth Agent
+                    </h3>
+                    <span style={{
+                        padding: '2px 8px',
+                        borderRadius: '12px',
+                        backgroundColor: 'rgba(139, 92, 246, 0.3)',
+                        color: '#A855F7',
+                        fontSize: '10px',
+                        fontWeight: 600,
+                        textTransform: 'uppercase'
+                    }}>
+                        NEW
+                    </span>
+                </div>
+                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px', margin: 0 }}>
+                    Create & manage your Shopify store with AI assistance
+                </p>
+            </div>
+            <Icons.ChevronRight style={{ width: 20, height: 20, color: 'rgba(255,255,255,0.4)' }} />
+        </button>
+    );
+
     // ========== JOURNEYS LIST VIEW ==========
     if (showJourneysList) {
         return (
@@ -957,14 +1062,18 @@ export default function ChatView() {
 
                 {/* Messages */}
                 <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+                    {/* E-commerce Quick Action Card - shown when no active conversation */}
                     {(!activeConvo || activeConvo.messages.length === 0) && (
-                        <div style={{ textAlign: 'center', padding: '48px 0' }}>
-                            <div style={{ width: 64, height: 64, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-                                <Icons.Zap style={{ width: 32, height: 32, color: 'rgba(255,255,255,0.3)' }} />
+                        <>
+                            <EcommerceQuickActionCard />
+                            <div style={{ textAlign: 'center', padding: '32px 0' }}>
+                                <div style={{ width: 64, height: 64, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                                    <Icons.Zap style={{ width: 32, height: 32, color: 'rgba(255,255,255,0.3)' }} />
+                                </div>
+                                <h2 style={{ color: '#fff', fontWeight: 'bold', fontSize: '18px', margin: '0 0 8px' }}>Ask Your Guide</h2>
+                                <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '14px', margin: 0 }}>What do you need help with?</p>
                             </div>
-                            <h2 style={{ color: '#fff', fontWeight: 'bold', fontSize: '18px', margin: '0 0 8px' }}>Ask Your Guide</h2>
-                            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '14px', margin: 0 }}>What do you need help with?</p>
-                        </div>
+                        </>
                     )}
 
                     {activeConvo?.messages.map((msg) => (
@@ -1137,6 +1246,9 @@ export default function ChatView() {
                     <Icons.MessageCircle style={{ width: 20, height: 20 }} />
                 </button>
             </div>
+
+            {/* E-commerce Floating Button - Only show when journey is NOT active */}
+            {!isJourneyActive && !isChatLoading && <EcommerceFloatingButton />}
 
             {/* Welcome Panel or Journey Steps */}
             <div style={{ position: 'relative', zIndex: 10, padding: '0 16px', pointerEvents: 'none' }}>

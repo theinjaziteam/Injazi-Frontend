@@ -34,6 +34,10 @@ function AppContent() {
     ];
 
     const showNav = !hideNavViews.includes(view);
+    
+    // Determine background color based on current view
+    const isDarkView = view === AppView.CHAT;
+    const bgColor = isDarkView ? '#000000' : '#171738';
 
     return (
         <div 
@@ -44,7 +48,7 @@ function AppContent() {
                 left: 0,
                 right: 0,
                 bottom: 0,
-                backgroundColor: '#171738',
+                backgroundColor: bgColor,
                 overflow: 'hidden',
                 display: 'flex',
                 flexDirection: 'column'
@@ -55,7 +59,8 @@ function AppContent() {
                 flex: 1, 
                 overflow: 'hidden', 
                 position: 'relative',
-                marginBottom: showNav ? '56px' : '0'
+                marginBottom: showNav ? '56px' : '0',
+                backgroundColor: bgColor
             }}>
                 {view === AppView.ONBOARDING && <OnboardingView />}
                 {view === AppView.DASHBOARD && <DashboardView />}
@@ -94,7 +99,7 @@ function AppContent() {
                 </div>
             )}
 
-            {/* Bottom Navigation - Fixed at bottom */}
+            {/* Bottom Navigation */}
             {showNav && (
                 <div style={{
                     position: 'fixed',

@@ -60,6 +60,8 @@ export default function ChatView() {
     const [isTyping, setIsTyping] = useState(false);
     const typingRef = useRef<number | null>(null);
     
+    // Canvas state - using state to force re-renders
+    const [canvasKey, setCanvasKey] = useState(0);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const animationRef = useRef<number | null>(null);
     const rotationRef = useRef({ y: 0, targetY: 0, velocity: 0 });
@@ -68,6 +70,7 @@ export default function ChatView() {
     
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
+    // Load conversations from user
     useEffect(() => {
         const saved = (user as any).guideConversations;
         if (Array.isArray(saved)) {
@@ -75,12 +78,14 @@ export default function ChatView() {
         }
     }, []);
 
+    // Save conversations to user
     useEffect(() => {
         if (conversations.length > 0 || (user as any).guideConversations?.length > 0) {
             setUser(prev => ({ ...prev, guideConversations: conversations } as any));
         }
     }, [conversations]);
 
+    // Handle active conversation change
     useEffect(() => {
         if (!activeConversationId) {
             setJourneySteps([]);
@@ -104,21 +109,26 @@ export default function ChatView() {
         }
     }, [activeConversationId, conversations]);
 
+    // Scroll to bottom in chat mode
     useEffect(() => {
         if (viewMode === 'chat' && messagesEndRef.current) {
             messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
         }
     }, [viewMode, conversations, activeConversationId]);
 
+    // Initialize stars once
     useEffect(() => {
-        starsRef.current = Array.from({ length: 200 }, () => ({
-            x: Math.random() * 2 - 1,
-            y: Math.random() * 2 - 1,
-            z: Math.random(),
-            brightness: Math.random()
-        }));
+        if (starsRef.current.length === 0) {
+            starsRef.current = Array.from({ length: 200 }, () => ({
+                x: Math.random() * 2 - 1,
+                y: Math.random() * 2 - 1,
+                z: Math.random(),
+                brightness: Math.random()
+            }));
+        }
     }, []);
 
+    // Update rotation target when step changes
     useEffect(() => {
         if (currentStepIndex >= 0 && journeySteps[currentStepIndex]) {
             const step = journeySteps[currentStepIndex];
@@ -126,9 +136,26 @@ export default function ChatView() {
         }
     }, [currentStepIndex, journeySteps]);
 
-    // Canvas rendering
+    // Force canvas re-render when returning from journeys list
     useEffect(() => {
-        if (viewMode !== 'planet') return;
+        if (!showJourneysList && viewMode === 'planet') {
+            // Small delay to ensure DOM is ready
+            setTimeout(() => {
+                setCanvasKey(prev => prev + 1);
+            }, 50);
+        }
+    }, [showJourneysList, viewMode]);
+
+    // Canvas rendering - FIXED: proper cleanup and re-initialization
+    useEffect(() => {
+        if (viewMode !== 'planet' || showJourneysList) {
+            // Clean up animation when not in planet view
+            if (animationRef.current) {
+                cancelAnimationFrame(animationRef.current);
+                animationRef.current = null;
+            }
+            return;
+        }
         
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -138,6 +165,7 @@ export default function ChatView() {
 
         let width = 0;
         let height = 0;
+        let isRunning = true;
 
         const resize = () => {
             const rect = canvas.getBoundingClientRect();
@@ -151,15 +179,33 @@ export default function ChatView() {
         resize();
         window.addEventListener('resize', resize);
 
+        // Initialize stars if needed
+        if (starsRef.current.length === 0) {
+            starsRef.current = Array.from({ length: 200 }, () => ({
+                x: Math.random() * 2 - 1,
+                y: Math.random() * 2 - 1,
+                z: Math.random(),
+                brightness: Math.random()
+            }));
+        }
+
         const drawPlanet = () => {
+            if (!isRunning) return;
+            
             const dpr = window.devicePixelRatio || 1;
             const w = width / dpr;
             const h = height / dpr;
+            
+            if (w === 0 || h === 0) {
+                animationRef.current = requestAnimationFrame(drawPlanet);
+                return;
+            }
             
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
             ctx.fillStyle = '#000000';
             ctx.fillRect(0, 0, w, h);
 
+            // Draw stars
             starsRef.current.forEach(star => {
                 const twinkle = 0.3 + Math.sin(Date.now() * 0.002 + star.brightness * 10) * 0.5;
                 ctx.fillStyle = `rgba(255, 255, 255, ${star.z * twinkle * 0.8})`;
@@ -168,12 +214,12 @@ export default function ChatView() {
                 ctx.fill();
             });
 
-            // Change planet center position - raise it higher
-const centerX = w * 0.5;
-const centerY = h * 0.5;  // Changed from 0.45 to 0.38 to raise planet
-const radius = Math.min(w, h) * 0.30;  // Slightly smaller for better fit
+            // Planet position - centered but slightly up
+            const centerX = w * 0.5;
+            const centerY = h * 0.42;
+            const radius = Math.min(w, h) * 0.28;
 
-
+            // Handle rotation
             if (!dragRef.current.isDragging) {
                 rotationRef.current.y += (rotationRef.current.targetY - rotationRef.current.y) * 0.05;
                 rotationRef.current.velocity *= 0.96;
@@ -188,6 +234,7 @@ const radius = Math.min(w, h) * 0.30;  // Slightly smaller for better fit
             
             const rotation = rotationRef.current.y;
 
+            // Glow
             const glowGradient = ctx.createRadialGradient(centerX, centerY, radius * 0.9, centerX, centerY, radius * 1.5);
             glowGradient.addColorStop(0, 'rgba(100, 120, 255, 0.08)');
             glowGradient.addColorStop(1, 'transparent');
@@ -196,6 +243,7 @@ const radius = Math.min(w, h) * 0.30;  // Slightly smaller for better fit
             ctx.arc(centerX, centerY, radius * 1.5, 0, Math.PI * 2);
             ctx.fill();
 
+            // Planet body
             const planetGrad = ctx.createRadialGradient(centerX - radius * 0.3, centerY - radius * 0.3, 0, centerX, centerY, radius);
             planetGrad.addColorStop(0, '#1a1a2e');
             planetGrad.addColorStop(1, '#0a0a12');
@@ -204,6 +252,7 @@ const radius = Math.min(w, h) * 0.30;  // Slightly smaller for better fit
             ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
             ctx.fill();
 
+            // Grid lines
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
             ctx.lineWidth = 1;
             
@@ -225,6 +274,7 @@ const radius = Math.min(w, h) * 0.30;  // Slightly smaller for better fit
                 ctx.stroke();
             }
 
+            // Journey connections
             if (journeySteps.length > 1) {
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
                 ctx.lineWidth = 1.5;
@@ -254,6 +304,7 @@ const radius = Math.min(w, h) * 0.30;  // Slightly smaller for better fit
                 ctx.setLineDash([]);
             }
 
+            // Journey markers
             journeySteps.forEach((step, index) => {
                 const lat = step.position.lat * Math.PI / 180;
                 const lng = (step.position.lng * Math.PI / 180) + rotation;
@@ -291,6 +342,7 @@ const radius = Math.min(w, h) * 0.30;  // Slightly smaller for better fit
                 ctx.fillText(`${index + 1}`, x, y);
             });
 
+            // Planet outline
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
             ctx.lineWidth = 1.5;
             ctx.beginPath();
@@ -303,14 +355,18 @@ const radius = Math.min(w, h) * 0.30;  // Slightly smaller for better fit
         drawPlanet();
 
         return () => {
+            isRunning = false;
             window.removeEventListener('resize', resize);
-            if (animationRef.current) cancelAnimationFrame(animationRef.current);
+            if (animationRef.current) {
+                cancelAnimationFrame(animationRef.current);
+                animationRef.current = null;
+            }
         };
-    }, [viewMode, journeySteps, currentStepIndex]);
+    }, [viewMode, showJourneysList, canvasKey, journeySteps, currentStepIndex]);
 
     // Canvas pointer handlers
     useEffect(() => {
-        if (viewMode !== 'planet') return;
+        if (viewMode !== 'planet' || showJourneysList) return;
         
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -347,7 +403,7 @@ const radius = Math.min(w, h) * 0.30;  // Slightly smaller for better fit
             canvas.removeEventListener('pointerup', handlePointerUp);
             canvas.removeEventListener('pointerleave', handlePointerUp);
         };
-    }, [viewMode]);
+    }, [viewMode, showJourneysList, canvasKey]);
 
     const typeText = useCallback((text: string) => {
         if (typingRef.current) clearInterval(typingRef.current);
@@ -624,10 +680,6 @@ const radius = Math.min(w, h) * 0.30;  // Slightly smaller for better fit
         setChatInput('');
         removeAttachment();
         setIsChatLoading(true);
-        setJourneySteps([]);
-        setCurrentStepIndex(-1);
-        setDisplayedText('');
-        setIsJourneyActive(false);
 
         try {
             const convo = conversations.find(c => c.id === currentConvoId);
@@ -672,6 +724,7 @@ const radius = Math.min(w, h) * 0.30;  // Slightly smaller for better fit
 
             setJourneySteps(steps);
             setIsJourneyActive(true);
+            setIsChatLoading(false);
 
             setTimeout(() => {
                 setCurrentStepIndex(0);
@@ -682,6 +735,7 @@ const radius = Math.min(w, h) * 0.30;  // Slightly smaller for better fit
 
         } catch (error) {
             console.error('Chat error:', error);
+            setIsChatLoading(false);
             const errorSteps: JourneyStep[] = [{
                 id: 's-error',
                 title: 'Connection Issue',
@@ -694,26 +748,21 @@ const radius = Math.min(w, h) * 0.30;  // Slightly smaller for better fit
             setIsJourneyActive(true);
             setCurrentStepIndex(0);
             setDisplayedText(errorSteps[0].content);
-        } finally {
-            setIsChatLoading(false);
         }
     };
 
-  const goToNextStep = () => {
-    if (currentStepIndex < journeySteps.length - 1) {
-        navigateToStep(currentStepIndex + 1);
-    }
-};
+    const goToNextStep = () => {
+        if (currentStepIndex < journeySteps.length - 1) {
+            navigateToStep(currentStepIndex + 1);
+        }
+    };
 
-const handleDone = () => {
-    // Reset journey or go back to dashboard
-    setIsJourneyActive(false);
-    setJourneySteps([]);
-    setCurrentStepIndex(-1);
-    setDisplayedText('');
-};
-
-const isLastStep = currentStepIndex === journeySteps.length - 1;
+    const handleDone = () => {
+        setIsJourneyActive(false);
+        setJourneySteps([]);
+        setCurrentStepIndex(-1);
+        setDisplayedText('');
+    };
 
     const goToPrevStep = () => {
         if (currentStepIndex > 0) {
@@ -735,7 +784,7 @@ const isLastStep = currentStepIndex === journeySteps.length - 1;
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
                     <button 
                         onClick={() => setShowJourneysList(false)} 
-                        style={{ padding: '8px', color: 'rgba(255,255,255,0.5)' }}
+                        style={{ padding: '8px', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none' }}
                     >
                         <Icons.ArrowLeft style={{ width: 20, height: 20 }} />
                     </button>
@@ -745,7 +794,7 @@ const isLastStep = currentStepIndex === journeySteps.length - 1;
                     </div>
                     <button 
                         onClick={createConversation} 
-                        style={{ padding: '8px', color: 'rgba(255,255,255,0.5)' }}
+                        style={{ padding: '8px', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none' }}
                     >
                         <Icons.Plus style={{ width: 20, height: 20 }} />
                     </button>
@@ -977,7 +1026,7 @@ const isLastStep = currentStepIndex === journeySteps.length - 1;
                 </div>
 
                 {/* Input */}
-                <div style={{ padding: '16px' }}>
+                <div style={{ padding: '16px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
                     {attachment && (
                         <div style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '8px' }}>
                             {attachment.type === 'image' && attachmentPreview && (
@@ -988,52 +1037,54 @@ const isLastStep = currentStepIndex === journeySteps.length - 1;
                                     <Icons.FileText style={{ width: 24, height: 24, color: 'rgba(255,255,255,0.6)' }} />
                                 </div>
                             )}
-                            <span style={{ flex: 1, color: 'rgba(255,255,255,0.6)', fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{attachment.type} attached</span>
+                            <span style={{ flex: 1, color: 'rgba(255,255,255,0.6)', fontSize: '14px' }}>{attachment.type} attached</span>
                             <button onClick={removeAttachment} style={{ padding: '4px', color: 'rgba(255,255,255,0.4)', background: 'none', border: 'none' }}>
                                 <Icons.X style={{ width: 16, height: 16 }} />
                             </button>
                         </div>
                     )}
                     
-                    <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '12px', border: isInputFocused ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(255,255,255,0.1)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px' }}>
-                            <input
-                                type="file"
-                                ref={fileInputRef}
-                                onChange={handleFileSelect}
-                                accept="image/*,.pdf,audio/*"
-                                style={{ display: 'none' }}
-                            />
-                            <button 
-                                onClick={() => fileInputRef.current?.click()}
-                                style={{ padding: '8px', color: 'rgba(255,255,255,0.4)', background: 'none', border: 'none' }}
-                            >
-                                <Icons.Paperclip style={{ width: 20, height: 20 }} />
-                            </button>
-                            <input
-                                type="text"
-                                value={chatInput}
-                                onChange={e => setChatInput(e.target.value)}
-                                onFocus={() => setIsInputFocused(true)}
-                                onBlur={() => setIsInputFocused(false)}
-                                placeholder="Ask anything..."
-                                style={{ flex: 1, backgroundColor: 'transparent', color: '#fff', fontSize: '16px', border: 'none', outline: 'none' }}
-                                onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
-                            />
-                            <button
-                                onClick={handleSendMessage}
-                                disabled={(!chatInput.trim() && !attachment) || isChatLoading}
-                                style={{ 
-                                    padding: '8px', 
-                                    borderRadius: '8px', 
-                                    backgroundColor: (chatInput.trim() || attachment) && !isChatLoading ? '#fff' : 'rgba(255,255,255,0.1)',
-                                    color: (chatInput.trim() || attachment) && !isChatLoading ? '#000' : 'rgba(255,255,255,0.3)',
-                                    border: 'none'
-                                }}
-                            >
-                                <Icons.Send style={{ width: 16, height: 16 }} />
-                            </button>
-                        </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: '24px', padding: '8px 16px' }}>
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleFileSelect}
+                            accept="image/*,.pdf,audio/*"
+                            style={{ display: 'none' }}
+                        />
+                        <button 
+                            onClick={() => fileInputRef.current?.click()} 
+                            style={{ padding: '8px', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none' }}
+                        >
+                            <Icons.Paperclip style={{ width: 20, height: 20 }} />
+                        </button>
+                        <input
+                            type="text"
+                            value={chatInput}
+                            onChange={(e) => setChatInput(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
+                            placeholder="Ask anything..."
+                            style={{
+                                flex: 1,
+                                backgroundColor: 'transparent',
+                                border: 'none',
+                                outline: 'none',
+                                color: '#FFFFFF',
+                                fontSize: '16px'
+                            }}
+                        />
+                        <button 
+                            onClick={handleSendMessage}
+                            disabled={isChatLoading || (!chatInput.trim() && !attachment)}
+                            style={{ 
+                                padding: '8px', 
+                                color: (chatInput.trim() || attachment) ? '#FFFFFF' : 'rgba(255,255,255,0.3)',
+                                background: 'none', 
+                                border: 'none'
+                            }}
+                        >
+                            <Icons.Send style={{ width: 20, height: 20 }} />
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1041,243 +1092,210 @@ const isLastStep = currentStepIndex === journeySteps.length - 1;
     }
 
     // ========== PLANET VIEW ==========
-return (
-    <div style={{ 
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        display: 'flex', 
-        flexDirection: 'column', 
-        overflow: 'hidden',
-        backgroundColor: '#000000'
-    }}>
-        {/* Canvas - Full screen background */}
-        <canvas 
-            ref={canvasRef} 
-            style={{ 
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                touchAction: 'none',
-                zIndex: 0
-            }}
-        />
-
-        {/* Header */}
-        <div style={{
-            position: 'relative',
-            zIndex: 10,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '12px 20px',
-            paddingTop: 'calc(12px + env(safe-area-inset-top, 0px))',
-            pointerEvents: 'none'
-        }}>
-            <button 
-                onClick={() => setView(AppView.DASHBOARD)} 
-                className="p-2 rounded-xl text-white/50 active:text-white"
-                style={{ pointerEvents: 'auto' }}
-            >
-                <Icons.ArrowLeft className="w-5 h-5" />
-            </button>
+    return (
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: '#000000' }}>
+            {/* Canvas - Full screen */}
+            <canvas
+                key={canvasKey}
+                ref={canvasRef}
+                style={{
+                    position: 'absolute',
+                    inset: 0,
+                    width: '100%',
+                    height: '100%',
+                    touchAction: 'none'
+                }}
+            />
             
-            <button 
-                onClick={() => setShowJourneysList(true)} 
-                className="text-center px-3 py-1 rounded-xl active:bg-white/10"
-                style={{ pointerEvents: 'auto' }}
-            >
-                <h1 className="text-white font-bold text-sm">{activeConvo?.name || 'THE GUIDE'}</h1>
-                <p className="text-white/30 text-[10px]">Tap to see journeys</p>
-            </button>
-
-            <button 
-                onClick={() => setViewMode('chat')} 
-                className="p-2 rounded-xl text-white/50 active:text-white"
-                style={{ pointerEvents: 'auto' }}
-            >
-                <Icons.MessageCircle className="w-5 h-5" />
-            </button>
-        </div>
-
-        {/* AI Response Panel - Above planet */}
-        {isJourneyActive && journeySteps.length > 0 && currentStepIndex >= 0 && (
-            <div style={{
+            {/* Header */}
+            <div style={{ 
                 position: 'relative',
                 zIndex: 10,
-                padding: '0 20px',
-                marginBottom: '10px',
-                pointerEvents: 'none'
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'space-between', 
+                padding: '12px 16px',
+                pointerEvents: 'auto'
             }}>
-                <div style={{
-                    backgroundColor: 'rgba(255,255,255,0.05)',
-                    borderRadius: '16px',
-                    padding: '16px',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    backdropFilter: 'blur(10px)',
-                    pointerEvents: 'auto'
-                }}>
-                    <p className="text-white/40 text-xs uppercase tracking-widest mb-1">
-                        Step {currentStepIndex + 1} of {journeySteps.length}
-                    </p>
-                    <h3 className="text-white text-base font-bold mb-2">
-                        {journeySteps[currentStepIndex]?.title || ''}
-                    </h3>
-                    <div className="text-white/80 text-sm leading-relaxed max-h-[100px] overflow-y-auto">
-                        {displayedText}
-                        {isTyping && <span className="inline-block w-0.5 h-4 bg-white ml-1 animate-pulse" />}
-                    </div>
-                    
-                                      {/* Navigation buttons */}
-                    <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
-                        <button 
-                            onClick={goPrev} 
-                            disabled={currentStepIndex === 0} 
-                            style={{ 
-                                flex: 1, 
-                                padding: 10, 
-                                borderRadius: 10, 
-                                border: '1px solid rgba(255,255,255,0.2)', 
-                                backgroundColor: 'transparent', 
-                                color: currentStepIndex === 0 ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.7)', 
-                                fontSize: 13,
-                                cursor: currentStepIndex === 0 ? 'not-allowed' : 'pointer'
-                            }}
-                        >
-                            Previous
-                        </button>
-                        <button 
-                            onClick={currentStepIndex === journeySteps.length - 1 ? handleDone : goNext} 
-                            style={{ 
-                                flex: 1, 
-                                padding: 10, 
-                                borderRadius: 10, 
-                                border: 'none', 
-                                backgroundColor: '#fff', 
-                                color: '#000', 
-                                fontSize: 13, 
-                                fontWeight: 600,
-                                cursor: 'pointer'
-                            }}
-                        >
-                            {currentStepIndex === journeySteps.length - 1 ? 'Done' : 'Next'}
-                        </button>
-                    </div>
-                </div>  
-            </div>      
-        )}              
-
-        {/* Welcome text - only when no journey */}
-
-        {!isJourneyActive && !isChatLoading && (
-            <div style={{
-                position: 'relative',
-                zIndex: 10,
-                padding: '0 20px',
-                pointerEvents: 'none'
-            }}>
-                <p className="text-white/30 text-xs uppercase tracking-widest mb-2">Welcome</p>
-                <h2 className="text-white text-xl font-bold leading-tight mb-2">
-                    What would you like guidance on?
-                </h2>
-                <p className="text-white/50 text-sm leading-relaxed">
-                    Share your challenges or goals.
-                </p>
+                <button 
+                    onClick={() => setView(AppView.DASHBOARD)} 
+                    style={{ padding: '8px', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none' }}
+                >
+                    <Icons.ArrowLeft style={{ width: 20, height: 20 }} />
+                </button>
+                <button 
+                    onClick={() => setShowJourneysList(true)} 
+                    style={{ textAlign: 'center', padding: '4px 12px', borderRadius: '12px', background: 'none', border: 'none' }}
+                >
+                    <h1 style={{ color: '#fff', fontWeight: 'bold', fontSize: '14px', margin: 0 }}>THE GUIDE</h1>
+                    <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px', margin: 0 }}>Tap to see journeys</p>
+                </button>
+                <button 
+                    onClick={() => setViewMode('chat')} 
+                    style={{ padding: '8px', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none' }}
+                >
+                    <Icons.MessageCircle style={{ width: 20, height: 20 }} />
+                </button>
             </div>
-        )}
 
-        {/* Loading state */}
-        {isChatLoading && (
-            <div style={{
-                position: 'relative',
-                zIndex: 10,
-                padding: '0 20px',
-                pointerEvents: 'none'
-            }}>
-                <div className="flex gap-1.5 mb-2">
-                    {[0, 1, 2].map(i => (
-                        <div key={i} className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: `${i * 150}ms` }} />
-                    ))}
-                </div>
-                <p className="text-white/50 text-sm">Charting your journey...</p>
-            </div>
-        )}
+            {/* Welcome Panel or Journey Steps */}
+            <div style={{ position: 'relative', zIndex: 10, padding: '0 16px', pointerEvents: 'none' }}>
+                {!isJourneyActive && !isChatLoading && (
+                    <div style={{ pointerEvents: 'auto' }}>
+                        <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 8px' }}>WELCOME</p>
+                        <h2 style={{ color: '#fff', fontSize: '24px', fontWeight: 'bold', margin: '0 0 8px' }}>What would you like guidance on?</h2>
+                        <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px', margin: 0 }}>Share your challenges or goals.</p>
+                    </div>
+                )}
 
-        {/* Spacer to push input down */}
-        <div style={{ flex: 1 }} />
-
-        {/* Input at bottom - FIXED: moved higher */}
-<div style={{
-    position: 'absolute',
-    bottom: '70px',
-    left: 0,
-    right: 0,
-    zIndex: 10,
-    padding: '16px 20px',
-    pointerEvents: 'auto'
-}}>
-            {/* Attachment preview */}
-            {attachment && (
-                <div className="mb-2 flex items-center gap-2 bg-white/5 rounded-xl p-2">
-                    {attachment.type === 'image' && attachmentPreview && (
-                        <img src={attachmentPreview} alt="Preview" className="w-12 h-12 rounded-lg object-cover" />
-                    )}
-                    {attachment.type === 'pdf' && (
-                        <div className="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center">
-                            <Icons.FileText className="w-6 h-6 text-white/60" />
+                {isJourneyActive && journeySteps.length > 0 && currentStepIndex >= 0 && (
+                    <div style={{ pointerEvents: 'auto' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                            <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <span style={{ color: '#000', fontWeight: 'bold', fontSize: '14px' }}>{currentStepIndex + 1}</span>
+                            </div>
+                            <div>
+                                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px', margin: 0 }}>Step {currentStepIndex + 1} of {journeySteps.length}</p>
+                                <h3 style={{ color: '#fff', fontSize: '16px', fontWeight: 'bold', margin: 0 }}>{journeySteps[currentStepIndex]?.title || 'Guidance'}</h3>
+                            </div>
                         </div>
-                    )}
-                    <span className="flex-1 text-white/60 text-sm truncate">{attachment.type} attached</span>
-                    <button onClick={removeAttachment} className="p-1 text-white/40 active:text-white">
-                        <Icons.X className="w-4 h-4" />
-                    </button>
-                </div>
-            )}
-            
-            <div className={`bg-white/5 backdrop-blur rounded-2xl border ${isInputFocused ? 'border-white/30' : 'border-white/10'}`}>
-                <div className="flex items-center gap-2 px-3 py-2">
+                        <div style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: '16px', padding: '16px', border: '1px solid rgba(255,255,255,0.1)', maxHeight: '120px', overflowY: 'auto' }}>
+                            <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '14px', lineHeight: 1.6, margin: 0 }}>
+                                {displayedText}
+                                {isTyping && <span style={{ opacity: 0.5 }}>|</span>}
+                            </p>
+                        </div>
+                        
+                        {/* Navigation Buttons */}
+                        <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
+                            <button
+                                onClick={goToPrevStep}
+                                disabled={currentStepIndex === 0}
+                                style={{
+                                    flex: 1,
+                                    padding: '12px',
+                                    borderRadius: '12px',
+                                    border: '1px solid rgba(255,255,255,0.2)',
+                                    backgroundColor: 'transparent',
+                                    color: currentStepIndex === 0 ? 'rgba(255,255,255,0.3)' : '#fff',
+                                    fontSize: '14px',
+                                    fontWeight: '600'
+                                }}
+                            >
+                                Previous
+                            </button>
+                            <button
+                                onClick={currentStepIndex === journeySteps.length - 1 ? handleDone : goToNextStep}
+                                style={{
+                                    flex: 1,
+                                    padding: '12px',
+                                    borderRadius: '12px',
+                                    border: 'none',
+                                    backgroundColor: '#fff',
+                                    color: '#000',
+                                    fontSize: '14px',
+                                    fontWeight: '600'
+                                }}
+                            >
+                                {currentStepIndex === journeySteps.length - 1 ? 'Done' : 'Next'}
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {isChatLoading && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: '16px', padding: '16px', border: '1px solid rgba(255,255,255,0.1)', pointerEvents: 'auto' }}>
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                            {[0, 1, 2].map(i => (
+                                <div key={i} className="animate-bounce" style={{ width: 8, height: 8, backgroundColor: '#fff', borderRadius: '50%', animationDelay: `${i * 150}ms` }} />
+                            ))}
+                        </div>
+                        <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px' }}>Preparing your journey...</span>
+                    </div>
+                )}
+            </div>
+
+            {/* Spacer to push input up */}
+            <div style={{ flex: 1 }} />
+
+            {/* Input at bottom - raised up */}
+            <div style={{
+                position: 'relative',
+                zIndex: 10,
+                padding: '16px 20px',
+                paddingBottom: '100px',
+                pointerEvents: 'auto'
+            }}>
+                {attachment && (
+                    <div style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '12px', padding: '8px' }}>
+                        {attachment.type === 'image' && attachmentPreview && (
+                            <img src={attachmentPreview} alt="Preview" style={{ width: 40, height: 40, borderRadius: '8px', objectFit: 'cover' }} />
+                        )}
+                        {attachment.type === 'pdf' && (
+                            <div style={{ width: 40, height: 40, borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <Icons.FileText style={{ width: 20, height: 20, color: 'rgba(255,255,255,0.6)' }} />
+                            </div>
+                        )}
+                        <span style={{ flex: 1, color: 'rgba(255,255,255,0.6)', fontSize: '12px' }}>{attachment.type} attached</span>
+                        <button onClick={removeAttachment} style={{ padding: '4px', color: 'rgba(255,255,255,0.4)', background: 'none', border: 'none' }}>
+                            <Icons.X style={{ width: 16, height: 16 }} />
+                        </button>
+                    </div>
+                )}
+                
+                <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '8px', 
+                    backgroundColor: 'rgba(255,255,255,0.08)', 
+                    borderRadius: '24px', 
+                    padding: '8px 16px',
+                    border: '1px solid rgba(255,255,255,0.15)'
+                }}>
                     <input
                         type="file"
                         ref={fileInputRef}
                         onChange={handleFileSelect}
                         accept="image/*,.pdf,audio/*"
-                        className="hidden"
+                        style={{ display: 'none' }}
                     />
                     <button 
-                        onClick={() => fileInputRef.current?.click()}
-                        className="p-2 text-white/40 active:text-white rounded-lg"
+                        onClick={() => fileInputRef.current?.click()} 
+                        style={{ padding: '8px', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none' }}
                     >
-                        <Icons.Paperclip className="w-5 h-5" />
+                        <Icons.Paperclip style={{ width: 20, height: 20 }} />
                     </button>
                     <input
                         type="text"
                         value={chatInput}
-                        onChange={e => setChatInput(e.target.value)}
+                        onChange={(e) => setChatInput(e.target.value)}
                         onFocus={() => setIsInputFocused(true)}
                         onBlur={() => setIsInputFocused(false)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
                         placeholder="Ask anything..."
-                        className="flex-1 bg-transparent text-white text-sm placeholder:text-white/30 focus:outline-none"
-                        style={{ fontSize: '16px' }}
-                        onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
+                        style={{
+                            flex: 1,
+                            backgroundColor: 'transparent',
+                            border: 'none',
+                            outline: 'none',
+                            color: '#FFFFFF',
+                            fontSize: '16px'
+                        }}
                     />
-                    <button
+                    <button 
                         onClick={handleSendMessage}
-                        disabled={(!chatInput.trim() && !attachment) || isChatLoading}
-                        className={`p-2 rounded-xl ${
-                            (chatInput.trim() || attachment) && !isChatLoading 
-                                ? 'bg-white text-black' 
-                                : 'bg-white/10 text-white/30'
-                        }`}
+                        disabled={isChatLoading || (!chatInput.trim() && !attachment)}
+                        style={{ 
+                            padding: '8px', 
+                            color: (chatInput.trim() || attachment) ? '#FFFFFF' : 'rgba(255,255,255,0.3)',
+                            background: 'none', 
+                            border: 'none'
+                        }}
                     >
-                        <Icons.Send className="w-4 h-4" />
+                        <Icons.Send style={{ width: 20, height: 20 }} />
                     </button>
                 </div>
             </div>
         </div>
-    </div>
     );
 }

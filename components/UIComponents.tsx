@@ -236,6 +236,620 @@ ArrowLeft: (props: any) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
   )
 };
+// Add these new components to UIComponents.tsx
+
+// ============================================
+// E-COMMERCE AGENT ICONS
+// ============================================
+export const EcommerceIcons = {
+    Store: (props: any) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/>
+            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+            <path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/>
+            <path d="M2 7h20"/>
+            <path d="M22 7v3a2 2 0 0 1-2 2v0a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12v0a2 2 0 0 1-2-2V7"/>
+        </svg>
+    ),
+    Package: (props: any) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <path d="m7.5 4.27 9 5.15"/>
+            <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/>
+            <path d="m3.3 7 8.7 5 8.7-5"/>
+            <path d="M12 22V12"/>
+        </svg>
+    ),
+    LineChart: (props: any) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <path d="M3 3v18h18"/>
+            <path d="m19 9-5 5-4-4-3 3"/>
+        </svg>
+    ),
+    Mail: (props: any) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <rect width="20" height="16" x="2" y="4" rx="2"/>
+            <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+        </svg>
+    ),
+    Share2: (props: any) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <circle cx="18" cy="5" r="3"/>
+            <circle cx="6" cy="12" r="3"/>
+            <circle cx="18" cy="19" r="3"/>
+            <line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/>
+            <line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/>
+        </svg>
+    ),
+    Robot: (props: any) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <rect width="18" height="10" x="3" y="11" rx="2"/>
+            <circle cx="12" cy="5" r="2"/>
+            <path d="M12 7v4"/>
+            <line x1="8" x2="8" y1="16" y2="16"/>
+            <line x1="16" x2="16" y1="16" y2="16"/>
+        </svg>
+    ),
+    TrendingUp: (props: any) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
+            <polyline points="16 7 22 7 22 13"/>
+        </svg>
+    ),
+    ShoppingCart: (props: any) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <circle cx="8" cy="21" r="1"/>
+            <circle cx="19" cy="21" r="1"/>
+            <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/>
+        </svg>
+    ),
+    Link: (props: any) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+        </svg>
+    ),
+    CheckCircle: (props: any) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <circle cx="12" cy="12" r="10"/>
+            <path d="m9 12 2 2 4-4"/>
+        </svg>
+    ),
+    XCircle: (props: any) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <circle cx="12" cy="12" r="10"/>
+            <path d="m15 9-6 6"/>
+            <path d="m9 9 6 6"/>
+        </svg>
+    ),
+    Clock: (props: any) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+        </svg>
+    )
+};
+
+// ============================================
+// AGENT ACTION CARD
+// ============================================
+interface AgentActionCardProps {
+    action: {
+        id: string;
+        title: string;
+        description: string;
+        agentType: string;
+        status: string;
+        timestamp: number;
+        requiresApproval: boolean;
+    };
+    onApprove?: () => void;
+    onReject?: () => void;
+}
+
+export const AgentActionCard: React.FC<AgentActionCardProps> = ({ action, onApprove, onReject }) => {
+    const getAgentIcon = () => {
+        switch (action.agentType) {
+            case 'shopify_setup': return <EcommerceIcons.Store className="w-5 h-5" />;
+            case 'product_ingestion': return <EcommerceIcons.Package className="w-5 h-5" />;
+            case 'analytics': return <EcommerceIcons.LineChart className="w-5 h-5" />;
+            case 'email_marketing': return <EcommerceIcons.Mail className="w-5 h-5" />;
+            case 'social_media': return <EcommerceIcons.Share2 className="w-5 h-5" />;
+            default: return <EcommerceIcons.Robot className="w-5 h-5" />;
+        }
+    };
+
+    const getStatusColor = () => {
+        switch (action.status) {
+            case 'pending': return 'bg-yellow-100 text-yellow-800';
+            case 'approved': return 'bg-green-100 text-green-800';
+            case 'rejected': return 'bg-red-100 text-red-800';
+            case 'executed': return 'bg-blue-100 text-blue-800';
+            default: return 'bg-gray-100 text-gray-800';
+        }
+    };
+
+    return (
+        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+            <div className="flex items-start gap-3">
+                <div className="p-2 bg-primary/10 rounded-xl text-primary">
+                    {getAgentIcon()}
+                </div>
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                        <h4 className="font-semibold text-gray-900 truncate">{action.title}</h4>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor()}`}>
+                            {action.status}
+                        </span>
+                    </div>
+                    <p className="text-sm text-gray-500 line-clamp-2">{action.description}</p>
+                    <div className="flex items-center justify-between mt-3">
+                        <span className="text-xs text-gray-400">
+                            {new Date(action.timestamp).toLocaleString()}
+                        </span>
+                        {action.status === 'pending' && action.requiresApproval && (
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={onReject}
+                                    className="px-3 py-1 text-xs font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100"
+                                >
+                                    Reject
+                                </button>
+                                <button
+                                    onClick={onApprove}
+                                    className="px-3 py-1 text-xs font-medium text-white bg-primary rounded-lg hover:bg-primary/90"
+                                >
+                                    Approve
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// ============================================
+// ANALYTICS KPI CARD
+// ============================================
+interface KPICardProps {
+    title: string;
+    value: string | number;
+    change?: number;
+    icon: React.ReactNode;
+    trend?: 'up' | 'down' | 'neutral';
+}
+
+export const KPICard: React.FC<KPICardProps> = ({ title, value, change, icon, trend }) => {
+    return (
+        <div className="bg-white rounded-2xl p-4 border border-gray-100">
+            <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-gray-500 uppercase tracking-wider">{title}</span>
+                <div className="p-1.5 bg-gray-50 rounded-lg text-gray-400">
+                    {icon}
+                </div>
+            </div>
+            <div className="flex items-end gap-2">
+                <span className="text-2xl font-bold text-gray-900">{value}</span>
+                {change !== undefined && (
+                    <span className={`text-xs font-medium mb-1 ${
+                        trend === 'up' ? 'text-green-500' : 
+                        trend === 'down' ? 'text-red-500' : 
+                        'text-gray-400'
+                    }`}>
+                        {change > 0 ? '+' : ''}{change}%
+                    </span>
+                )}
+            </div>
+        </div>
+    );
+};
+
+// ============================================
+// PRODUCT DRAFT CARD
+// ============================================
+interface ProductDraftCardProps {
+    draft: {
+        id: string;
+        status: string;
+        originalData: {
+            title: string;
+            images: string[];
+            originalPrice: number;
+        };
+        optimizedData?: {
+            title: string;
+        };
+        finalData?: {
+            title: string;
+            price: number;
+        };
+    };
+    onEdit?: () => void;
+    onApprove?: () => void;
+    onPublish?: () => void;
+}
+
+export const ProductDraftCard: React.FC<ProductDraftCardProps> = ({ 
+    draft, 
+    onEdit, 
+    onApprove, 
+    onPublish 
+}) => {
+    const title = draft.finalData?.title || draft.optimizedData?.title || draft.originalData.title;
+    const price = draft.finalData?.price || draft.originalData.originalPrice;
+    const image = draft.originalData.images?.[0] || 'https://via.placeholder.com/150';
+
+    const getStatusBadge = () => {
+        const styles: Record<string, string> = {
+            scraped: 'bg-gray-100 text-gray-700',
+            optimized: 'bg-blue-100 text-blue-700',
+            approved: 'bg-green-100 text-green-700',
+            published: 'bg-purple-100 text-purple-700',
+            rejected: 'bg-red-100 text-red-700'
+        };
+        return (
+            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${styles[draft.status] || styles.scraped}`}>
+                {draft.status}
+            </span>
+        );
+    };
+
+    return (
+        <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
+            <div className="aspect-square relative">
+                <img src={image} alt={title} className="w-full h-full object-cover" />
+                <div className="absolute top-2 right-2">
+                    {getStatusBadge()}
+                </div>
+            </div>
+            <div className="p-4">
+                <h4 className="font-semibold text-gray-900 line-clamp-2 mb-1">{title}</h4>
+                <p className="text-lg font-bold text-primary">${price.toFixed(2)}</p>
+                <div className="flex gap-2 mt-3">
+                    {draft.status === 'optimized' && (
+                        <>
+                            <button
+                                onClick={onEdit}
+                                className="flex-1 py-2 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg"
+                            >
+                                Edit
+                            </button>
+                            <button
+                                onClick={onApprove}
+                                className="flex-1 py-2 text-xs font-medium text-white bg-primary rounded-lg"
+                            >
+                                Approve
+                            </button>
+                        </>
+                    )}
+                    {draft.status === 'approved' && (
+                        <button
+                            onClick={onPublish}
+                            className="w-full py-2 text-xs font-medium text-white bg-green-500 rounded-lg"
+                        >
+                            Publish to Shopify
+                        </button>
+                    )}
+                    {draft.status === 'published' && (
+                        <span className="w-full py-2 text-xs font-medium text-center text-green-600">
+                            Live on Store
+                        </span>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// ============================================
+// AI INSIGHT CARD
+// ============================================
+interface InsightCardProps {
+    insight: {
+        id: string;
+        type: 'positive' | 'negative' | 'neutral' | 'action_required';
+        title: string;
+        description: string;
+        metric?: string;
+        suggestedAction?: string;
+        priority: 'high' | 'medium' | 'low';
+    };
+    onTakeAction?: () => void;
+}
+
+export const InsightCard: React.FC<InsightCardProps> = ({ insight, onTakeAction }) => {
+    const getTypeStyles = () => {
+        switch (insight.type) {
+            case 'positive': return { bg: 'bg-green-50', border: 'border-green-200', icon: 'text-green-500' };
+            case 'negative': return { bg: 'bg-red-50', border: 'border-red-200', icon: 'text-red-500' };
+            case 'action_required': return { bg: 'bg-yellow-50', border: 'border-yellow-200', icon: 'text-yellow-500' };
+            default: return { bg: 'bg-gray-50', border: 'border-gray-200', icon: 'text-gray-500' };
+        }
+    };
+
+    const styles = getTypeStyles();
+
+    return (
+        <div className={`${styles.bg} ${styles.border} border rounded-2xl p-4`}>
+            <div className="flex items-start gap-3">
+                <div className={`p-2 rounded-lg ${styles.icon}`}>
+                    {insight.type === 'positive' ? (
+                        <EcommerceIcons.TrendingUp className="w-5 h-5" />
+                    ) : insight.type === 'negative' ? (
+                        <Icons.AlertTriangle className="w-5 h-5" />
+                    ) : (
+                        <Icons.Zap className="w-5 h-5" />
+                    )}
+                </div>
+                <div className="flex-1">
+                    <div className="flex items-center justify-between mb-1">
+                        <h4 className="font-semibold text-gray-900">{insight.title}</h4>
+                        {insight.metric && (
+                            <span className="text-sm font-bold text-gray-700">{insight.metric}</span>
+                        )}
+                    </div>
+                    <p className="text-sm text-gray-600 mb-2">{insight.description}</p>
+                    {insight.suggestedAction && insight.type === 'action_required' && (
+                        <button
+                            onClick={onTakeAction}
+                            className="mt-2 px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg"
+                        >
+                            {insight.suggestedAction}
+                        </button>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// ============================================
+// EMAIL PREVIEW CARD
+// ============================================
+interface EmailPreviewCardProps {
+    email: {
+        id: string;
+        subject: string;
+        preheader?: string;
+        status: string;
+        type: string;
+        scheduledAt?: number;
+    };
+    onPreview?: () => void;
+    onApprove?: () => void;
+    onEdit?: () => void;
+}
+
+export const EmailPreviewCard: React.FC<EmailPreviewCardProps> = ({
+    email,
+    onPreview,
+    onApprove,
+    onEdit
+}) => {
+    const getTypeLabel = () => {
+        const labels: Record<string, string> = {
+            launch: 'Product Launch',
+            abandoned_cart: 'Abandoned Cart',
+            promo: 'Promotion',
+            newsletter: 'Newsletter',
+            welcome: 'Welcome',
+            win_back: 'Win Back'
+        };
+        return labels[email.type] || email.type;
+    };
+
+    return (
+        <div className="bg-white rounded-2xl p-4 border border-gray-100">
+            <div className="flex items-center justify-between mb-3">
+                <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs font-medium">
+                    {getTypeLabel()}
+                </span>
+                <span className={`px-2 py-1 rounded-lg text-xs font-medium ${
+                    email.status === 'draft' ? 'bg-gray-100 text-gray-700' :
+                    email.status === 'approved' ? 'bg-green-100 text-green-700' :
+                    email.status === 'scheduled' ? 'bg-purple-100 text-purple-700' :
+                    'bg-blue-100 text-blue-700'
+                }`}>
+                    {email.status}
+                </span>
+            </div>
+            <h4 className="font-semibold text-gray-900 mb-1">{email.subject}</h4>
+            {email.preheader && (
+                <p className="text-sm text-gray-500 line-clamp-1">{email.preheader}</p>
+            )}
+            {email.scheduledAt && (
+                <p className="text-xs text-gray-400 mt-2">
+                    Scheduled: {new Date(email.scheduledAt).toLocaleString()}
+                </p>
+            )}
+            <div className="flex gap-2 mt-4">
+                <button
+                    onClick={onPreview}
+                    className="flex-1 py-2 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg"
+                >
+                    Preview
+                </button>
+                {email.status === 'draft' && (
+                    <>
+                        <button
+                            onClick={onEdit}
+                            className="flex-1 py-2 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg"
+                        >
+                            Edit
+                        </button>
+                        <button
+                            onClick={onApprove}
+                            className="flex-1 py-2 text-xs font-medium text-white bg-primary rounded-lg"
+                        >
+                            Approve
+                        </button>
+                    </>
+                )}
+            </div>
+        </div>
+    );
+};
+
+// ============================================
+// SOCIAL CONTENT CARD
+// ============================================
+interface SocialContentCardProps {
+    content: {
+        id: string;
+        platform: string;
+        contentType: string;
+        caption: string;
+        hashtags: string[];
+        status: string;
+        scheduledAt?: number;
+    };
+    onPreview?: () => void;
+    onApprove?: () => void;
+    onEdit?: () => void;
+}
+
+export const SocialContentCard: React.FC<SocialContentCardProps> = ({
+    content,
+    onPreview,
+    onApprove,
+    onEdit
+}) => {
+    const getPlatformIcon = () => {
+        // Return simple text for now - in production use actual platform icons
+        const icons: Record<string, string> = {
+            tiktok: 'TT',
+            instagram: 'IG',
+            facebook: 'FB',
+            youtube: 'YT'
+        };
+        return icons[content.platform] || content.platform;
+    };
+
+    return (
+        <div className="bg-white rounded-2xl p-4 border border-gray-100">
+            <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                    <span className="w-8 h-8 flex items-center justify-center bg-gradient-to-br from-pink-500 to-purple-600 text-white rounded-lg text-xs font-bold">
+                        {getPlatformIcon()}
+                    </span>
+                    <span className="text-sm font-medium text-gray-600 capitalize">{content.contentType}</span>
+                </div>
+                <span className={`px-2 py-1 rounded-lg text-xs font-medium ${
+                    content.status === 'draft' ? 'bg-gray-100 text-gray-700' :
+                    content.status === 'approved' ? 'bg-green-100 text-green-700' :
+                    content.status === 'published' ? 'bg-blue-100 text-blue-700' :
+                    'bg-purple-100 text-purple-700'
+                }`}>
+                    {content.status}
+                </span>
+            </div>
+            <p className="text-sm text-gray-700 line-clamp-3 mb-2">{content.caption}</p>
+            <div className="flex flex-wrap gap-1 mb-3">
+                {content.hashtags.slice(0, 5).map((tag, i) => (
+                    <span key={i} className="text-xs text-blue-500">#{tag}</span>
+                ))}
+                {content.hashtags.length > 5 && (
+                    <span className="text-xs text-gray-400">+{content.hashtags.length - 5}</span>
+                )}
+            </div>
+            <div className="flex gap-2">
+                <button
+                    onClick={onPreview}
+                    className="flex-1 py-2 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg"
+                >
+                    Preview
+                </button>
+                {content.status === 'draft' && (
+                    <>
+                        <button
+                            onClick={onEdit}
+                            className="flex-1 py-2 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg"
+                        >
+                            Edit
+                        </button>
+                        <button
+                            onClick={onApprove}
+                            className="flex-1 py-2 text-xs font-medium text-white bg-primary rounded-lg"
+                        >
+                            Approve
+                        </button>
+                    </>
+                )}
+            </div>
+        </div>
+    );
+};
+
+// ============================================
+// CONNECTED ACCOUNT CARD
+// ============================================
+interface ConnectedAccountCardProps {
+    account: {
+        platform: string;
+        isConnected: boolean;
+        connectedAt?: number;
+    };
+    onConnect?: () => void;
+    onDisconnect?: () => void;
+}
+
+export const ConnectedAccountCard: React.FC<ConnectedAccountCardProps> = ({
+    account,
+    onConnect,
+    onDisconnect
+}) => {
+    const getPlatformInfo = () => {
+        const info: Record<string, { name: string; color: string }> = {
+            shopify: { name: 'Shopify', color: 'bg-green-500' },
+            klaviyo: { name: 'Klaviyo', color: 'bg-black' },
+            mailchimp: { name: 'Mailchimp', color: 'bg-yellow-500' },
+            tiktok: { name: 'TikTok', color: 'bg-black' },
+            instagram: { name: 'Instagram', color: 'bg-gradient-to-r from-purple-500 to-pink-500' },
+            facebook: { name: 'Facebook', color: 'bg-blue-600' },
+            youtube: { name: 'YouTube', color: 'bg-red-600' },
+            google_analytics: { name: 'Google Analytics', color: 'bg-orange-500' },
+            meta_ads: { name: 'Meta Ads', color: 'bg-blue-500' }
+        };
+        return info[account.platform] || { name: account.platform, color: 'bg-gray-500' };
+    };
+
+    const { name, color } = getPlatformInfo();
+
+    return (
+        <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-gray-100">
+            <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 ${color} rounded-xl flex items-center justify-center`}>
+                    <span className="text-white text-xs font-bold">{name.slice(0, 2).toUpperCase()}</span>
+                </div>
+                <div>
+                    <h4 className="font-semibold text-gray-900">{name}</h4>
+                    {account.isConnected && account.connectedAt && (
+                        <p className="text-xs text-gray-400">
+                            Connected {new Date(account.connectedAt).toLocaleDateString()}
+                        </p>
+                    )}
+                </div>
+            </div>
+            {account.isConnected ? (
+                <button
+                    onClick={onDisconnect}
+                    className="px-4 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-lg"
+                >
+                    Disconnect
+                </button>
+            ) : (
+                <button
+                    onClick={onConnect}
+                    className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg"
+                >
+                    Connect
+                </button>
+            )}
+        </div>
+    );
+};
+
 
 export const Button: React.FC<{
   onClick: () => void;

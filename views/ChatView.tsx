@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { AppView, ChatMessage, ChatAttachment } from '../types';
 import { Icons } from '../components/UIComponents';
-import { getChatResponse, checkContentSafety } from '../services/geminiService';
+import { getChatResponse } from '../services/geminiService';
 
 interface JourneyStep {
     id: string;
@@ -22,7 +22,6 @@ interface GuideConversation {
     journeySteps: JourneyStep[];
 }
 
-// Helper to convert file to base64
 const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -42,22 +41,18 @@ export default function ChatView() {
     const [isChatLoading, setIsChatLoading] = useState(false);
     const [isInputFocused, setIsInputFocused] = useState(false);
     
-    // Attachment state
     const [attachment, setAttachment] = useState<ChatAttachment | null>(null);
     const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     
-    // Conversations state
     const [conversations, setConversations] = useState<GuideConversation[]>([]);
     const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
     const [showJourneysList, setShowJourneysList] = useState(false);
     const [editingJourneyId, setEditingJourneyId] = useState<string | null>(null);
     const [editingName, setEditingName] = useState('');
     
-    // View mode - planet or chat
     const [viewMode, setViewMode] = useState<'planet' | 'chat'>('planet');
     
-    // Journey State
     const [journeySteps, setJourneySteps] = useState<JourneyStep[]>([]);
     const [currentStepIndex, setCurrentStepIndex] = useState(-1);
     const [isJourneyActive, setIsJourneyActive] = useState(false);
@@ -65,17 +60,14 @@ export default function ChatView() {
     const [isTyping, setIsTyping] = useState(false);
     const typingRef = useRef<number | null>(null);
     
-    // Canvas refs
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const animationRef = useRef<number | null>(null);
     const rotationRef = useRef({ y: 0, targetY: 0, velocity: 0 });
     const dragRef = useRef({ isDragging: false, lastX: 0 });
     const starsRef = useRef<{ x: number; y: number; z: number; brightness: number }[]>([]);
     
-    // Chat scroll ref
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    // Initialize conversations from user on mount
     useEffect(() => {
         const saved = (user as any).guideConversations;
         if (Array.isArray(saved)) {
@@ -83,14 +75,12 @@ export default function ChatView() {
         }
     }, []);
 
-    // Save conversations to user state when they change
     useEffect(() => {
         if (conversations.length > 0 || (user as any).guideConversations?.length > 0) {
             setUser(prev => ({ ...prev, guideConversations: conversations } as any));
         }
     }, [conversations]);
 
-    // Load conversation when switching
     useEffect(() => {
         if (!activeConversationId) {
             setJourneySteps([]);
@@ -114,14 +104,12 @@ export default function ChatView() {
         }
     }, [activeConversationId, conversations]);
 
-    // Auto-scroll chat
     useEffect(() => {
         if (viewMode === 'chat' && messagesEndRef.current) {
             messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
         }
     }, [viewMode, conversations, activeConversationId]);
 
-    // Initialize stars
     useEffect(() => {
         starsRef.current = Array.from({ length: 200 }, () => ({
             x: Math.random() * 2 - 1,
@@ -131,7 +119,6 @@ export default function ChatView() {
         }));
     }, []);
 
-    // Handle rotation when step changes
     useEffect(() => {
         if (currentStepIndex >= 0 && journeySteps[currentStepIndex]) {
             const step = journeySteps[currentStepIndex];
@@ -173,7 +160,6 @@ export default function ChatView() {
             ctx.fillStyle = '#000000';
             ctx.fillRect(0, 0, w, h);
 
-            // Stars
             starsRef.current.forEach(star => {
                 const twinkle = 0.3 + Math.sin(Date.now() * 0.002 + star.brightness * 10) * 0.5;
                 ctx.fillStyle = `rgba(255, 255, 255, ${star.z * twinkle * 0.8})`;
@@ -182,11 +168,11 @@ export default function ChatView() {
                 ctx.fill();
             });
 
-            const centerX = w * 0.55;
-            const centerY = h * 0.45;
-            const radius = Math.min(w, h) * 0.32;
+            // Planet positioned lower (65% down from top)
+            const centerX = w * 0.5;
+            const centerY = h * 0.65;
+            const radius = Math.min(w, h) * 0.28;
 
-            // Rotation
             if (!dragRef.current.isDragging) {
                 rotationRef.current.y += (rotationRef.current.targetY - rotationRef.current.y) * 0.05;
                 rotationRef.current.velocity *= 0.96;
@@ -201,7 +187,6 @@ export default function ChatView() {
             
             const rotation = rotationRef.current.y;
 
-            // Planet glow
             const glowGradient = ctx.createRadialGradient(centerX, centerY, radius * 0.9, centerX, centerY, radius * 1.5);
             glowGradient.addColorStop(0, 'rgba(100, 120, 255, 0.08)');
             glowGradient.addColorStop(1, 'transparent');
@@ -210,7 +195,6 @@ export default function ChatView() {
             ctx.arc(centerX, centerY, radius * 1.5, 0, Math.PI * 2);
             ctx.fill();
 
-            // Planet body
             const planetGrad = ctx.createRadialGradient(centerX - radius * 0.3, centerY - radius * 0.3, 0, centerX, centerY, radius);
             planetGrad.addColorStop(0, '#1a1a2e');
             planetGrad.addColorStop(1, '#0a0a12');
@@ -219,7 +203,6 @@ export default function ChatView() {
             ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
             ctx.fill();
 
-            // Grid lines
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
             ctx.lineWidth = 1;
             
@@ -241,7 +224,6 @@ export default function ChatView() {
                 ctx.stroke();
             }
 
-            // Connection lines
             if (journeySteps.length > 1) {
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
                 ctx.lineWidth = 1.5;
@@ -271,7 +253,6 @@ export default function ChatView() {
                 ctx.setLineDash([]);
             }
 
-            // Journey markers
             journeySteps.forEach((step, index) => {
                 const lat = step.position.lat * Math.PI / 180;
                 const lng = (step.position.lng * Math.PI / 180) + rotation;
@@ -309,7 +290,6 @@ export default function ChatView() {
                 ctx.fillText(`${index + 1}`, x, y);
             });
 
-            // Planet edge
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
             ctx.lineWidth = 1.5;
             ctx.beginPath();
@@ -368,7 +348,6 @@ export default function ChatView() {
         };
     }, [viewMode]);
 
-    // Typewriter effect
     const typeText = useCallback((text: string) => {
         if (typingRef.current) clearInterval(typingRef.current);
         if (!text) { 
@@ -392,7 +371,6 @@ export default function ChatView() {
         }, 15);
     }, []);
 
-    // Navigate to step
     const navigateToStep = useCallback((stepIndex: number) => {
         if (stepIndex < 0 || stepIndex >= journeySteps.length) return;
 
@@ -406,12 +384,10 @@ export default function ChatView() {
         typeText(journeySteps[stepIndex]?.content || '');
     }, [journeySteps, typeText]);
 
-    // Handle file attachment
     const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        // Check file size (max 10MB)
         if (file.size > 10 * 1024 * 1024) {
             alert('File too large. Maximum size is 10MB.');
             return;
@@ -430,20 +406,17 @@ export default function ChatView() {
                 data: base64
             });
             
-            // Create preview URL
             setAttachmentPreview(URL.createObjectURL(file));
         } catch (error) {
             console.error('Error reading file:', error);
             alert('Could not read file. Please try again.');
         }
         
-        // Reset input
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
     };
 
-    // Remove attachment
     const removeAttachment = () => {
         setAttachment(null);
         if (attachmentPreview) {
@@ -452,7 +425,6 @@ export default function ChatView() {
         }
     };
 
-    // Create new conversation
     const createConversation = () => {
         const newConvo: GuideConversation = {
             id: `j-${Date.now()}`,
@@ -470,7 +442,6 @@ export default function ChatView() {
         setShowJourneysList(false);
     };
 
-    // Save rename
     const saveRename = () => {
         if (editingJourneyId && editingName.trim()) {
             setConversations(prev => prev.map(c => 
@@ -481,7 +452,6 @@ export default function ChatView() {
         setEditingName('');
     };
 
-    // Delete conversation
     const deleteConversation = (id: string) => {
         setConversations(prev => prev.filter(c => c.id !== id));
         if (activeConversationId === id) {
@@ -493,7 +463,6 @@ export default function ChatView() {
         }
     };
 
-    // Parse AI response to steps
     const parseAIResponseToSteps = (response: string | undefined | null): JourneyStep[] => {
         if (!response || typeof response !== 'string' || response.trim().length === 0) {
             return [{
@@ -524,7 +493,6 @@ export default function ChatView() {
             lng: -120 + (index * (240 / Math.max(total - 1, 1))) + (Math.random() - 0.5) * 10
         });
 
-        // Try numbered patterns
         const numberedRegex = /(?:^|\n)\s*(?:Step\s*)?(\d+)[.):\-]\s*([^\n]+(?:\n(?!\s*(?:Step\s*)?\d+[.):\-])[^\n]*)*)/gi;
         let match;
         const numberedSteps: { num: number; content: string }[] = [];
@@ -549,8 +517,7 @@ export default function ChatView() {
             }));
         }
 
-        // Try bullet points
-        const bulletRegex = /(?:^|\n)\s*[-•]\s*([^\n]+)/g;
+        const bulletRegex = /(?:^|\n)\s*[-]\s*([^\n]+)/g;
         const bulletSteps: string[] = [];
         
         while ((match = bulletRegex.exec(clean)) !== null) {
@@ -572,7 +539,6 @@ export default function ChatView() {
             }));
         }
 
-        // Try paragraphs
         const paragraphs = clean.split(/\n\n+/).filter(p => p.trim().length > 30);
         if (paragraphs.length >= 2) {
             const total = Math.min(paragraphs.length, 5);
@@ -586,7 +552,6 @@ export default function ChatView() {
             }));
         }
 
-        // Split by sentences
         const sentences = clean.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 15);
         if (sentences.length >= 3) {
             const numSteps = Math.min(Math.max(Math.ceil(sentences.length / 2), 3), 5);
@@ -610,7 +575,6 @@ export default function ChatView() {
             }
         }
 
-        // Fallback
         return [{
             id: 's-0',
             title: 'Guidance',
@@ -621,7 +585,6 @@ export default function ChatView() {
         }];
     };
 
-    // Send message
     const handleSendMessage = async () => {
         const message = chatInput.trim();
         if (!message && !attachment) return;
@@ -630,7 +593,6 @@ export default function ChatView() {
             return;
         }
 
-        // Auto-create conversation if needed
         let convoId = activeConversationId;
         if (!convoId) {
             const newConvo: GuideConversation = {
@@ -645,7 +607,6 @@ export default function ChatView() {
             setActiveConversationId(convoId);
         }
 
-        // Create user message
         const userMessage: ChatMessage = {
             id: Date.now().toString(),
             role: 'user',
@@ -749,13 +710,6 @@ export default function ChatView() {
         }
     };
 
-    const resetJourney = () => {
-        setJourneySteps([]);
-        setIsJourneyActive(false);
-        setCurrentStepIndex(-1);
-        setDisplayedText('');
-    };
-
     const formatTime = (ts: number) => {
         return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     };
@@ -765,53 +719,52 @@ export default function ChatView() {
     // ========== JOURNEYS LIST VIEW ==========
     if (showJourneysList) {
         return (
-            <div style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', backgroundColor: '#000000' }}>
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: '#000000' }}>
                 {/* Header */}
-                <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
                     <button 
                         onClick={() => setShowJourneysList(false)} 
-                        className="p-2 -ml-2 rounded-xl text-white/50 active:text-white"
+                        style={{ padding: '8px', color: 'rgba(255,255,255,0.5)' }}
                     >
-                        <Icons.ArrowLeft className="w-5 h-5" />
+                        <Icons.ArrowLeft style={{ width: 20, height: 20 }} />
                     </button>
-                    <div className="text-center">
-                        <h1 className="text-white font-bold text-lg">Your Journeys</h1>
-                        <p className="text-white/40 text-xs">{conversations.length} saved</p>
+                    <div style={{ textAlign: 'center' }}>
+                        <h1 style={{ color: '#fff', fontWeight: 'bold', fontSize: '18px', margin: 0 }}>Your Journeys</h1>
+                        <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px', margin: 0 }}>{conversations.length} saved</p>
                     </div>
                     <button 
                         onClick={createConversation} 
-                        className="p-2 -mr-2 rounded-xl text-white/50 active:text-white"
+                        style={{ padding: '8px', color: 'rgba(255,255,255,0.5)' }}
                     >
-                        <Icons.Plus className="w-5 h-5" />
+                        <Icons.Plus style={{ width: 20, height: 20 }} />
                     </button>
                 </div>
 
                 {/* List */}
-                <div className="flex-1 overflow-y-auto px-5 py-4">
-                    {/* New Journey Button */}
+                <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
                     <button
                         onClick={createConversation}
-                        className="w-full p-5 mb-5 rounded-2xl border-2 border-dashed border-white/20 active:border-white/40 flex flex-col items-center gap-3"
+                        style={{ width: '100%', padding: '20px', marginBottom: '20px', borderRadius: '16px', border: '2px dashed rgba(255,255,255,0.2)', background: 'transparent', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}
                     >
-                        <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center">
-                            <Icons.Plus className="w-7 h-7 text-white/50" />
+                        <div style={{ width: 56, height: 56, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Icons.Plus style={{ width: 28, height: 28, color: 'rgba(255,255,255,0.5)' }} />
                         </div>
-                        <div className="text-center">
-                            <p className="text-white/70 font-medium">Start New Journey</p>
-                            <p className="text-white/30 text-xs mt-1">Ask your guide anything</p>
+                        <div style={{ textAlign: 'center' }}>
+                            <p style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 500, margin: 0 }}>Start New Journey</p>
+                            <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '12px', marginTop: '4px' }}>Ask your guide anything</p>
                         </div>
                     </button>
 
                     {conversations.length === 0 ? (
-                        <div className="text-center py-12">
-                            <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4">
-                                <Icons.Globe className="w-10 h-10 text-white/20" />
+                        <div style={{ textAlign: 'center', padding: '48px 0' }}>
+                            <div style={{ width: 80, height: 80, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                                <Icons.Globe style={{ width: 40, height: 40, color: 'rgba(255,255,255,0.2)' }} />
                             </div>
-                            <p className="text-white/50 font-medium mb-1">No journeys yet</p>
-                            <p className="text-white/30 text-sm">Start exploring above</p>
+                            <p style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 500, margin: '0 0 4px' }}>No journeys yet</p>
+                            <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '14px', margin: 0 }}>Start exploring above</p>
                         </div>
                     ) : (
-                        <div className="space-y-3">
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                             {conversations.map((convo, index) => {
                                 const isActive = convo.id === activeConversationId;
                                 const hue = (index * 47) % 360;
@@ -821,15 +774,15 @@ export default function ChatView() {
                                 return (
                                     <div
                                         key={convo.id}
-                                        className={`rounded-2xl overflow-hidden transition-all bg-white/5 ${isActive ? 'ring-2 ring-white/30' : ''}`}
+                                        style={{ borderRadius: '16px', overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.05)', border: isActive ? '2px solid rgba(255,255,255,0.3)' : 'none' }}
                                     >
                                         {editingJourneyId === convo.id ? (
-                                            <div className="p-4">
+                                            <div style={{ padding: '16px' }}>
                                                 <input
                                                     type="text"
                                                     value={editingName}
                                                     onChange={e => setEditingName(e.target.value)}
-                                                    className="w-full bg-white/10 border border-white/30 rounded-xl px-4 py-3 text-white text-sm focus:outline-none mb-3"
+                                                    style={{ width: '100%', backgroundColor: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '12px', padding: '12px 16px', color: '#fff', fontSize: '14px', marginBottom: '12px', outline: 'none' }}
                                                     autoFocus
                                                     onKeyDown={e => { 
                                                         if (e.key === 'Enter') saveRename(); 
@@ -837,30 +790,36 @@ export default function ChatView() {
                                                     }}
                                                     placeholder="Journey name..."
                                                 />
-                                                <div className="flex gap-2">
+                                                <div style={{ display: 'flex', gap: '8px' }}>
                                                     <button 
                                                         onClick={() => setEditingJourneyId(null)} 
-                                                        className="flex-1 py-2.5 rounded-xl border border-white/20 text-white/60 text-sm"
+                                                        style={{ flex: 1, padding: '10px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.2)', backgroundColor: 'transparent', color: 'rgba(255,255,255,0.6)', fontSize: '14px' }}
                                                     >
                                                         Cancel
                                                     </button>
                                                     <button 
                                                         onClick={saveRename} 
-                                                        className="flex-1 py-2.5 rounded-xl bg-white text-black text-sm font-bold"
+                                                        style={{ flex: 1, padding: '10px', borderRadius: '12px', backgroundColor: '#fff', color: '#000', fontSize: '14px', fontWeight: 'bold', border: 'none' }}
                                                     >
                                                         Save
                                                     </button>
                                                 </div>
                                             </div>
                                         ) : (
-                                            <div className="p-4 flex items-center gap-4">
+                                            <div style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '16px' }}>
                                                 <div 
-                                                    className="w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center"
                                                     style={{ 
+                                                        width: 48, 
+                                                        height: 48, 
+                                                        borderRadius: '50%', 
+                                                        flexShrink: 0, 
+                                                        display: 'flex', 
+                                                        alignItems: 'center', 
+                                                        justifyContent: 'center',
                                                         background: `radial-gradient(circle at 30% 30%, hsl(${hue}, 40%, 25%), #0a0a12)`
                                                     }}
                                                 >
-                                                    <span className="text-white font-bold text-xs">
+                                                    <span style={{ color: '#fff', fontWeight: 'bold', fontSize: '12px' }}>
                                                         {stepsCount || messagesCount}
                                                     </span>
                                                 </div>
@@ -870,11 +829,11 @@ export default function ChatView() {
                                                         setActiveConversationId(convo.id); 
                                                         setShowJourneysList(false); 
                                                     }}
-                                                    className="flex-1 text-left min-w-0"
+                                                    style={{ flex: 1, textAlign: 'left', minWidth: 0, background: 'none', border: 'none', padding: 0 }}
                                                 >
-                                                    <h3 className="text-white font-semibold text-sm truncate">{convo.name || 'Untitled'}</h3>
-                                                    <p className="text-white/40 text-xs mt-1">
-                                                        {stepsCount} steps • {new Date(convo.createdAt).toLocaleDateString()}
+                                                    <h3 style={{ color: '#fff', fontWeight: 600, fontSize: '14px', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{convo.name || 'Untitled'}</h3>
+                                                    <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px', margin: '4px 0 0' }}>
+                                                        {stepsCount} steps · {new Date(convo.createdAt).toLocaleDateString()}
                                                     </p>
                                                 </button>
 
@@ -883,9 +842,9 @@ export default function ChatView() {
                                                         setEditingJourneyId(convo.id);
                                                         setEditingName(convo.name || '');
                                                     }} 
-                                                    className="p-2 text-white/30 active:text-white rounded-lg"
+                                                    style={{ padding: '8px', color: 'rgba(255,255,255,0.3)', background: 'none', border: 'none' }}
                                                 >
-                                                    <Icons.Edit className="w-4 h-4" />
+                                                    <Icons.Edit style={{ width: 16, height: 16 }} />
                                                 </button>
                                                 <button 
                                                     onClick={() => { 
@@ -893,9 +852,9 @@ export default function ChatView() {
                                                             deleteConversation(convo.id);
                                                         }
                                                     }} 
-                                                    className="p-2 text-white/30 active:text-red-400 rounded-lg"
+                                                    style={{ padding: '8px', color: 'rgba(255,255,255,0.3)', background: 'none', border: 'none' }}
                                                 >
-                                                    <Icons.Trash className="w-4 h-4" />
+                                                    <Icons.Trash style={{ width: 16, height: 16 }} />
                                                 </button>
                                             </div>
                                         )}
@@ -912,77 +871,80 @@ export default function ChatView() {
     // ========== CHAT VIEW ==========
     if (viewMode === 'chat') {
         return (
-            <div style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', backgroundColor: '#000000' }}>
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: '#000000' }}>
                 {/* Header */}
-                <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
                     <button 
                         onClick={() => setView(AppView.DASHBOARD)} 
-                        className="p-2 rounded-xl text-white/50 active:text-white"
+                        style={{ padding: '8px', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none' }}
                     >
-                        <Icons.ArrowLeft className="w-5 h-5" />
+                        <Icons.ArrowLeft style={{ width: 20, height: 20 }} />
                     </button>
                     <button 
                         onClick={() => setShowJourneysList(true)} 
-                        className="text-center px-3 py-1 rounded-xl active:bg-white/10"
+                        style={{ textAlign: 'center', padding: '4px 12px', borderRadius: '12px', background: 'none', border: 'none' }}
                     >
-                        <h1 className="text-white font-bold text-sm">{activeConvo?.name || 'THE GUIDE'}</h1>
-                        <p className="text-white/30 text-[10px]">Tap to see journeys</p>
+                        <h1 style={{ color: '#fff', fontWeight: 'bold', fontSize: '14px', margin: 0 }}>{activeConvo?.name || 'THE GUIDE'}</h1>
+                        <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px', margin: 0 }}>Tap to see journeys</p>
                     </button>
                     <button 
                         onClick={() => setViewMode('planet')} 
-                        className="p-2 rounded-xl text-white/50 active:text-white"
+                        style={{ padding: '8px', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none' }}
                     >
-                        <Icons.Globe className="w-5 h-5" />
+                        <Icons.Globe style={{ width: 20, height: 20 }} />
                     </button>
                 </div>
 
                 {/* Messages */}
-                <div className="flex-1 overflow-y-auto px-4 py-4">
+                <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
                     {(!activeConvo || activeConvo.messages.length === 0) && (
-                        <div className="text-center py-12">
-                            <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4">
-                                <Icons.Zap className="w-8 h-8 text-white/30" />
+                        <div style={{ textAlign: 'center', padding: '48px 0' }}>
+                            <div style={{ width: 64, height: 64, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                                <Icons.Zap style={{ width: 32, height: 32, color: 'rgba(255,255,255,0.3)' }} />
                             </div>
-                            <h2 className="text-white font-bold text-lg mb-2">Ask Your Guide</h2>
-                            <p className="text-white/40 text-sm">What do you need help with?</p>
+                            <h2 style={{ color: '#fff', fontWeight: 'bold', fontSize: '18px', margin: '0 0 8px' }}>Ask Your Guide</h2>
+                            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '14px', margin: 0 }}>What do you need help with?</p>
                         </div>
                     )}
 
                     {activeConvo?.messages.map((msg) => (
-                        <div key={msg.id} className={`flex mb-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                            <div className="max-w-[85%]">
+                        <div key={msg.id} style={{ display: 'flex', marginBottom: '16px', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+                            <div style={{ maxWidth: '85%' }}>
                                 {msg.role !== 'user' && (
-                                    <div className="flex items-center gap-2 mb-1.5">
-                                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-white/20 to-white/5 flex items-center justify-center">
-                                            <Icons.Zap className="w-3 h-3 text-white/60" />
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                                        <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.05))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <Icons.Zap style={{ width: 12, height: 12, color: 'rgba(255,255,255,0.6)' }} />
                                         </div>
-                                        <span className="text-white/40 text-xs">Guide</span>
+                                        <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px' }}>Guide</span>
                                     </div>
                                 )}
                                 
-                                {/* Attachment preview */}
                                 {msg.attachment && msg.attachment.type === 'image' && (
                                     <img 
                                         src={`data:${msg.attachment.mimeType};base64,${msg.attachment.data}`}
                                         alt="Attachment"
-                                        className="max-w-full rounded-xl mb-2"
+                                        style={{ maxWidth: '100%', borderRadius: '12px', marginBottom: '8px' }}
                                     />
                                 )}
                                 {msg.attachment && msg.attachment.type === 'pdf' && (
-                                    <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-2 mb-2">
-                                        <Icons.FileText className="w-5 h-5 text-white/60" />
-                                        <span className="text-white/60 text-sm">PDF Document</span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '12px', padding: '8px 12px', marginBottom: '8px' }}>
+                                        <Icons.FileText style={{ width: 20, height: 20, color: 'rgba(255,255,255,0.6)' }} />
+                                        <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '14px' }}>PDF Document</span>
                                     </div>
                                 )}
                                 
-                                <div className={`rounded-2xl px-4 py-3 ${
-                                    msg.role === 'user' 
-                                        ? 'bg-white text-gray-900 rounded-br-md' 
-                                        : 'bg-white/10 text-white/90 border border-white/10 rounded-bl-md'
-                                }`}>
-                                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                                <div style={{ 
+                                    borderRadius: '16px', 
+                                    padding: '12px 16px',
+                                    backgroundColor: msg.role === 'user' ? '#fff' : 'rgba(255,255,255,0.1)',
+                                    color: msg.role === 'user' ? '#111' : 'rgba(255,255,255,0.9)',
+                                    border: msg.role === 'user' ? 'none' : '1px solid rgba(255,255,255,0.1)',
+                                    borderBottomRightRadius: msg.role === 'user' ? '4px' : '16px',
+                                    borderBottomLeftRadius: msg.role === 'user' ? '16px' : '4px'
+                                }}>
+                                    <p style={{ fontSize: '14px', lineHeight: 1.5, margin: 0, whiteSpace: 'pre-wrap' }}>{msg.text}</p>
                                 </div>
-                                <p className={`text-[10px] text-white/30 mt-1 ${msg.role === 'user' ? 'text-right' : ''}`}>
+                                <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', margin: '4px 0 0', textAlign: msg.role === 'user' ? 'right' : 'left' }}>
                                     {msg.timestamp ? formatTime(msg.timestamp) : ''}
                                 </p>
                             </div>
@@ -990,11 +952,11 @@ export default function ChatView() {
                     ))}
                     
                     {isChatLoading && (
-                        <div className="flex justify-start mb-4">
-                            <div className="bg-white/10 rounded-2xl rounded-bl-md px-4 py-3 border border-white/10">
-                                <div className="flex gap-1.5">
+                        <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '16px' }}>
+                            <div style={{ backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '16px', borderBottomLeftRadius: '4px', padding: '12px 16px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                                <div style={{ display: 'flex', gap: '6px' }}>
                                     {[0, 1, 2].map(i => (
-                                        <div key={i} className="w-2 h-2 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: `${i * 150}ms` }} />
+                                        <div key={i} className="animate-bounce" style={{ width: 8, height: 8, backgroundColor: 'rgba(255,255,255,0.6)', borderRadius: '50%', animationDelay: `${i * 150}ms` }} />
                                     ))}
                                 </div>
                             </div>
@@ -1004,39 +966,38 @@ export default function ChatView() {
                 </div>
 
                 {/* Input */}
-                <div className="px-4 pb-4">
-                    {/* Attachment preview */}
+                <div style={{ padding: '16px' }}>
                     {attachment && (
-                        <div className="mb-2 flex items-center gap-2 bg-white/5 rounded-xl p-2">
+                        <div style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '8px' }}>
                             {attachment.type === 'image' && attachmentPreview && (
-                                <img src={attachmentPreview} alt="Preview" className="w-12 h-12 rounded-lg object-cover" />
+                                <img src={attachmentPreview} alt="Preview" style={{ width: 48, height: 48, borderRadius: '8px', objectFit: 'cover' }} />
                             )}
                             {attachment.type === 'pdf' && (
-                                <div className="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center">
-                                    <Icons.FileText className="w-6 h-6 text-white/60" />
+                                <div style={{ width: 48, height: 48, borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <Icons.FileText style={{ width: 24, height: 24, color: 'rgba(255,255,255,0.6)' }} />
                                 </div>
                             )}
-                            <span className="flex-1 text-white/60 text-sm truncate">{attachment.type} attached</span>
-                            <button onClick={removeAttachment} className="p-1 text-white/40 hover:text-white">
-                                <Icons.X className="w-4 h-4" />
+                            <span style={{ flex: 1, color: 'rgba(255,255,255,0.6)', fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{attachment.type} attached</span>
+                            <button onClick={removeAttachment} style={{ padding: '4px', color: 'rgba(255,255,255,0.4)', background: 'none', border: 'none' }}>
+                                <Icons.X style={{ width: 16, height: 16 }} />
                             </button>
                         </div>
                     )}
                     
-                    <div className={`bg-white/5 backdrop-blur rounded-xl border ${isInputFocused ? 'border-white/30' : 'border-white/10'}`}>
-                        <div className="flex items-center gap-2 px-3 py-2">
+                    <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '12px', border: isInputFocused ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(255,255,255,0.1)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px' }}>
                             <input
                                 type="file"
                                 ref={fileInputRef}
                                 onChange={handleFileSelect}
                                 accept="image/*,.pdf,audio/*"
-                                className="hidden"
+                                style={{ display: 'none' }}
                             />
                             <button 
                                 onClick={() => fileInputRef.current?.click()}
-                                className="p-2 text-white/40 hover:text-white rounded-lg"
+                                style={{ padding: '8px', color: 'rgba(255,255,255,0.4)', background: 'none', border: 'none' }}
                             >
-                                <Icons.Paperclip className="w-5 h-5" />
+                                <Icons.Paperclip style={{ width: 20, height: 20 }} />
                             </button>
                             <input
                                 type="text"
@@ -1045,20 +1006,21 @@ export default function ChatView() {
                                 onFocus={() => setIsInputFocused(true)}
                                 onBlur={() => setIsInputFocused(false)}
                                 placeholder="Ask anything..."
-                                className="flex-1 bg-transparent text-white text-sm placeholder:text-white/30 focus:outline-none"
-                                style={{ fontSize: '16px' }}
+                                style={{ flex: 1, backgroundColor: 'transparent', color: '#fff', fontSize: '16px', border: 'none', outline: 'none' }}
                                 onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
                             />
                             <button
                                 onClick={handleSendMessage}
                                 disabled={(!chatInput.trim() && !attachment) || isChatLoading}
-                                className={`p-2 rounded-lg ${
-                                    (chatInput.trim() || attachment) && !isChatLoading 
-                                        ? 'bg-white text-black' 
-                                        : 'bg-white/10 text-white/30'
-                                }`}
+                                style={{ 
+                                    padding: '8px', 
+                                    borderRadius: '8px', 
+                                    backgroundColor: (chatInput.trim() || attachment) && !isChatLoading ? '#fff' : 'rgba(255,255,255,0.1)',
+                                    color: (chatInput.trim() || attachment) && !isChatLoading ? '#000' : 'rgba(255,255,255,0.3)',
+                                    border: 'none'
+                                }}
                             >
-                                <Icons.Send className="w-4 h-4" />
+                                <Icons.Send style={{ width: 16, height: 16 }} />
                             </button>
                         </div>
                     </div>
@@ -1067,166 +1029,173 @@ export default function ChatView() {
         );
     }
 
-    // ========== PLANET VIEW ==========
+    // ========== PLANET VIEW (AI responses ABOVE planet) ==========
     return (
-        <div style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', backgroundColor: '#000000' }}>
-            {/* Canvas */}
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', backgroundColor: '#000000' }}>
+            {/* Canvas - full background */}
             <canvas 
                 ref={canvasRef} 
-                className="absolute inset-0 w-full h-full z-0"
-                style={{ touchAction: 'none' }}
+                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 0, touchAction: 'none' }}
             />
 
-            {/* Header */}
-            <div className="relative z-10 flex items-center justify-between px-5 py-3 pointer-events-none">
+            {/* Header - fully clickable */}
+            <div style={{ position: 'relative', zIndex: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px' }}>
                 <button 
                     onClick={() => setView(AppView.DASHBOARD)} 
-                    className="p-2 rounded-xl text-white/50 active:text-white pointer-events-auto"
+                    style={{ padding: '8px', borderRadius: '12px', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none' }}
                 >
-                    <Icons.ArrowLeft className="w-5 h-5" />
+                    <Icons.ArrowLeft style={{ width: 20, height: 20 }} />
                 </button>
                 
                 <button 
                     onClick={() => setShowJourneysList(true)} 
-                    className="text-center px-3 py-1 rounded-xl active:bg-white/10 pointer-events-auto"
+                    style={{ textAlign: 'center', padding: '4px 12px', borderRadius: '12px', background: 'none', border: 'none' }}
                 >
-                    <h1 className="text-white font-bold text-sm">{activeConvo?.name || 'THE GUIDE'}</h1>
-                    <p className="text-white/30 text-[10px]">Tap to see journeys</p>
+                    <h1 style={{ color: '#fff', fontWeight: 'bold', fontSize: '14px', margin: 0 }}>{activeConvo?.name || 'THE GUIDE'}</h1>
+                    <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px', margin: 0 }}>Tap to see journeys</p>
                 </button>
 
-                {/* Chat mode toggle */}
                 <button 
                     onClick={() => setViewMode('chat')} 
-                    className="p-2 rounded-xl text-white/50 active:text-white pointer-events-auto"
+                    style={{ padding: '8px', borderRadius: '12px', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none' }}
                 >
-                    <Icons.MessageCircle className="w-5 h-5" />
+                    <Icons.MessageCircle style={{ width: 20, height: 20 }} />
                 </button>
             </div>
 
-            {/* Journey Panel - Left side */}
-            <div className="flex-1 relative z-10 pointer-events-none">
+            {/* AI Response Panel - TOP SECTION (above planet) */}
+            <div style={{ position: 'relative', zIndex: 10, padding: '0 20px', minHeight: '180px' }}>
                 {!isJourneyActive && !isChatLoading && (
-                    <div className="absolute left-5 top-1/2 -translate-y-1/2 w-[45%] max-w-[200px]">
-                        <p className="text-white/30 text-xs uppercase tracking-widest mb-2">Welcome</p>
-                        <h2 className="text-white text-lg font-bold leading-tight mb-2">
+                    <div style={{ paddingTop: '20px' }}>
+                        <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '8px' }}>Welcome</p>
+                        <h2 style={{ color: '#fff', fontSize: '20px', fontWeight: 'bold', lineHeight: 1.3, marginBottom: '8px' }}>
                             What would you like guidance on?
                         </h2>
-                        <p className="text-white/50 text-xs leading-relaxed">
-                            Share your challenges or goals.
+                        <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px', lineHeight: 1.5 }}>
+                            Share your challenges or goals. I'll guide you step by step.
                         </p>
                     </div>
                 )}
 
                 {isChatLoading && (
-                    <div className="absolute left-5 top-1/2 -translate-y-1/2">
-                        <div className="flex gap-1.5 mb-2">
+                    <div style={{ paddingTop: '40px', textAlign: 'center' }}>
+                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', marginBottom: '8px' }}>
                             {[0, 1, 2].map(i => (
-                                <div key={i} className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: `${i * 150}ms` }} />
+                                <div key={i} className="animate-bounce" style={{ width: 8, height: 8, backgroundColor: '#fff', borderRadius: '50%', animationDelay: `${i * 150}ms` }} />
                             ))}
                         </div>
-                        <p className="text-white/50 text-sm">Charting your journey...</p>
+                        <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px' }}>Charting your journey...</p>
                     </div>
                 )}
 
                 {isJourneyActive && journeySteps.length > 0 && currentStepIndex >= 0 && (
-                    <div className="absolute left-5 top-1/2 -translate-y-1/2 w-[45%] max-w-[220px]">
-                        <p className="text-white/40 text-xs uppercase tracking-widest mb-1">
+                    <div style={{ paddingTop: '10px' }}>
+                        <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '6px' }}>
                             Step {currentStepIndex + 1} of {journeySteps.length}
                         </p>
 
-                        <h3 className="text-white text-base font-bold mb-2">
+                        <h3 style={{ color: '#fff', fontSize: '18px', fontWeight: 'bold', marginBottom: '10px' }}>
                             {journeySteps[currentStepIndex]?.title || ''}
                         </h3>
 
-                        <div className="text-white/80 text-sm leading-relaxed mb-3 max-h-[120px] overflow-y-auto">
+                        <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px', lineHeight: 1.6, maxHeight: '100px', overflowY: 'auto' }}>
                             {displayedText}
-                            {isTyping && <span className="inline-block w-0.5 h-4 bg-white ml-1 animate-pulse" />}
+                            {isTyping && <span style={{ display: 'inline-block', width: 2, height: 16, backgroundColor: '#fff', marginLeft: 4, animation: 'pulse 1s infinite' }} />}
                         </div>
 
-                        <div className="flex gap-2 mb-2 pointer-events-auto">
+                        {/* Navigation buttons */}
+                        <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
                             <button
                                 onClick={goToPrevStep}
-                                disabled={currentStepIndex === 0}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 ${
-                                    currentStepIndex === 0 
-                                        ? 'bg-white/5 text-white/30' 
-                                        : 'bg-white/15 text-white active:bg-white/25'
-                                }`}
+                                disabled={currentStepIndex <= 0}
+                                style={{
+                                    flex: 1,
+                                    padding: '10px 16px',
+                                    borderRadius: '10px',
+                                    border: '1px solid rgba(255,255,255,0.2)',
+                                    backgroundColor: 'transparent',
+                                    color: currentStepIndex <= 0 ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.7)',
+                                    fontSize: '13px',
+                                    fontWeight: 500,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '6px'
+                                }}
                             >
-                                <Icons.ChevronLeft className="w-3 h-3" /> Prev
+                                <Icons.ChevronLeft style={{ width: 16, height: 16 }} />
+                                Previous
                             </button>
-                            
-                            {currentStepIndex < journeySteps.length - 1 ? (
-                                <button
-                                    onClick={goToNextStep}
-                                    disabled={isTyping}
-                                    className="px-3 py-1.5 rounded-lg bg-white text-black text-xs font-bold flex items-center gap-1 active:bg-white/90 disabled:opacity-50"
-                                >
-                                    Next <Icons.ChevronRight className="w-3 h-3" />
-                                </button>
-                            ) : (
-                                <button
-                                    onClick={resetJourney}
-                                    className="px-3 py-1.5 rounded-lg bg-green-500 text-white text-xs font-bold flex items-center gap-1 active:bg-green-600"
-                                >
-                                    <Icons.Check className="w-3 h-3" /> Done
-                                </button>
-                            )}
-                        </div>
-
-                        <div className="flex gap-1.5 pointer-events-auto">
-                            {journeySteps.map((_, idx) => (
-                                <button
-                                    key={idx}
-                                    onClick={() => navigateToStep(idx)}
-                                    className={`h-1.5 rounded-full transition-all ${
-                                        idx === currentStepIndex 
-                                            ? 'bg-white w-4' 
-                                            : idx < currentStepIndex 
-                                                ? 'bg-white/60 w-1.5' 
-                                                : 'bg-white/25 w-1.5'
-                                    }`}
-                                />
-                            ))}
+                            <button
+                                onClick={goToNextStep}
+                                disabled={currentStepIndex >= journeySteps.length - 1}
+                                style={{
+                                    flex: 1,
+                                    padding: '10px 16px',
+                                    borderRadius: '10px',
+                                    border: 'none',
+                                    backgroundColor: currentStepIndex >= journeySteps.length - 1 ? 'rgba(255,255,255,0.1)' : '#fff',
+                                    color: currentStepIndex >= journeySteps.length - 1 ? 'rgba(255,255,255,0.3)' : '#000',
+                                    fontSize: '13px',
+                                    fontWeight: 600,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '6px'
+                                }}
+                            >
+                                Next
+                                <Icons.ChevronRight style={{ width: 16, height: 16 }} />
+                            </button>
                         </div>
                     </div>
                 )}
             </div>
 
-            {/* Input */}
-            <div className="relative z-10 px-5 pb-4 pointer-events-auto">
-                {/* Attachment preview */}
+            {/* Planet area - MIDDLE (flex-1 takes remaining space) */}
+            <div style={{ flex: 1, position: 'relative', zIndex: 1, pointerEvents: 'none' }}>
+                {/* Drag hint */}
+                {!isJourneyActive && (
+                    <div style={{ position: 'absolute', bottom: '20px', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: '6px', color: 'rgba(255,255,255,0.3)', fontSize: '11px' }}>
+                        <Icons.RefreshCw style={{ width: 12, height: 12 }} />
+                        <span>Drag to spin the planet</span>
+                    </div>
+                )}
+            </div>
+
+            {/* Input at bottom */}
+            <div style={{ position: 'relative', zIndex: 20, padding: '12px 20px 16px' }}>
                 {attachment && (
-                    <div className="mb-2 flex items-center gap-2 bg-black/60 backdrop-blur rounded-xl p-2">
+                    <div style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '8px' }}>
                         {attachment.type === 'image' && attachmentPreview && (
-                            <img src={attachmentPreview} alt="Preview" className="w-10 h-10 rounded-lg object-cover" />
+                            <img src={attachmentPreview} alt="Preview" style={{ width: 40, height: 40, borderRadius: '8px', objectFit: 'cover' }} />
                         )}
                         {attachment.type === 'pdf' && (
-                            <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
-                                <Icons.FileText className="w-5 h-5 text-white/60" />
+                            <div style={{ width: 40, height: 40, borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <Icons.FileText style={{ width: 20, height: 20, color: 'rgba(255,255,255,0.6)' }} />
                             </div>
                         )}
-                        <span className="flex-1 text-white/60 text-xs truncate">{attachment.type}</span>
-                        <button onClick={removeAttachment} className="p-1 text-white/40 hover:text-white">
-                            <Icons.X className="w-4 h-4" />
+                        <span style={{ flex: 1, color: 'rgba(255,255,255,0.6)', fontSize: '13px' }}>{attachment.type} attached</span>
+                        <button onClick={removeAttachment} style={{ padding: '4px', color: 'rgba(255,255,255,0.4)', background: 'none', border: 'none' }}>
+                            <Icons.X style={{ width: 16, height: 16 }} />
                         </button>
                     </div>
                 )}
                 
-                <div className={`bg-white/5 backdrop-blur-xl rounded-xl border transition-all ${isInputFocused ? 'border-white/30' : 'border-white/10'}`}>
-                    <div className="flex items-center gap-2 px-3 py-2">
+                <div style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: '14px', border: isInputFocused ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(255,255,255,0.1)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px' }}>
                         <input
                             type="file"
                             ref={fileInputRef}
                             onChange={handleFileSelect}
                             accept="image/*,.pdf,audio/*"
-                            className="hidden"
+                            style={{ display: 'none' }}
                         />
                         <button 
                             onClick={() => fileInputRef.current?.click()}
-                            className="p-1.5 text-white/40 hover:text-white rounded-lg"
+                            style={{ padding: '8px', color: 'rgba(255,255,255,0.4)', background: 'none', border: 'none' }}
                         >
-                            <Icons.Paperclip className="w-4 h-4" />
+                            <Icons.Paperclip style={{ width: 20, height: 20 }} />
                         </button>
                         <input
                             type="text"
@@ -1234,26 +1203,24 @@ export default function ChatView() {
                             onChange={e => setChatInput(e.target.value)}
                             onFocus={() => setIsInputFocused(true)}
                             onBlur={() => setIsInputFocused(false)}
-                            placeholder="Ask for guidance..."
-                            className="flex-1 bg-transparent text-white text-sm placeholder:text-white/30 focus:outline-none"
-                            style={{ fontSize: '16px' }}
-                            onKeyDown={e => {
-                                if (e.key === 'Enter' && !e.shiftKey) {
-                                    e.preventDefault();
-                                    handleSendMessage();
-                                }
-                            }}
+                            placeholder="Ask anything..."
+                            style={{ flex: 1, backgroundColor: 'transparent', color: '#fff', fontSize: '16px', border: 'none', outline: 'none' }}
+                            onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
                         />
                         <button
                             onClick={handleSendMessage}
                             disabled={(!chatInput.trim() && !attachment) || isChatLoading}
-                            className={`p-2 rounded-lg transition-all ${
-                                (chatInput.trim() || attachment) && !isChatLoading 
-                                    ? 'bg-white text-black' 
-                                    : 'bg-white/10 text-white/30'
-                            }`}
+                            style={{ 
+                                padding: '10px 16px', 
+                                borderRadius: '10px', 
+                                backgroundColor: (chatInput.trim() || attachment) && !isChatLoading ? '#fff' : 'rgba(255,255,255,0.1)',
+                                color: (chatInput.trim() || attachment) && !isChatLoading ? '#000' : 'rgba(255,255,255,0.3)',
+                                border: 'none',
+                                fontWeight: 600,
+                                fontSize: '14px'
+                            }}
                         >
-                            <Icons.Send className="w-4 h-4" />
+                            Send
                         </button>
                     </div>
                 </div>

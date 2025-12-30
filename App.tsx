@@ -34,32 +34,21 @@ function AppContent() {
     ];
 
     const showNav = !hideNavViews.includes(view);
-    const navHeight = 60;
 
     return (
         <div 
             className={`font-sans ${theme === 'light' ? 'light-mode' : ''}`}
             style={{ 
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
+                height: '100%',
+                width: '100%',
                 backgroundColor: '#000000',
                 overflow: 'hidden',
                 display: 'flex',
-                flexDirection: 'column'
+                flexDirection: 'column',
+                position: 'relative'
             }}
         >
-            {/* Main Content */}
-            <div 
-                style={{ 
-                    flex: 1,
-                    overflow: 'hidden',
-                    position: 'relative',
-                    paddingBottom: showNav ? `calc(${navHeight}px + env(safe-area-inset-bottom, 0px))` : '0'
-                }}
-            >
+            <div style={{ flex: 1, overflow: 'hidden', paddingBottom: showNav ? '60px' : '0' }}>
                 {view === AppView.ONBOARDING && <OnboardingView />}
                 {view === AppView.DASHBOARD && <DashboardView />}
                 {view === AppView.CHAT && <ChatView />}
@@ -82,7 +71,6 @@ function AppContent() {
                 )}
             </div>
 
-            {/* Ad Overlay */}
             {showAdOverlay && (
                 <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center p-6 animate-fade-in">
                    <div className="w-full max-w-sm bg-white rounded-3xl overflow-hidden relative">
@@ -97,24 +85,17 @@ function AppContent() {
                 </div>
             )}
 
-            {/* Bottom Navigation - Truly Fixed */}
             {showNav && (
-                <div 
-                    style={{
-                        position: 'fixed',
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        zIndex: 9999,
-                        backgroundColor: '#000000',
-                        borderTop: '1px solid rgba(255,255,255,0.1)',
-                        paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.5px)',
-                        transform: 'translateZ(0)',
-                        WebkitTransform: 'translateZ(0)',
-                        backfaceVisibility: 'hidden',
-                        WebkitBackfaceVisibility: 'hidden'
-                    }}
-                >
+                <div style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    height: '60px',
+                    zIndex: 9999,
+                    backgroundColor: '#000000',
+                    borderTop: '1px solid rgba(255,255,255,0.1)'
+                }}>
                     <BottomNav 
                         activeTab={
                             view === AppView.DASHBOARD ? 'dashboard' :

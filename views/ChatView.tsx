@@ -216,7 +216,7 @@ export default function ChatView() {
 
             // Planet position - centered but slightly up
             const centerX = w * 0.5;
-            const centerY = h * 0.42;
+            const centerY = (h + 20) / 2;
             const radius = Math.min(w, h) * 0.28;
 
             // Handle rotation

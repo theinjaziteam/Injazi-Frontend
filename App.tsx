@@ -35,9 +35,12 @@ function AppContent() {
 
     const showNav = !hideNavViews.includes(view);
     
-    // Determine background color based on current view
-    const isDarkView = view === AppView.CHAT;
-    const bgColor = isDarkView ? '#000000' : '#171738';
+    // Background color based on view
+    const getBgColor = () => {
+        if (view === AppView.CHAT) return '#000000';
+        if (view === AppView.SETTINGS) return '#FFFFFF';
+        return '#171738';
+    };
 
     return (
         <div 
@@ -48,19 +51,20 @@ function AppContent() {
                 left: 0,
                 right: 0,
                 bottom: 0,
-                backgroundColor: bgColor,
+                backgroundColor: getBgColor(),
                 overflow: 'hidden',
                 display: 'flex',
-                flexDirection: 'column'
+                flexDirection: 'column',
+                paddingTop: 'env(safe-area-inset-top)',
+                paddingLeft: 'env(safe-area-inset-left)',
+                paddingRight: 'env(safe-area-inset-right)'
             }}
         >
-            {/* Main content area */}
             <div style={{ 
                 flex: 1, 
                 overflow: 'hidden', 
                 position: 'relative',
-                marginBottom: showNav ? '56px' : '0',
-                backgroundColor: bgColor
+                marginBottom: showNav ? '56px' : '0'
             }}>
                 {view === AppView.ONBOARDING && <OnboardingView />}
                 {view === AppView.DASHBOARD && <DashboardView />}
@@ -84,7 +88,6 @@ function AppContent() {
                 )}
             </div>
 
-            {/* Ad Overlay */}
             {showAdOverlay && (
                 <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center p-6 animate-fade-in">
                    <div className="w-full max-w-sm bg-white rounded-3xl overflow-hidden relative">
@@ -99,14 +102,14 @@ function AppContent() {
                 </div>
             )}
 
-            {/* Bottom Navigation */}
             {showNav && (
                 <div style={{
                     position: 'fixed',
                     bottom: 0,
                     left: 0,
                     right: 0,
-                    height: '56px',
+                    height: 'calc(56px + env(safe-area-inset-bottom))',
+                    paddingBottom: 'env(safe-area-inset-bottom)',
                     zIndex: 9999,
                     backgroundColor: '#171738',
                     borderTop: '1px solid rgba(255,255,255,0.1)'

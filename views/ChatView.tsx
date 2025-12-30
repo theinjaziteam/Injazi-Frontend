@@ -170,7 +170,7 @@ export default function ChatView() {
 
             // Change planet center position - raise it higher
 const centerX = w * 0.55;
-const centerY = h * 0.25;  // Changed from 0.45 to 0.38 to raise planet
+const centerY = h * 0.32;  // Changed from 0.45 to 0.38 to raise planet
 const radius = Math.min(w, h) * 0.30;  // Slightly smaller for better fit
 
 
@@ -699,11 +699,21 @@ const radius = Math.min(w, h) * 0.30;  // Slightly smaller for better fit
         }
     };
 
-    const goToNextStep = () => {
-        if (currentStepIndex < journeySteps.length - 1) {
-            navigateToStep(currentStepIndex + 1);
-        }
-    };
+  const goToNextStep = () => {
+    if (currentStepIndex < journeySteps.length - 1) {
+        navigateToStep(currentStepIndex + 1);
+    }
+};
+
+const handleDone = () => {
+    // Reset journey or go back to dashboard
+    setIsJourneyActive(false);
+    setJourneySteps([]);
+    setCurrentStepIndex(-1);
+    setDisplayedText('');
+};
+
+const isLastStep = currentStepIndex === journeySteps.length - 1;
 
     const goToPrevStep = () => {
         if (currentStepIndex > 0) {
@@ -1122,34 +1132,42 @@ return (
                         {isTyping && <span className="inline-block w-0.5 h-4 bg-white ml-1 animate-pulse" />}
                     </div>
                     
-                    {/* Navigation buttons */}
-                    <div className="flex gap-3 mt-3">
-                        <button
-                            onClick={goToPrevStep}
-                            disabled={currentStepIndex === 0}
-                            className={`flex-1 py-2 rounded-xl text-sm font-medium ${
-                                currentStepIndex === 0 
-                                    ? 'bg-white/5 text-white/30' 
-                                    : 'bg-white/10 text-white active:bg-white/20'
-                            }`}
-                        >
-                            Previous
-                        </button>
-                        <button
-                            onClick={goToNextStep}
-                            disabled={currentStepIndex === journeySteps.length - 1}
-                            className={`flex-1 py-2 rounded-xl text-sm font-medium ${
-                                currentStepIndex === journeySteps.length - 1 
-                                    ? 'bg-white/5 text-white/30' 
-                                    : 'bg-white text-black active:bg-white/90'
-                            }`}
-                        >
-                            {currentStepIndex === journeySteps.length - 1 ? 'Done' : 'Next'}
-                        </button>
-                    </div>
-                </div>
-            </div>
-        )}
+                   {/* Navigation buttons */}
+<div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+    <button 
+        onClick={goPrev} 
+        disabled={currentStepIndex === 0} 
+        style={{ 
+            flex: 1, 
+            padding: 10, 
+            borderRadius: 10, 
+            border: '1px solid rgba(255,255,255,0.2)', 
+            backgroundColor: 'transparent', 
+            color: currentStepIndex === 0 ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.7)', 
+            fontSize: 13,
+            cursor: currentStepIndex === 0 ? 'not-allowed' : 'pointer'
+        }}
+    >
+        Previous
+    </button>
+    <button 
+        onClick={currentStepIndex === journeySteps.length - 1 ? handleDone : goNext} 
+        style={{ 
+            flex: 1, 
+            padding: 10, 
+            borderRadius: 10, 
+            border: 'none', 
+            backgroundColor: '#fff', 
+            color: '#000', 
+            fontSize: 13, 
+            fontWeight: 600,
+            cursor: 'pointer'
+        }}
+    >
+        {currentStepIndex === journeySteps.length - 1 ? 'Done' : 'Next'}
+    </button>
+</div>
+
 
         {/* Welcome text - only when no journey */}
         {!isJourneyActive && !isChatLoading && (

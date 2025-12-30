@@ -444,6 +444,318 @@ export interface AdgemTransaction {
   completedAt: number;
 }
 
+// ============================================
+// ECOMMERCE AGENT TYPES
+// ============================================
+
+export enum AgentActionType {
+    SUGGEST = 'suggest',
+    READ_ONLY = 'read_only',
+    EXECUTE_WITH_APPROVAL = 'execute_with_approval',
+    AUTO_EXECUTE = 'auto_execute'
+}
+
+export enum AgentActionStatus {
+    PENDING = 'pending',
+    APPROVED = 'approved',
+    REJECTED = 'rejected',
+    EXECUTED = 'executed',
+    FAILED = 'failed'
+}
+
+export enum SubAgentType {
+    SHOPIFY_SETUP = 'shopify_setup',
+    PRODUCT_INGESTION = 'product_ingestion',
+    ANALYTICS = 'analytics',
+    EMAIL_MARKETING = 'email_marketing',
+    SOCIAL_MEDIA = 'social_media'
+}
+
+// Connected OAuth Accounts
+export interface ConnectedAccount {
+    id: string;
+    platform: 'shopify' | 'klaviyo' | 'mailchimp' | 'tiktok' | 'instagram' | 'facebook' | 'youtube' | 'google_analytics' | 'meta_ads';
+    accessToken?: string;
+    refreshToken?: string;
+    expiresAt?: number;
+    isConnected: boolean;
+    connectedAt?: number;
+    permissions: string[];
+    metadata?: Record<string, any>;
+}
+
+// User Goal for E-commerce
+export interface EcommerceGoal {
+    id: string;
+    storeNiche: string;
+    targetAudience: string;
+    pricingStrategy: 'budget' | 'mid_range' | 'premium' | 'luxury';
+    monthlyRevenueTarget: number;
+    preferredPlatforms: string[];
+    createdAt: number;
+    updatedAt: number;
+}
+
+// Shopify Store Data
+export interface ShopifyStore {
+    id: string;
+    shopifyId?: string;
+    storeName: string;
+    storeUrl?: string;
+    theme?: string;
+    currency: string;
+    language: string;
+    status: 'pending' | 'active' | 'paused';
+    createdAt: number;
+    settings: {
+        paymentProviders: string[];
+        shippingZones: ShippingZone[];
+    };
+}
+
+export interface ShippingZone {
+    id: string;
+    name: string;
+    countries: string[];
+    rates: { name: string; price: number; minOrder?: number }[];
+}
+
+// Product Draft from Scraping
+export interface ProductDraft {
+    id: string;
+    sourceUrl: string;
+    sourcePlatform: 'aliexpress' | 'amazon' | 'alibaba' | 'other';
+    scrapedAt: number;
+    status: 'scraped' | 'optimized' | 'approved' | 'published' | 'rejected';
+    
+    // Scraped Data
+    originalData: {
+        title: string;
+        description: string;
+        images: string[];
+        variants: ProductVariant[];
+        specs: Record<string, string>;
+        originalPrice: number;
+        currency: string;
+    };
+    
+    // AI Optimized Data
+    optimizedData?: {
+        title: string;
+        description: string;
+        seoTitle?: string;
+        seoDescription?: string;
+        tags: string[];
+        collections: string[];
+    };
+    
+    // User Final Decision
+    finalData?: {
+        title: string;
+        description: string;
+        price: number;
+        compareAtPrice?: number;
+        profitMargin?: number;
+        images: string[];
+        variants: ProductVariant[];
+        tags: string[];
+        collections: string[];
+    };
+    
+    // Shopify Data
+    shopifyProductId?: string;
+    publishedAt?: number;
+}
+
+export interface ProductVariant {
+    id: string;
+    title: string;
+    sku?: string;
+    price: number;
+    inventoryQuantity: number;
+    options: Record<string, string>;
+}
+
+// Analytics Snapshot
+export interface AnalyticsSnapshot {
+    id: string;
+    timestamp: number;
+    period: 'daily' | 'weekly' | 'monthly';
+    
+    // Core KPIs
+    revenue: number;
+    orders: number;
+    conversionRate: number;
+    averageOrderValue: number;
+    traffic: {
+        total: number;
+        organic: number;
+        paid: number;
+        social: number;
+        direct: number;
+    };
+    
+    // Product Performance
+    topProducts: { productId: string; title: string; revenue: number; units: number }[];
+    underperformingProducts: { productId: string; title: string; views: number; conversionRate: number }[];
+    
+    // Cart Data
+    cartAbandonment: {
+        rate: number;
+        recoveredRevenue: number;
+        abandonedCarts: number;
+    };
+    
+    // AI Insights
+    insights: AIInsight[];
+}
+
+export interface AIInsight {
+    id: string;
+    type: 'positive' | 'negative' | 'neutral' | 'action_required';
+    title: string;
+    description: string;
+    metric?: string;
+    change?: number;
+    suggestedAction?: string;
+    priority: 'high' | 'medium' | 'low';
+}
+
+// Email Campaign Draft
+export interface EmailCampaignDraft {
+    id: string;
+    type: 'launch' | 'abandoned_cart' | 'promo' | 'newsletter' | 'welcome' | 'win_back';
+    status: 'draft' | 'preview' | 'approved' | 'scheduled' | 'sent';
+    createdAt: number;
+    
+    // Content
+    subject: string;
+    preheader?: string;
+    htmlContent: string;
+    plainTextContent?: string;
+    
+    // Targeting
+    segmentId?: string;
+    segmentName?: string;
+    recipientCount?: number;
+    
+    // Schedule
+    scheduledAt?: number;
+    sentAt?: number;
+    
+    // Metrics (after sending)
+    metrics?: {
+        sent: number;
+        delivered: number;
+        opened: number;
+        clicked: number;
+        unsubscribed: number;
+        revenue: number;
+    };
+}
+
+// Social Media Content Draft
+export interface SocialContentDraft {
+    id: string;
+    platform: 'tiktok' | 'instagram' | 'facebook' | 'youtube';
+    contentType: 'post' | 'story' | 'reel' | 'short' | 'video';
+    status: 'draft' | 'preview' | 'approved' | 'scheduled' | 'published';
+    createdAt: number;
+    
+    // Content
+    caption: string;
+    hashtags: string[];
+    mediaUrls: string[];
+    videoScript?: string;
+    
+    // Product Link
+    linkedProductId?: string;
+    
+    // Schedule
+    scheduledAt?: number;
+    publishedAt?: number;
+    
+    // Metrics
+    metrics?: {
+        views: number;
+        likes: number;
+        comments: number;
+        shares: number;
+        clicks: number;
+    };
+}
+
+// AI Action Log
+export interface AIActionLog {
+    id: string;
+    timestamp: number;
+    agentType: SubAgentType;
+    actionType: AgentActionType;
+    status: AgentActionStatus;
+    
+    // Action Details
+    title: string;
+    description: string;
+    payload?: Record<string, any>;
+    
+    // Approval
+    requiresApproval: boolean;
+    approvedAt?: number;
+    approvedBy?: string;
+    rejectedAt?: number;
+    rejectedReason?: string;
+    
+    // Execution
+    executedAt?: number;
+    result?: Record<string, any>;
+    error?: string;
+    
+    // Reversibility
+    isReversible: boolean;
+    reversedAt?: number;
+}
+
+// Master Agent Context (Memory)
+export interface MasterAgentContext {
+    userId: string;
+    ecommerceGoal?: EcommerceGoal;
+    stores: ShopifyStore[];
+    connectedAccounts: ConnectedAccount[];
+    
+    // Memory
+    userPreferences: {
+        communicationStyle: 'detailed' | 'concise';
+        autoApprove: SubAgentType[];
+        notificationFrequency: 'realtime' | 'daily' | 'weekly';
+    };
+    
+    // Recent Context
+    recentActions: AIActionLog[];
+    pendingApprovals: AIActionLog[];
+    
+    // Stats
+    totalActionsExecuted: number;
+    successRate: number;
+}
+
+// Agent Suggestion
+export interface AgentSuggestion {
+    id: string;
+    timestamp: number;
+    agentType: SubAgentType;
+    title: string;
+    description: string;
+    reasoning: string;
+    priority: 'high' | 'medium' | 'low';
+    
+    // Action
+    actionPayload: Record<string, any>;
+    estimatedImpact?: string;
+    
+    // User Response
+    status: 'pending' | 'accepted' | 'dismissed' | 'snoozed';
+    snoozedUntil?: number;
+}
 // --- Constants ---
 export const COUNTRIES: Country[] = [
   { name: "Afghanistan", code: "AF" },

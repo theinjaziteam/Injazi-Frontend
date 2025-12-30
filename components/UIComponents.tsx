@@ -293,8 +293,8 @@ export const BottomNav: React.FC<{
   ];
 
   return (
-    <div className="flex-shrink-0 bg-primary border-t border-white/10 pb-safe" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 12px)' }}>
-      <div className="flex justify-around items-center h-16 px-4 bg-primary">
+    <div className="flex-shrink-0 bg-primary border-t border-white/10">
+      <div className="flex justify-around items-center h-14 px-4 bg-primary">
         {tabs.map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -312,9 +312,6 @@ export const BottomNav: React.FC<{
               <span className={`text-[9px] font-bold uppercase tracking-wider ${isActive ? 'opacity-100' : 'opacity-60'}`}>
                 {tab.label}
               </span>
-              {isActive && (
-                <div className="absolute bottom-1 w-1 h-1 bg-accent rounded-full" />
-              )}
             </button>
           );
         })}

@@ -1132,44 +1132,47 @@ return (
                         {isTyping && <span className="inline-block w-0.5 h-4 bg-white ml-1 animate-pulse" />}
                     </div>
                     
-                   {/* Navigation buttons */}
-<div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
-    <button 
-        onClick={goPrev} 
-        disabled={currentStepIndex === 0} 
-        style={{ 
-            flex: 1, 
-            padding: 10, 
-            borderRadius: 10, 
-            border: '1px solid rgba(255,255,255,0.2)', 
-            backgroundColor: 'transparent', 
-            color: currentStepIndex === 0 ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.7)', 
-            fontSize: 13,
-            cursor: currentStepIndex === 0 ? 'not-allowed' : 'pointer'
-        }}
-    >
-        Previous
-    </button>
-    <button 
-        onClick={currentStepIndex === journeySteps.length - 1 ? handleDone : goNext} 
-        style={{ 
-            flex: 1, 
-            padding: 10, 
-            borderRadius: 10, 
-            border: 'none', 
-            backgroundColor: '#fff', 
-            color: '#000', 
-            fontSize: 13, 
-            fontWeight: 600,
-            cursor: 'pointer'
-        }}
-    >
-        {currentStepIndex === journeySteps.length - 1 ? 'Done' : 'Next'}
-    </button>
-</div>
-
+                                      {/* Navigation buttons */}
+                    <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+                        <button 
+                            onClick={goPrev} 
+                            disabled={currentStepIndex === 0} 
+                            style={{ 
+                                flex: 1, 
+                                padding: 10, 
+                                borderRadius: 10, 
+                                border: '1px solid rgba(255,255,255,0.2)', 
+                                backgroundColor: 'transparent', 
+                                color: currentStepIndex === 0 ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.7)', 
+                                fontSize: 13,
+                                cursor: currentStepIndex === 0 ? 'not-allowed' : 'pointer'
+                            }}
+                        >
+                            Previous
+                        </button>
+                        <button 
+                            onClick={currentStepIndex === journeySteps.length - 1 ? handleDone : goNext} 
+                            style={{ 
+                                flex: 1, 
+                                padding: 10, 
+                                borderRadius: 10, 
+                                border: 'none', 
+                                backgroundColor: '#fff', 
+                                color: '#000', 
+                                fontSize: 13, 
+                                fontWeight: 600,
+                                cursor: 'pointer'
+                            }}
+                        >
+                            {currentStepIndex === journeySteps.length - 1 ? 'Done' : 'Next'}
+                        </button>
+                    </div>
+                </div>  
+            </div>      
+        )}              
 
         {/* Welcome text - only when no journey */}
+
         {!isJourneyActive && !isChatLoading && (
             <div style={{
                 position: 'relative',
@@ -1274,5 +1277,5 @@ return (
             </div>
         </div>
     </div>
- );
+    );
 }

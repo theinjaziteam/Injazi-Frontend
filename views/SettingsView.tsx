@@ -50,10 +50,10 @@ export default function SettingsView() {
     };
 
     return (
-        <div className="h-full overflow-y-auto pb-safe scroll-smooth" style={{ backgroundColor: '#FFFFFF' }}>
+        <div className="h-full overflow-y-auto pb scroll-smooth" style={{ backgroundColor: '#FFFFFF' }}>
             <div className="min-h-full bg-white flex flex-col animate-fade-in pb-20">
                 {/* Header */}
-                <div className="p-6 pt-safe border-b border-gray-100 flex items-center gap-4 bg-white sticky top-0 z-30">
+                <div className="p-6 border-b border-gray-100 flex items-center gap-4 bg-white sticky top-0 z-30">
                     <button onClick={() => setView(AppView.DASHBOARD)} className="p-2 mt-2 hover:bg-gray-100 rounded-full transition-colors">
                         <Icons.ChevronLeft className="w-6 h-6 text-primary"/>
                     </button>
@@ -290,7 +290,7 @@ export default function SettingsView() {
 
             {/* Privacy Modal */}
             {showPrivacy && (
-              <div className="fixed inset-0 z-[100] bg-white p-8 pt-safe overflow-y-auto animate-slide-up">
+              <div className="fixed inset-0 z-[100] bg-white p-8 overflow-y-auto animate-slide-up">
                 <div className="flex justify-between items-center mb-10 mt-2">
                   <h2 className="text-3xl font-black text-primary uppercase tracking-tighter">Global Protocol</h2>
                   <button onClick={() => setShowPrivacy(false)} className="p-3 bg-gray-100 rounded-full"><Icons.X className="text-primary"/></button>

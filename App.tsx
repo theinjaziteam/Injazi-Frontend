@@ -34,6 +34,7 @@ function AppContent() {
     ];
 
     const showNav = !hideNavViews.includes(view);
+    const navHeight = 60;
 
     return (
         <div 
@@ -56,7 +57,7 @@ function AppContent() {
                     flex: 1,
                     overflow: 'hidden',
                     position: 'relative',
-                    paddingBottom: showNav ? '60px' : '0'
+                    paddingBottom: showNav ? `calc(${navHeight}px + env(safe-area-inset-bottom, 0px))` : '0'
                 }}
             >
                 {view === AppView.ONBOARDING && <OnboardingView />}
@@ -96,18 +97,22 @@ function AppContent() {
                 </div>
             )}
 
-            {/* Bottom Navigation - Absolutely fixed to bottom */}
+            {/* Bottom Navigation - Truly Fixed */}
             {showNav && (
                 <div 
                     style={{
-                        position: 'absolute',
+                        position: 'fixed',
                         bottom: 0,
                         left: 0,
                         right: 0,
-                        height: '60px',
                         zIndex: 9999,
                         backgroundColor: '#000000',
-                        borderTop: '1px solid rgba(255,255,255,0.1)'
+                        borderTop: '1px solid rgba(255,255,255,0.1)',
+                        paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.5px)',
+                        transform: 'translateZ(0)',
+                        WebkitTransform: 'translateZ(0)',
+                        backfaceVisibility: 'hidden',
+                        WebkitBackfaceVisibility: 'hidden'
                     }}
                 >
                     <BottomNav 

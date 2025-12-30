@@ -1,3 +1,4 @@
+// App.tsx - Updated with E-commerce Agent
 import React from 'react';
 import { AppProvider, useApp } from './contexts/AppContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
@@ -16,6 +17,7 @@ import ShopView from './views/ShopView';
 import SettingsView from './views/SettingsView';
 import TaskHistoryView from './views/TaskHistoryView';
 import TaskSelectionView from './views/TaskSelectionView';
+import EcommerceAgentView from './views/EcommerceAgentView'; // NEW IMPORT
 
 function AppContent() {
     const { view, setView, isAuthenticated, showAdOverlay, adCountdown } = useApp();
@@ -31,7 +33,8 @@ function AppContent() {
         AppView.TASK_HISTORY,
         AppView.TASK_SELECTION,
         AppView.CHAT,
-        AppView.LEGAL
+        AppView.LEGAL,
+        AppView.ECOMMERCE_AGENT // NEW - Hide nav for E-commerce Agent view
     ];
 
     const showNav = !hideNavViews.includes(view);
@@ -43,6 +46,7 @@ function AppContent() {
         if (view === AppView.LEGAL) return '#FFFFFF';
         if (view === AppView.STATS) return '#FFFFFF';
         if (view === AppView.SHOP) return '#171738';
+        if (view === AppView.ECOMMERCE_AGENT) return '#F9FAFB'; // NEW - Gray background for agent
         return '#171738';
     };
 
@@ -81,6 +85,7 @@ function AppContent() {
                 {view === AppView.SETTINGS && <SettingsView />}
                 {view === AppView.TASK_HISTORY && <TaskHistoryView />}
                 {view === AppView.TASK_SELECTION && <TaskSelectionView />}
+                {view === AppView.ECOMMERCE_AGENT && <EcommerceAgentView />} {/* NEW VIEW */}
                 
                 {(view === AppView.PLANS || view === AppView.USER_PROFILE) && (
                     <div className="p-10 text-center flex flex-col items-center justify-center h-full" style={{ backgroundColor: '#171738' }}>
@@ -150,4 +155,3 @@ export default function App() {
         </ThemeProvider>
     );
 }
-

@@ -215,10 +215,12 @@ export default function ChatView() {
             });
 
             // Planet position - centered but slightly up
+            const topOffset = 180; // Approximate bottom of welcome text
+            const bottomOffset = 190; // Button position from bottom
+            const availableHeight = h - topOffset - bottomOffset;
             const centerX = w * 0.5;
-            const centerY = (h + 20) / 2;
-            const radius = Math.min(w, h) * 0.28;
-
+            const centerY = topOffset + (availableHeight / 2);
+            const radius = Math.min(w, h) * 0.25;
             // Handle rotation
             if (!dragRef.current.isDragging) {
                 rotationRef.current.y += (rotationRef.current.targetY - rotationRef.current.y) * 0.05;
@@ -776,8 +778,8 @@ export default function ChatView() {
 
     const activeConvo = conversations.find(c => c.id === activeConversationId);
 
-// ========== E-COMMERCE AGENT FLOATING BUTTON (for Planet Mode) ==========
-const EcommerceFloatingButton = () => (
+// ========== MASTER AGENT FLOATING BUTTON (for Planet Mode) ==========
+const MasterAgentButton = () => (
     <button
         onClick={() => setView(AppView.ECOMMERCE_AGENT)}
         style={{
@@ -791,7 +793,6 @@ const EcommerceFloatingButton = () => (
             gap: '10px',
             padding: '10px 24px',
             borderRadius: '40px',
-            // Transparent glass
             background: 'rgba(255, 255, 255, 0.03)',
             backdropFilter: 'blur(12px)',
             WebkitBackdropFilter: 'blur(12px)',
@@ -812,18 +813,19 @@ const EcommerceFloatingButton = () => (
             e.currentTarget.style.transform = 'translateX(-50%) translateY(0)';
         }}
     >
-        <Icons.ShoppingBag style={{ width: 16, height: 16, color: 'rgba(255, 255, 255, 0.6)' }} />
+        <Icons.Zap style={{ width: 16, height: 16, color: 'rgba(255, 255, 255, 0.6)' }} />
         <span style={{ 
             color: 'rgba(255, 255, 255, 0.7)', 
             fontWeight: 500, 
             fontSize: '13px',
             letterSpacing: '0.2px'
         }}>
-            E-commerce Agent
+            Master Agent
         </span>
         <Icons.ChevronRight style={{ width: 14, height: 14, color: 'rgba(255, 255, 255, 0.3)' }} />
     </button>
 );
+
 
     // ========== E-COMMERCE AGENT QUICK ACTION CARD (for Chat Mode) ==========
     const EcommerceQuickActionCard = () => (

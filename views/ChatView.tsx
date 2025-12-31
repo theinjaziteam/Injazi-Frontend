@@ -1,4 +1,5 @@
 // views/ChatView.tsx
+import GuideWelcome from '../components/GuideWelcome';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { AppView, ChatMessage, ChatAttachment } from '../types';
@@ -40,6 +41,10 @@ export default function ChatView() {
     const [chatInput, setChatInput] = useState('');
     const [isChatLoading, setIsChatLoading] = useState(false);
     const [isInputFocused, setIsInputFocused] = useState(false);
+    const [showWelcome, setShowWelcome] = useState(() => {
+        const hasSeenWelcome = localStorage.getItem('guideWelcomeSeen');
+        return !hasSeenWelcome;
+    });
     
     const [attachment, setAttachment] = useState<ChatAttachment | null>(null);
     const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null);
@@ -84,6 +89,11 @@ export default function ChatView() {
             setUser(prev => ({ ...prev, guideConversations: conversations } as any));
         }
     }, [conversations]);
+
+    const handleWelcomeComplete = () => {
+        localStorage.setItem('guideWelcomeSeen', 'true');
+        setShowWelcome(false);
+    };
 
     // Handle active conversation change
     useEffect(() => {
@@ -888,6 +898,9 @@ const MasterAgentQuickActionCard = () => (
         <Icons.ChevronRight style={{ width: 20, height: 20, color: 'rgba(255, 255, 255, 0.3)' }} />
     </button>
 );
+    if (showWelcome) {
+        return <GuideWelcome onComplete={handleWelcomeComplete} />;
+    }
 
     // ========== JOURNEYS LIST VIEW ==========
     if (showJourneysList) {

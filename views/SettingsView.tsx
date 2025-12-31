@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../App';
 import { Icons, Button, Toggle, Card } from '../components/UIComponents';
 import { AppView, User, PlanTier, ConnectedApp } from '../types';
-import * as api from '../api';
+import * as api from '../services/api';
 
 const COUNTRIES = [
   { code: 'US', name: 'United States', flag: '🇺🇸' },

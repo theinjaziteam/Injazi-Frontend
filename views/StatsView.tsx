@@ -110,14 +110,27 @@ export default function StatsView() {
         return [...calendarEvents, ...autoMilestones];
     }, [calendarEvents, user.goal]);
 
-    // REAL calculated stats - directly from user object
+    // REAL-TIME calculated stats - directly from user object (synced with backend)
     const calculatedStats = useMemo(() => {
         const now = new Date(selectedDate);
-        const tasks = user.tasks || [];
-        const allCompletedTasks = tasks.filter(t => t.status === 'completed' || t.status === 'approved');
+        
+        // Get tasks from multiple possible locations (matching backend schema)
+        const dailyTasks = user.dailyTasks || [];
+        const goalTasks = user.goal?.savedTasks || [];
+        const allGoalsTasks = (user.allGoals || []).flatMap(g => g.savedTasks || []);
+        const tasks = [...dailyTasks, ...goalTasks, ...allGoalsTasks];
+        
+        // Remove duplicates by id
+        const uniqueTasks = tasks.filter((task, index, self) => 
+            index === self.findIndex(t => t.id === task.id)
+        );
+        
+        const allCompletedTasks = uniqueTasks.filter(t => 
+            t.status === 'completed' || t.status === 'approved'
+        );
         
         const filterByDate = (task: any) => {
-            const taskDate = new Date(task.completedAt || task.updatedAt || task.createdAt || Date.now());
+            const taskDate = new Date(task.completedAt || task.lastUpdated || task.createdAt || Date.now());
             
             if (viewMode === 'daily') {
                 return taskDate.toDateString() === now.toDateString();
@@ -140,31 +153,12 @@ export default function StatsView() {
             return sum + (t.creditsReward || t.credits || t.reward || 0);
         }, 0);
         
-        // Calculate total credits from ALL completed tasks
-        const totalCredits = allCompletedTasks.reduce((sum, t) => {
-            return sum + (t.creditsReward || t.credits || t.reward || 0);
-        }, 0);
+        // Use REAL credits from user (synced from backend)
+        const totalCredits = user.credits || 0;
         
-        // Calculate streak (consecutive days with completed tasks)
-        let streak = 0;
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        for (let i = 0; i < 365; i++) {
-            const checkDate = new Date(today);
-            checkDate.setDate(checkDate.getDate() - i);
-            
-            const hasTaskOnDay = allCompletedTasks.some(t => {
-                const taskDate = new Date(t.completedAt || t.updatedAt || t.createdAt || 0);
-                return taskDate.toDateString() === checkDate.toDateString();
-            });
-            
-            if (hasTaskOnDay) {
-                streak++;
-            } else if (i > 0) {
-                break;
-            }
-        }
+        // Use REAL streak from user (synced from backend)
+        const streak = user.streak || 0;
+        const longestStreak = user.longestStreak || 0;
         
         // Task breakdown by difficulty
         const easyTasks = filteredTasks.filter(t => 
@@ -189,7 +183,7 @@ export default function StatsView() {
             }
             
             const dayTasks = allCompletedTasks.filter(t => {
-                const taskDate = new Date(t.completedAt || t.updatedAt || t.createdAt || Date.now());
+                const taskDate = new Date(t.completedAt || t.lastUpdated || t.createdAt || Date.now());
                 if (viewMode === 'daily') {
                     return taskDate.toDateString() === date.toDateString();
                 } else if (viewMode === 'weekly') {
@@ -211,19 +205,35 @@ export default function StatsView() {
             };
         });
 
+        // Real money balance from backend
+        const realMoneyBalance = user.realMoneyBalance || 0;
+        
+        // AdMob stats from backend
+        const totalAdsWatched = user.totalAdsWatched || 0;
+        const dailyAdCount = user.dailyAdCount || 0;
+        const adsRemaining = Math.max(0, 25 - dailyAdCount); // MAX_DAILY_ADS = 25
+
         return {
             tasksCompleted: filteredTasks.length,
             periodCredits,
             totalCredits,
             streak,
+            longestStreak,
             easyTasks,
             mediumTasks,
             hardTasks,
             historyData,
-            totalTasks: tasks.length,
-            allTimeCompleted: allCompletedTasks.length
+            totalTasks: uniqueTasks.length,
+            allTimeCompleted: allCompletedTasks.length,
+            realMoneyBalance,
+            totalAdsWatched,
+            dailyAdCount,
+            adsRemaining,
+            currentDay: user.currentDay || 1,
+            totalXP: user.totalXP || 0,
+            level: user.level || 1
         };
-    }, [user.tasks, selectedDate, viewMode]);
+    }, [user, selectedDate, viewMode]);
 
     // Animate numbers when stats change
     useEffect(() => {
@@ -232,10 +242,10 @@ export default function StatsView() {
             totalCredits: calculatedStats.totalCredits,
             periodCredits: calculatedStats.periodCredits,
             streak: calculatedStats.streak,
-            allTimeCompleted: calculatedStats.allTimeCompleted
+            allTimeCompleted: calculatedStats.allTimeCompleted,
+            realMoneyBalance: Math.round(calculatedStats.realMoneyBalance * 100) / 100
         };
 
-        // Check if any values actually changed
         const hasChanges = Object.entries(newTargets).some(
             ([key, value]) => prevStats[key] !== value
         );
@@ -262,7 +272,9 @@ export default function StatsView() {
                 step++;
                 const progress = step / steps;
                 const eased = 1 - Math.pow(1 - progress, 3);
-                const current = Math.round(start + diff * eased);
+                const current = key === 'realMoneyBalance' 
+                    ? Math.round((start + diff * eased) * 100) / 100
+                    : Math.round(start + diff * eased);
                 
                 setAnimatedValues(prev => ({ ...prev, [key]: current }));
                 
@@ -279,20 +291,22 @@ export default function StatsView() {
     // Generate alerts based on real data
     const alerts = useMemo(() => {
         const generatedAlerts: Alert[] = [];
-        const tasks = user.tasks || [];
-        const completedTasks = tasks.filter(t => t.status === 'completed' || t.status === 'approved');
-        const pendingTasks = tasks.filter(t => t.status === 'pending' || t.status === 'in_progress');
+        const dailyTasks = user.dailyTasks || [];
+        const completedTasks = dailyTasks.filter(t => t.status === 'completed' || t.status === 'approved');
+        const pendingTasks = dailyTasks.filter(t => t.status === 'pending' || t.status === 'in_progress');
         const credits = calculatedStats.totalCredits;
         const streak = calculatedStats.streak;
         
-        const guideConversations = user.conversations || [];
-        const lastGuideMessage = guideConversations.length > 0 ? guideConversations[guideConversations.length - 1] : null;
-        const masterAgentTasks = user.masterAgentTasks || [];
-        const failedAgentTasks = masterAgentTasks.filter((t: any) => t.status === 'failed');
-        const pendingAgentTasks = masterAgentTasks.filter((t: any) => t.status === 'pending' || t.status === 'in_progress');
+        const guideConversations = user.guideConversations || [];
+        const lastGuideConversation = guideConversations.length > 0 ? guideConversations[guideConversations.length - 1] : null;
+        const lastMessage = lastGuideConversation?.messages?.[lastGuideConversation.messages.length - 1];
+        
+        const aiActionLogs = user.aiActionLogs || [];
+        const failedAgentTasks = aiActionLogs.filter((t: any) => t.status === 'failed');
+        const pendingAgentTasks = aiActionLogs.filter((t: any) => t.status === 'pending' || t.status === 'in_progress');
         
         // Guide alerts
-        const lastConversationDate = lastGuideMessage?.timestamp ? new Date(lastGuideMessage.timestamp) : null;
+        const lastConversationDate = lastMessage?.timestamp ? new Date(lastMessage.timestamp) : null;
         const daysSinceLastConversation = lastConversationDate ? Math.floor((Date.now() - lastConversationDate.getTime()) / (1000 * 60 * 60 * 24)) : 999;
         
         if (daysSinceLastConversation > 2 && guideConversations.length > 0) {
@@ -337,11 +351,20 @@ export default function StatsView() {
             });
         }
         
+        // Check ads remaining
+        if (calculatedStats.adsRemaining > 0 && calculatedStats.dailyAdCount === 0) {
+            generatedAlerts.push({
+                id: 'ads-available', type: 'info', title: 'Earn Free Credits',
+                message: `Watch ${calculatedStats.adsRemaining} ads today to earn credits!`,
+                icon: Icons.Video, source: 'system', actionLabel: 'Watch Ads', actionView: AppView.DASHBOARD
+            });
+        }
+        
         const threeDaysAgo = new Date();
         threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-        const recentActivity = completedTasks.some(t => new Date(t.completedAt || t.updatedAt || t.createdAt || 0) >= threeDaysAgo);
+        const recentActivity = completedTasks.some(t => new Date(t.completedAt || t.lastUpdated || 0) >= threeDaysAgo);
         
-        if (!recentActivity && tasks.length > 0) {
+        if (!recentActivity && dailyTasks.length > 0) {
             generatedAlerts.push({
                 id: 'no-activity', type: 'danger', title: 'No Recent Activity',
                 message: "You haven't completed any tasks in 3+ days.",
@@ -362,7 +385,7 @@ export default function StatsView() {
             const daysElapsed = Math.floor((Date.now() - new Date(user.goal.createdAt).getTime()) / (1000 * 60 * 60 * 24));
             const totalDays = user.goal.durationDays || 30;
             const expectedProgress = (daysElapsed / totalDays) * 100;
-            const expectedTasks = Math.floor((daysElapsed / totalDays) * (tasks.length || 10));
+            const expectedTasks = Math.floor((daysElapsed / totalDays) * (dailyTasks.length || 10));
             
             if (completedTasks.length < expectedTasks * 0.5 && daysElapsed > 3) {
                 generatedAlerts.push({
@@ -389,6 +412,13 @@ export default function StatsView() {
             });
         }
         
+        if (calculatedStats.longestStreak > 0 && streak === calculatedStats.longestStreak && streak >= 5) {
+            generatedAlerts.push({
+                id: 'new-record', type: 'success', title: 'New Streak Record! 🏆',
+                message: `${streak} days is your longest streak!`, icon: Icons.Trophy, source: 'system'
+            });
+        }
+        
         if (credits >= 100 && credits < 150) {
             generatedAlerts.push({
                 id: 'credits-100', type: 'success', title: '100 Credits! 🎉',
@@ -407,14 +437,14 @@ export default function StatsView() {
 
     // Mock insights based on real data
     const mockInsights = useMemo(() => {
-        const tasks = user.tasks || [];
-        const completedTasks = tasks.filter(t => t.status === 'completed' || t.status === 'approved');
+        const dailyTasks = user.dailyTasks || [];
+        const completedTasks = dailyTasks.filter(t => t.status === 'completed' || t.status === 'approved');
         const streak = calculatedStats.streak;
         const credits = calculatedStats.totalCredits;
         
         const tasksByDay: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
         completedTasks.forEach(t => {
-            const day = new Date(t.completedAt || t.createdAt || Date.now()).getDay();
+            const day = new Date(t.completedAt || t.lastUpdated || Date.now()).getDay();
             tasksByDay[day]++;
         });
         
@@ -434,7 +464,7 @@ export default function StatsView() {
             improvement: completedTasks.length > 0 ? `+${Math.min(25, completedTasks.length * 3)}% from last week` : "No data yet",
             topStrength: streak > 5 ? "Consistency" : completedTasks.length > 10 ? "Task completion" : "Getting started"
         };
-    }, [user.tasks, calculatedStats]);
+    }, [user.dailyTasks, calculatedStats]);
 
     // Fetch AI data
     useEffect(() => {
@@ -460,12 +490,12 @@ export default function StatsView() {
     }, [user, mockInsights]);
 
     const hasActivity = useCallback((date: Date) => {
-        const tasks = user.tasks || [];
-        return tasks.some(t => {
-            const taskDate = new Date(t.completedAt || t.updatedAt || t.createdAt || Date.now());
+        const dailyTasks = user.dailyTasks || [];
+        return dailyTasks.some(t => {
+            const taskDate = new Date(t.completedAt || t.lastUpdated || Date.now());
             return taskDate.toDateString() === date.toDateString() && (t.status === 'completed' || t.status === 'approved');
         });
-    }, [user.tasks]);
+    }, [user.dailyTasks]);
 
     const getEventsForDate = useCallback((date: Date) => {
         return allEvents.filter(e => new Date(e.date).toDateString() === date.toDateString());
@@ -490,7 +520,7 @@ export default function StatsView() {
         setCalendarEvents(prev => prev.filter(e => e.id !== eventId));
     };
 
-    // Chart Components
+    // Chart Components (same as before but optimized)
     const DonutChart = ({ data, size = 160, showLegend = true }: { data: { value: number; color: string; label: string }[], size?: number, showLegend?: boolean }) => {
         const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
         let cumulativePercent = 0;
@@ -648,7 +678,7 @@ export default function StatsView() {
             
             days.push(
                 <button key={i} onClick={() => { setSelectedDate(d.getTime()); setCurrentMonth(d); }}
-                    className={`flex flex-col items-center justify-center w-12 h-16 rounded-2xl transition-all ${isSelected ? 'bg-primary text-white shadow-lg scale-110' : 'bg-white text-gray-600 border border-gray-200 hover:border-primary/30'}`}>
+                    className={`flex flex-col items-center justify-center min-w-[48px] w-12 h-16 rounded-2xl transition-all flex-shrink-0 ${isSelected ? 'bg-primary text-white shadow-lg scale-110' : 'bg-white text-gray-600 border border-gray-200 hover:border-primary/30'}`}>
                     <span className={`text-[10px] font-bold uppercase ${isSelected ? 'text-white/80' : 'text-gray-400'}`}>
                         {viewMode === 'monthly' ? d.toLocaleDateString('en-US', { month: 'short' }) : d.toLocaleDateString('en-US', { weekday: 'short' })}
                     </span>
@@ -660,7 +690,7 @@ export default function StatsView() {
                 </button>
             );
         }
-        return <div className="flex justify-between px-2">{days}</div>;
+        return <div className="flex justify-between gap-2 overflow-x-auto px-2 scrollbar-hide">{days}</div>;
     };
 
     const renderFullCalendar = () => {
@@ -728,7 +758,7 @@ export default function StatsView() {
     };
 
     const renderViewModeToggle = () => (
-        <div className="flex bg-gray-100 rounded-full p-1 mb-4">
+        <div className="flex bg-gray-100 rounded-full p-1">
             {(['daily', 'weekly', 'monthly'] as const).map(mode => (
                 <button key={mode} onClick={() => setViewMode(mode)}
                     className={`flex-1 py-2 px-4 rounded-full text-xs font-bold transition-all ${viewMode === mode ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
@@ -738,7 +768,7 @@ export default function StatsView() {
         </div>
     );
 
-    // Stats Cards - NO LEVEL/XP, using CoinIcon
+    // Stats Cards - REAL-TIME data, using CoinIcon
     const renderStatsCards = () => (
         <div className="grid grid-cols-3 gap-3 mb-6">
             <Card className="p-4 bg-gradient-to-br from-primary to-primary/80 text-white border-none">
@@ -759,7 +789,7 @@ export default function StatsView() {
                 </div>
                 <div className="text-2xl font-black">{animatedValues.totalCredits ?? calculatedStats.totalCredits}</div>
                 <div className="text-[10px] text-white/60 mt-0.5">
-                    +{animatedValues.periodCredits ?? calculatedStats.periodCredits} {viewMode === 'daily' ? 'today' : viewMode === 'weekly' ? 'this week' : 'this month'}
+                    +{animatedValues.periodCredits ?? calculatedStats.periodCredits} {viewMode === 'daily' ? 'today' : viewMode === 'weekly' ? 'week' : 'month'}
                 </div>
             </Card>
             
@@ -769,31 +799,12 @@ export default function StatsView() {
                     <span className="text-[9px] font-bold uppercase text-white/60">Streak</span>
                 </div>
                 <div className="text-2xl font-black">{animatedValues.streak ?? calculatedStats.streak}</div>
-                <div className="text-[10px] text-white/60 mt-0.5">Days</div>
+                <div className="text-[10px] text-white/60 mt-0.5">Best: {calculatedStats.longestStreak}</div>
             </Card>
         </div>
     );
 
-    // Summary Stats - NO LEVEL, using CoinIcon
-    const renderSummaryStats = () => (
-        <div className="grid grid-cols-3 gap-2 mb-6">
-            <div className="bg-white border border-gray-200 rounded-xl p-3 text-center">
-                <div className="text-lg font-black text-gray-800">{animatedValues.allTimeCompleted ?? calculatedStats.allTimeCompleted}</div>
-                <div className="text-[10px] text-gray-500">All Time Tasks</div>
-            </div>
-            <div className="bg-white border border-gray-200 rounded-xl p-3 text-center">
-                <div className="text-lg font-black text-gray-800">{calculatedStats.totalTasks}</div>
-                <div className="text-[10px] text-gray-500">Total Tasks</div>
-            </div>
-            <div className="bg-white border border-gray-200 rounded-xl p-3 text-center">
-                <div className="text-lg font-black text-amber-600 flex items-center justify-center gap-1">
-                    <CoinIcon className="w-4 h-4" />
-                    {animatedValues.totalCredits ?? calculatedStats.totalCredits}
-                </div>
-                <div className="text-[10px] text-gray-500">Total Credits</div>
-            </div>
-        </div>
-    );
+    // REMOVED: renderSummaryStats - duplicate info already in gradient cards above
 
     const renderAlerts = () => {
         if (alerts.length === 0) return null;
@@ -860,7 +871,7 @@ export default function StatsView() {
             <Card className="p-5 mb-6 bg-white border border-gray-200">
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="font-bold text-gray-800 flex items-center gap-2"><Icons.Trophy className="w-5 h-5 text-primary" />Goal Progress</h3>
-                    <span className="text-xs text-gray-500">{daysElapsed}/{totalDays} days</span>
+                    <span className="text-xs text-gray-500">Day {calculatedStats.currentDay} of {totalDays}</span>
                 </div>
                 <div className="flex items-center gap-6">
                     <ProgressRing progress={progress} size={100} strokeWidth={10} color="#4F46E5" value={`${Math.round(progress)}%`} label="Complete" />
@@ -919,14 +930,19 @@ export default function StatsView() {
         );
     };
 
-    // Credits Chart with CoinIcon
+    // Credits Chart with CoinIcon and real money balance
     const renderCreditsChart = () => {
         const hasData = calculatedStats.historyData.some(d => d.credits > 0);
         return (
             <Card className="p-5 mb-6 bg-white border border-gray-200">
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="font-bold text-gray-800 flex items-center gap-2"><CoinIcon className="w-5 h-5" />Credits Earned</h3>
-                    <span className="text-xs text-gray-500 flex items-center gap-1">Total: <CoinIcon className="w-3 h-3" /> {calculatedStats.totalCredits}</span>
+                    <div className="flex items-center gap-3 text-xs text-gray-500">
+                        <span className="flex items-center gap-1"><CoinIcon className="w-3 h-3" />{calculatedStats.totalCredits}</span>
+                        {calculatedStats.realMoneyBalance > 0 && (
+                            <span className="text-green-600 font-bold">${calculatedStats.realMoneyBalance.toFixed(2)}</span>
+                        )}
+                    </div>
                 </div>
                 {hasData ? <BarChart data={calculatedStats.historyData.map((d, i) => ({
                     label: viewMode === 'daily' ? d.date.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 2) : viewMode === 'weekly' ? `W${i + 1}` : d.date.toLocaleDateString('en-US', { month: 'short' }).slice(0, 3),
@@ -942,6 +958,34 @@ export default function StatsView() {
         );
     };
 
+    // AdMob Stats Card
+    const renderAdStats = () => {
+        if (calculatedStats.totalAdsWatched === 0 && calculatedStats.adsRemaining === 25) return null;
+        
+        return (
+            <Card className="p-5 mb-6 bg-white border border-gray-200">
+                <h3 className="font-bold text-gray-800 flex items-center gap-2 mb-4">
+                    <Icons.Video className="w-5 h-5 text-primary" />
+                    Ad Rewards
+                </h3>
+                <div className="grid grid-cols-3 gap-3">
+                    <div className="bg-gray-50 rounded-xl p-3 text-center">
+                        <div className="text-lg font-black text-gray-800">{calculatedStats.totalAdsWatched}</div>
+                        <div className="text-[10px] text-gray-500">Total Watched</div>
+                    </div>
+                    <div className="bg-gray-50 rounded-xl p-3 text-center">
+                        <div className="text-lg font-black text-gray-800">{calculatedStats.dailyAdCount}</div>
+                        <div className="text-[10px] text-gray-500">Today</div>
+                    </div>
+                    <div className="bg-green-50 rounded-xl p-3 text-center">
+                        <div className="text-lg font-black text-green-600">{calculatedStats.adsRemaining}</div>
+                        <div className="text-[10px] text-gray-500">Remaining</div>
+                    </div>
+                </div>
+            </Card>
+        );
+    };
+
     const renderPortfolioAllocation = () => {
         if (user.goal?.category !== 'Money & Career' || !budgetData) return null;
         return (
@@ -952,20 +996,6 @@ export default function StatsView() {
                     { value: budgetData.mediumRisk?.amount || 0, color: '#F59E0B', label: 'Medium' },
                     { value: budgetData.highYield?.amount || 0, color: '#EF4444', label: 'High Yield' }
                 ]} />
-                <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-3 gap-2">
-                    <div className="text-center p-2 bg-green-50 rounded-lg">
-                        <div className="text-xs text-gray-500">Low Risk</div>
-                        <div className="font-bold text-green-700">${budgetData.lowRisk?.amount || 0}</div>
-                    </div>
-                    <div className="text-center p-2 bg-amber-50 rounded-lg">
-                        <div className="text-xs text-gray-500">Medium</div>
-                        <div className="font-bold text-amber-700">${budgetData.mediumRisk?.amount || 0}</div>
-                    </div>
-                    <div className="text-center p-2 bg-red-50 rounded-lg">
-                        <div className="text-xs text-gray-500">High Yield</div>
-                        <div className="font-bold text-red-700">${budgetData.highYield?.amount || 0}</div>
-                    </div>
-                </div>
             </Card>
         );
     };
@@ -1153,24 +1183,27 @@ export default function StatsView() {
     return (
         <div className="h-full overflow-y-auto pb-safe scroll-smooth">
             <div className="min-h-full bg-gray-50 pb-28 flex flex-col">
-                {/* Header */}
-                <div className="p-6 border-b border-gray-200 bg-white sticky top-0 z-20">
+                {/* Header - NOT STICKY, scrolls with content */}
+                <div className="p-6 border-b border-gray-200 bg-white">
                     <div className="flex justify-between items-center mb-4 mt-2">
                         <h1 className="text-2xl font-bold text-gray-800">Analytics</h1>
                         <button onClick={() => setView(AppView.DASHBOARD)} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200"><Icons.X className="w-5 h-5 text-gray-500" /></button>
                     </div>
                     {renderViewModeToggle()}
-                    {renderCalendarStrip()}
+                    <div className="mt-4">
+                        {renderCalendarStrip()}
+                    </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                <div className="flex-1 p-6 space-y-6">
                     {renderStatsCards()}
-                    {renderSummaryStats()}
+                    {/* REMOVED: renderSummaryStats() - duplicate data */}
                     {renderAlerts()}
                     {renderGoalProgress()}
                     {renderActivityChart()}
                     {renderTaskBreakdown()}
                     {renderCreditsChart()}
+                    {renderAdStats()}
                     {renderPortfolioAllocation()}
                     {renderConnectedApps()}
                     {renderUpcomingMilestones()}

@@ -426,14 +426,14 @@ export default function StatsView() {
             }
         }
         
-        // Low credits alert
+        // Low credits alert - FIXED: Icons.Coins doesn't exist, use Icons.Zap
         if (credits > 0 && credits < 50) {
             generatedAlerts.push({
                 id: 'low-credits',
                 type: 'info',
                 title: 'Low on Credits',
                 message: `Only ${credits} credits remaining. Complete tasks to earn more!`,
-                icon: Icons.Coins,
+                icon: Icons.Zap,
                 source: 'system',
                 actionLabel: 'Earn More',
                 actionView: AppView.DASHBOARD
@@ -950,7 +950,7 @@ export default function StatsView() {
         </div>
     );
 
-    // Stats Cards - NO LEVEL/XP, using Icons.Coins
+    // Stats Cards - NO LEVEL/XP, using Icons.Zap for credits (Icons.Coins doesn't exist)
     const renderStatsCards = () => (
         <div className="grid grid-cols-3 gap-3 mb-6">
             {/* Tasks Card */}
@@ -967,10 +967,10 @@ export default function StatsView() {
                 </div>
             </Card>
             
-            {/* Credits Card - Using Icons.Coins */}
+            {/* Credits Card - FIXED: Using Icons.Zap instead of Icons.Coins */}
             <Card className="p-4 bg-gradient-to-br from-amber-500 to-amber-400 text-white border-none">
                 <div className="flex items-center gap-1 mb-1">
-                    <Icons.Coins className="w-3 h-3 text-white/60" />
+                    <Icons.Zap className="w-3 h-3 text-white/60" />
                     <span className="text-[9px] font-bold uppercase text-white/60">Credits</span>
                 </div>
                 <div className="text-2xl font-black">
@@ -995,7 +995,7 @@ export default function StatsView() {
         </div>
     );
 
-    // Summary Stats - NO LEVEL, using Icons.Coins
+    // Summary Stats - NO LEVEL, using Icons.Zap for credits
     const renderSummaryStats = () => (
         <div className="grid grid-cols-3 gap-2 mb-6">
             <div className="bg-white border border-gray-200 rounded-xl p-3 text-center">
@@ -1012,7 +1012,7 @@ export default function StatsView() {
             </div>
             <div className="bg-white border border-gray-200 rounded-xl p-3 text-center">
                 <div className="text-lg font-black text-amber-600 flex items-center justify-center gap-1">
-                    <Icons.Coins className="w-4 h-4" />
+                    <Icons.Zap className="w-4 h-4" />
                     {animatedValues.totalCredits ?? calculatedStats.totalCredits}
                 </div>
                 <div className="text-[10px] text-gray-500">Total Credits</div>
@@ -1225,7 +1225,7 @@ export default function StatsView() {
         );
     };
 
-    // Credits Chart
+    // Credits Chart - FIXED: Using Icons.Zap
     const renderCreditsChart = () => {
         const labels = calculatedStats.historyData.map((d, i) => {
             if (viewMode === 'daily') {
@@ -1240,7 +1240,7 @@ export default function StatsView() {
         return (
             <Card className="p-4 bg-white border border-gray-200 mb-6">
                 <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <Icons.Coins className="w-5 h-5 text-amber-500" />
+                    <Icons.Zap className="w-5 h-5 text-amber-500" />
                     Credits Earned
                 </h3>
                 <BarChart
@@ -1325,7 +1325,7 @@ export default function StatsView() {
         );
     };
 
-    // Upcoming Milestones - Show only next 3
+    // Upcoming Milestones - Show only next 3 - FIXED: Icons.Flag doesn't exist, use Icons.Calendar
     const renderUpcomingMilestones = () => {
         const now = new Date();
         const upcomingEvents = allEvents
@@ -1338,7 +1338,7 @@ export default function StatsView() {
         return (
             <Card className="p-4 bg-white border border-gray-200 mb-6">
                 <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <Icons.Flag className="w-5 h-5 text-primary" />
+                    <Icons.Calendar className="w-5 h-5 text-primary" />
                     Upcoming Milestones
                 </h3>
                 <div className="space-y-3">
@@ -1680,7 +1680,7 @@ export default function StatsView() {
                 </div>
             )}
 
-            {/* Day Events Modal */}
+            {/* Day Events Modal - FIXED: Icons.Trash2 doesn't exist, use Icons.Trash */}
             {showDayEvents && selectedEventDate && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-5">
                     <div className="bg-white rounded-3xl w-full max-w-sm p-6 max-h-[80vh] overflow-y-auto">
@@ -1724,7 +1724,7 @@ export default function StatsView() {
                                                 onClick={() => handleDeleteEvent(event.id)}
                                                 className="p-1 hover:bg-white rounded-full"
                                             >
-                                                <Icons.Trash2 className="w-4 h-4 text-red-400" />
+                                                <Icons.Trash className="w-4 h-4 text-red-400" />
                                             </button>
                                         )}
                                     </div>

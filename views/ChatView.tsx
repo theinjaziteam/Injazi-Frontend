@@ -1069,20 +1069,20 @@ const MasterAgentQuickActionCard = () => (
                 </div>
 
                 {/* Messages */}
-                <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
-                    {/* E-commerce Quick Action Card - shown when no active conversation */}
-                    {(!activeConvo || activeConvo.messages.length === 0) && (
-                        <>
-                            <EcommerceQuickActionCard />
-                            <div style={{ textAlign: 'center', padding: '32px 0' }}>
-                                <div style={{ width: 64, height: 64, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-                                    <Icons.Zap style={{ width: 32, height: 32, color: 'rgba(255,255,255,0.3)' }} />
-                                </div>
-                                <h2 style={{ color: '#fff', fontWeight: 'bold', fontSize: '18px', margin: '0 0 8px' }}>Ask Your Guide</h2>
-                                <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '14px', margin: 0 }}>What do you need help with?</p>
-                            </div>
-                        </>
-                    )}
+<div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+    {/* Master Agent Quick Action Card - shown when no active conversation */}
+    {(!activeConvo || activeConvo.messages.length === 0) && (
+        <>
+            <MasterAgentQuickActionCard />
+            <div style={{ textAlign: 'center', padding: '32px 0' }}>
+                <div style={{ width: 64, height: 64, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                    <Icons.Zap style={{ width: 32, height: 32, color: 'rgba(255,255,255,0.3)' }} />
+                </div>
+                <h2 style={{ color: '#fff', fontWeight: 'bold', fontSize: '18px', margin: '0 0 8px' }}>Ask Your Guide</h2>
+                <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '14px', margin: 0 }}>What do you need help with?</p>
+            </div>
+        </>
+    )}
 
                     {activeConvo?.messages.map((msg) => (
                         <div key={msg.id} style={{ display: 'flex', marginBottom: '16px', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>

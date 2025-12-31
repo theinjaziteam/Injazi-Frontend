@@ -527,26 +527,34 @@ export default function LoginView() {
     // Login/Register View
     const renderAuthForm = () => (
         <>
-            {/* Toggle Switch */}
-            <div className="flex relative bg-black/20 rounded-3xl p-1 mb-6">
-                <div 
-                    className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white/10 rounded-2xl transition-all duration-300 shadow-sm ${mode === 'login' ? 'left-1' : 'left-[calc(50%+4px)]'}`}
-                ></div>
-                <button 
-                    type="button"
-                    onClick={() => { setMode('login'); clearMessages(); }}
-                    className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider z-10 transition-colors ${mode === 'login' ? 'text-white' : 'text-white/40'}`}
-                >
-                    Log In
-                </button>
-                <button 
-                    type="button"
-                    onClick={() => { setMode('register'); clearMessages(); }}
-                    className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider z-10 transition-colors ${mode === 'register' ? 'text-white' : 'text-white/40'}`}
-                >
-                    Sign Up
-                </button>
-            </div>
+            {/* Toggle Switch - BETTER FIX */}
+<div className="flex relative bg-black/20 rounded-3xl p-1 mb-6 overflow-hidden">
+    <div 
+        className={`absolute top-1 bottom-1 rounded-2xl transition-all duration-300 shadow-sm bg-white/10 ${
+            mode === 'login' 
+                ? 'left-1 right-[50%] mr-0.5' 
+                : 'left-[50%] right-1 ml-0.5'
+        }`}
+    ></div>
+    <button 
+        type="button"
+        onClick={() => { setMode('login'); clearMessages(); }}
+        className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider z-10 transition-colors ${
+            mode === 'login' ? 'text-white' : 'text-white/40'
+        }`}
+    >
+        Log In
+    </button>
+    <button 
+        type="button"
+        onClick={() => { setMode('register'); clearMessages(); }}
+        className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider z-10 transition-colors ${
+            mode === 'register' ? 'text-white' : 'text-white/40'
+        }`}
+    >
+        Sign Up
+    </button>
+</div>
 
             {/* Form */}
             <form onSubmit={handleAuth} className="px-6 pb-6 space-y-4">

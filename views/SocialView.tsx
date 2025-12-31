@@ -36,6 +36,80 @@ interface FriendActivity {
     itemId?: string;
 }
 
+// Mock Feed Videos
+const MOCK_FEED_VIDEOS = [
+    {
+        id: 'feed1',
+        creatorId: 'g1',
+        creatorName: 'Alex Builder',
+        creatorAvatar: 'https://picsum.photos/seed/alex/200',
+        title: 'How I built my first startup in 30 days',
+        description: 'The journey from idea to launch - sharing my experience and lessons learned along the way.',
+        thumbnailUrl: 'https://picsum.photos/seed/startup1/800/1400',
+        videoUrl: '',
+        likes: 1247,
+        comments: [{ id: '1', text: 'Amazing!', user: 'John' }],
+        shares: 89,
+        isLiked: false
+    },
+    {
+        id: 'feed2',
+        creatorId: 'g2',
+        creatorName: 'Jordan Fit',
+        creatorAvatar: 'https://picsum.photos/seed/jordan/200',
+        title: 'Morning routine that changed my life',
+        description: '5AM wake up, cold shower, workout - here\'s exactly what I do every morning.',
+        thumbnailUrl: 'https://picsum.photos/seed/fitness1/800/1400',
+        videoUrl: '',
+        likes: 3421,
+        comments: [{ id: '1', text: 'Inspiring!', user: 'Sarah' }, { id: '2', text: 'Need this energy', user: 'Mike' }],
+        shares: 234,
+        isLiked: true
+    },
+    {
+        id: 'feed3',
+        creatorId: 'g3',
+        creatorName: 'Casey Code',
+        creatorAvatar: 'https://picsum.photos/seed/casey/200',
+        title: 'React tricks nobody talks about',
+        description: 'Advanced patterns that will make your code cleaner and more maintainable.',
+        thumbnailUrl: 'https://picsum.photos/seed/code1/800/1400',
+        videoUrl: '',
+        likes: 892,
+        comments: [{ id: '1', text: 'Finally someone explains this!', user: 'Dev123' }],
+        shares: 156,
+        isLiked: false
+    },
+    {
+        id: 'feed4',
+        creatorId: 'g4',
+        creatorName: 'Dana Design',
+        creatorAvatar: 'https://picsum.photos/seed/dana/200',
+        title: 'Design portfolio that got me hired at Google',
+        description: 'Breaking down my portfolio piece by piece and what made it stand out.',
+        thumbnailUrl: 'https://picsum.photos/seed/design1/800/1400',
+        videoUrl: '',
+        likes: 5678,
+        comments: [{ id: '1', text: 'So helpful!', user: 'Designer99' }, { id: '2', text: 'Saved!', user: 'UXPro' }],
+        shares: 445,
+        isLiked: false
+    },
+    {
+        id: 'feed5',
+        creatorId: 'g5',
+        creatorName: 'Sam Sales',
+        creatorAvatar: 'https://picsum.photos/seed/sam/200',
+        title: 'Closed $50k in one call - here\'s how',
+        description: 'The exact script and techniques I used to close my biggest deal ever.',
+        thumbnailUrl: 'https://picsum.photos/seed/sales1/800/1400',
+        videoUrl: '',
+        likes: 2134,
+        comments: [{ id: '1', text: 'Gold content!', user: 'SalesGuru' }],
+        shares: 312,
+        isLiked: true
+    }
+];
+
 const MOCK_GLOBAL_USERS: Friend[] = [
     { id: 'g1', name: 'Alex Builder', streak: 45, avatar: 'https://picsum.photos/seed/alex/200', lastActive: '5m ago', goalTitle: 'Launch Startup', progress: 60, credits: 12500, tasksCompleted: 89 },
     { id: 'g2', name: 'Jordan Fit', streak: 120, avatar: 'https://picsum.photos/seed/jordan/200', lastActive: '1h ago', goalTitle: 'Ironman Training', progress: 85, credits: 34200, tasksCompleted: 156 },
@@ -105,6 +179,9 @@ export default function SocialView() {
     const friends = user.friends || [];
     const dailyTasks = user.dailyTasks || [];
 
+    // Use mock feed if no feed items
+    const activeFeedItems = feedItems.length > 0 ? feedItems : MOCK_FEED_VIDEOS;
+
     const [viewingLesson, setViewingLesson] = useState<Lesson | null>(null);
     const [viewingProfile, setViewingProfile] = useState<Friend | null>(null);
     const [activeQuiz, setActiveQuiz] = useState<{ chapter: Chapter, questions: QuizQuestion[] } | null>(null);
@@ -119,10 +196,15 @@ export default function SocialView() {
     const [searchQuery, setSearchQuery] = useState('');
     const [productSearchQuery, setProductSearchQuery] = useState('');
     const [courseSearchQuery, setCourseSearchQuery] = useState('');
+    
+    // List Item Modal State
     const [isAddingItem, setIsAddingItem] = useState(false);
     const [newItemTitle, setNewItemTitle] = useState('');
     const [newItemDesc, setNewItemDesc] = useState('');
-    const [newItemPriceUsd, setNewItemPriceUsd] = useState<string>('');
+    const [newItemPriceCredits, setNewItemPriceCredits] = useState<string>('');
+    const [newItemAttachments, setNewItemAttachments] = useState<{ type: 'file' | 'link'; name: string; url: string }[]>([]);
+    const [newLinkUrl, setNewLinkUrl] = useState('');
+    const [showAddLink, setShowAddLink] = useState(false);
 
     // Community tab state
     const [communityTab, setCommunityTab] = useState<'friends' | 'challenges' | 'activity'>('friends');
@@ -136,6 +218,7 @@ export default function SocialView() {
     const [isFeedHeaderVisible, setIsFeedHeaderVisible] = useState(true);
     const lastScrollY = useRef(0);
     const scrollTimeout = useRef<NodeJS.Timeout | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Filter products by search
     const filteredProducts = useMemo(() => {
@@ -345,15 +428,49 @@ export default function SocialView() {
         setIsAddingItem(true);
     };
 
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files) return;
+        
+        Array.from(files).forEach(file => {
+            // In real app, upload to server and get URL
+            const fakeUrl = URL.createObjectURL(file);
+            setNewItemAttachments(prev => [...prev, {
+                type: 'file',
+                name: file.name,
+                url: fakeUrl
+            }]);
+        });
+    };
+
+    const handleAddLink = () => {
+        if (!newLinkUrl.trim()) return;
+        
+        // Basic URL validation
+        let url = newLinkUrl.trim();
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+            url = 'https://' + url;
+        }
+        
+        setNewItemAttachments(prev => [...prev, {
+            type: 'link',
+            name: url,
+            url: url
+        }]);
+        setNewLinkUrl('');
+        setShowAddLink(false);
+    };
+
+    const removeAttachment = (index: number) => {
+        setNewItemAttachments(prev => prev.filter((_, i) => i !== index));
+    };
+
     const confirmAddItem = () => {
-        const basePrice = parseFloat(newItemPriceUsd);
-        if (!newItemTitle || isNaN(basePrice)) {
-            alert("Title and valid USD Price are required.");
+        const priceCredits = parseInt(newItemPriceCredits);
+        if (!newItemTitle || isNaN(priceCredits) || priceCredits < 100) {
+            alert("Title and valid price (min 100 credits) are required.");
             return;
         }
-        const fee = basePrice * 0.05;
-        const finalPriceUsd = basePrice + fee;
-        const creditsPrice = Math.round(finalPriceUsd * 4000);
 
         if (activeSocialSection === SocialSection.PRODUCTS) {
             const newProduct: Product = {
@@ -362,12 +479,15 @@ export default function SocialView() {
                 creatorName: user.name,
                 title: newItemTitle,
                 description: newItemDesc,
-                mediaUrls: ['https://picsum.photos/600/401'],
-                priceUsd: finalPriceUsd,
-                priceCredits: creditsPrice,
-                currencyType: 'both',
+                mediaUrls: newItemAttachments.length > 0 
+                    ? newItemAttachments.map(a => a.url) 
+                    : ['https://picsum.photos/600/401'],
+                priceUsd: priceCredits / 4000,
+                priceCredits: priceCredits,
+                currencyType: 'credits',
                 category: user.goal?.category || GoalCategory.OTHER,
-                likes: 0
+                likes: 0,
+                attachments: newItemAttachments
             };
             setAdsFeed(prev => [newProduct, ...prev]);
         } else {
@@ -376,46 +496,42 @@ export default function SocialView() {
                 title: newItemTitle,
                 description: newItemDesc,
                 creator: user.name,
-                currencyType: 'both',
-                priceUsd: finalPriceUsd,
-                priceCredits: creditsPrice,
+                currencyType: 'credits',
+                priceUsd: priceCredits / 4000,
+                priceCredits: priceCredits,
                 rating: 5,
-                thumbnail: 'https://picsum.photos/600/402'
+                thumbnail: newItemAttachments.find(a => a.type === 'file')?.url || 'https://picsum.photos/600/402',
+                attachments: newItemAttachments
             };
             setCourses(prev => [newCourse, ...prev]);
         }
-        alert(`Published! Price: $${finalPriceUsd.toFixed(2)} (${creditsPrice.toLocaleString()} CR).`);
+        
+        alert(`Published! Price: ${priceCredits.toLocaleString()} Credits`);
+        resetAddItemForm();
+    };
+
+    const resetAddItemForm = () => {
         setIsAddingItem(false);
         setNewItemTitle('');
         setNewItemDesc('');
-        setNewItemPriceUsd('');
+        setNewItemPriceCredits('');
+        setNewItemAttachments([]);
+        setNewLinkUrl('');
+        setShowAddLink(false);
     };
 
     const handleBuyItem = (item: any) => {
-        const priceCR = item.priceCredits || (item.priceUsd ? item.priceUsd * 4000 : 40000);
-        const priceUSD = item.priceUsd || (priceCR / 4000);
+        const priceCR = item.priceCredits || 1000;
 
-        const choice = window.confirm(
-            `Purchase "${item.title}"?\n\n` +
-            `Option A: ${priceCR.toLocaleString()} Credits\n` +
-            `Option B: $${priceUSD.toFixed(2)}\n\n` +
-            `Press OK for Balance ($), Cancel for Credits.`
-        );
+        if (!window.confirm(`Purchase "${item.title}" for ${priceCR.toLocaleString()} Credits?`)) {
+            return;
+        }
 
-        if (choice) { 
-            if (user.realMoneyBalance >= priceUSD) {
-                setUser(prev => ({ ...prev, realMoneyBalance: prev.realMoneyBalance - priceUSD }));
-                alert("Purchase complete!");
-            } else {
-                alert("Insufficient balance.");
-            }
-        } else { 
-            if (user.credits >= priceCR) {
-                setUser(prev => ({ ...prev, credits: prev.credits - priceCR }));
-                alert("Purchase complete!");
-            } else {
-                alert("Insufficient credits.");
-            }
+        if (user.credits >= priceCR) {
+            setUser(prev => ({ ...prev, credits: prev.credits - priceCR }));
+            alert("Purchase complete! Check your downloads.");
+        } else {
+            alert(`Insufficient credits. You need ${priceCR.toLocaleString()} CR but have ${user.credits.toLocaleString()} CR.`);
         }
     };
 
@@ -645,36 +761,46 @@ export default function SocialView() {
         );
     };
 
-    // Feed with clickable profile
+    // Feed with clickable profile and mock videos
     const renderForYou = () => (
         <div 
             onScroll={handleFeedScroll}
             className="h-full overflow-y-scroll snap-y snap-mandatory bg-black no-scrollbar"
         >
-            {feedItems.length > 0 ? feedItems.map((item, index) => (
+            {activeFeedItems.length > 0 ? activeFeedItems.map((item: any, index) => (
                 <div key={item.id} className="h-full w-full snap-start relative flex items-center justify-center bg-gray-900">
                     <img src={item.thumbnailUrl} className="absolute inset-0 w-full h-full object-cover opacity-70" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40 pointer-events-none" />
                     
+                    {/* Play button overlay */}
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+                            <Icons.PlayCircle className="w-12 h-12 text-white" />
+                        </div>
+                    </div>
+                    
                     {/* Content with clickable profile */}
                     <div className="absolute left-4 bottom-28 right-20 text-white animate-fade-in">
                         <button 
-                            onClick={() => handleProfileClick({
-                                id: item.creatorId || `creator-${index}`,
-                                name: item.creatorName,
-                                avatar: item.creatorAvatar,
-                                streak: Math.floor(Math.random() * 100) + 1,
-                                lastActive: 'Just now',
-                                goalTitle: 'Content Creator',
-                                progress: Math.floor(Math.random() * 100),
-                                credits: Math.floor(Math.random() * 50000),
-                                tasksCompleted: Math.floor(Math.random() * 200)
-                            })}
+                            onClick={() => {
+                                const mockUser = MOCK_GLOBAL_USERS.find(u => u.id === item.creatorId) || {
+                                    id: item.creatorId || `creator-${index}`,
+                                    name: item.creatorName,
+                                    avatar: item.creatorAvatar,
+                                    streak: Math.floor(Math.random() * 100) + 1,
+                                    lastActive: 'Just now',
+                                    goalTitle: 'Content Creator',
+                                    progress: Math.floor(Math.random() * 100),
+                                    credits: Math.floor(Math.random() * 50000),
+                                    tasksCompleted: Math.floor(Math.random() * 200)
+                                };
+                                handleProfileClick(mockUser as Friend);
+                            }}
                             className="flex items-center gap-3 mb-3 group"
                         >
                             <div className="relative">
-                                <img src={item.creatorAvatar} className="w-12 h-12 rounded-full border-2 border-white/30 group-hover:border-white transition-colors" />
-                                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-primary rounded-full flex items-center justify-center border-2 border-black">
+                                <img src={item.creatorAvatar} className="w-12 h-12 rounded-full border-2 border-white/50 group-hover:border-secondary transition-colors" />
+                                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-secondary rounded-full flex items-center justify-center border-2 border-black">
                                     <Icons.Plus className="w-3 h-3 text-white" />
                                 </div>
                             </div>
@@ -693,22 +819,25 @@ export default function SocialView() {
                     <div className="absolute right-4 bottom-32 flex flex-col gap-5 items-center">
                         {/* Profile button */}
                         <button 
-                            onClick={() => handleProfileClick({
-                                id: item.creatorId || `creator-${index}`,
-                                name: item.creatorName,
-                                avatar: item.creatorAvatar,
-                                streak: Math.floor(Math.random() * 100) + 1,
-                                lastActive: 'Just now',
-                                goalTitle: 'Content Creator',
-                                progress: Math.floor(Math.random() * 100),
-                                credits: Math.floor(Math.random() * 50000),
-                                tasksCompleted: Math.floor(Math.random() * 200)
-                            })}
+                            onClick={() => {
+                                const mockUser = MOCK_GLOBAL_USERS.find(u => u.id === item.creatorId) || {
+                                    id: item.creatorId || `creator-${index}`,
+                                    name: item.creatorName,
+                                    avatar: item.creatorAvatar,
+                                    streak: Math.floor(Math.random() * 100) + 1,
+                                    lastActive: 'Just now',
+                                    goalTitle: 'Content Creator',
+                                    progress: Math.floor(Math.random() * 100),
+                                    credits: Math.floor(Math.random() * 50000),
+                                    tasksCompleted: Math.floor(Math.random() * 200)
+                                };
+                                handleProfileClick(mockUser as Friend);
+                            }}
                             className="flex flex-col items-center group cursor-pointer"
                         >
                             <div className="relative">
                                 <img src={item.creatorAvatar} className="w-12 h-12 rounded-full border-2 border-white/50 group-active:scale-90 transition-transform" />
-                                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center border-2 border-black">
+                                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-5 h-5 bg-secondary rounded-full flex items-center justify-center border-2 border-black">
                                     <Icons.Plus className="w-3 h-3 text-white" />
                                 </div>
                             </div>
@@ -716,21 +845,21 @@ export default function SocialView() {
                         
                         <div className="flex flex-col items-center group cursor-pointer">
                             <div className="p-3 bg-white/10 rounded-full backdrop-blur-md group-active:scale-90 transition-transform">
-                                <Icons.Heart className={`w-7 h-7 ${item.isLiked ? 'text-red-500 fill-red-500' : 'text-white'}`}/>
+                                <Icons.Heart className={`w-7 h-7 ${item.isLiked ? 'text-red-500 fill-current' : 'text-white'}`}/>
                             </div>
-                            <span className="text-[10px] text-white font-black mt-1">{item.likes}</span>
+                            <span className="text-[10px] text-white font-black mt-1">{item.likes?.toLocaleString()}</span>
                         </div>
                         <div className="flex flex-col items-center group cursor-pointer">
                             <div className="p-3 bg-white/10 rounded-full backdrop-blur-md group-active:scale-90 transition-transform">
                                 <Icons.MessageCircle className="w-7 h-7 text-white"/>
                             </div>
-                            <span className="text-[10px] text-white font-black mt-1">{item.comments.length}</span>
+                            <span className="text-[10px] text-white font-black mt-1">{item.comments?.length || 0}</span>
                         </div>
                         <div className="flex flex-col items-center group cursor-pointer">
                             <div className="p-3 bg-white/10 rounded-full backdrop-blur-md group-active:scale-90 transition-transform">
                                 <Icons.Share2 className="w-7 h-7 text-white"/>
                             </div>
-                            <span className="text-[10px] text-white font-black mt-1">{item.shares}</span>
+                            <span className="text-[10px] text-white font-black mt-1">{item.shares || 0}</span>
                         </div>
                     </div>
 
@@ -767,21 +896,20 @@ export default function SocialView() {
                     <input 
                         type="text" 
                         placeholder={`Search ${type}...`}
-                        className="w-full pl-12 pr-4 py-3.5 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-primary/20 transition-all outline-none text-sm font-medium" 
+                        className="w-full pl-12 pr-10 py-3.5 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-primary/20 transition-all outline-none text-sm font-medium" 
                         value={searchValue}
                         onChange={(e) => setSearchValue(e.target.value)}
                     />
                     {searchValue && (
                         <button 
                             onClick={() => setSearchValue('')}
-                            className="absolute right-4 top-1/2 -translate-y-1/2 p-1 bg-gray-200 rounded-full"
+                            className="absolute right-4 top-1/2 -translate-y-1/2 p-1 bg-gray-200 rounded-full hover:bg-gray-300 transition-colors"
                         >
                             <Icons.X className="w-3 h-3 text-gray-500" />
                         </button>
                     )}
                 </div>
 
-                {/* Results count */}
                 {searchValue && (
                     <p className="text-xs text-gray-400 mb-2">
                         {items.length} result{items.length !== 1 ? 's' : ''} for "{searchValue}"
@@ -817,15 +945,17 @@ export default function SocialView() {
                             </div>
                             
                             <div className="flex items-center justify-between mt-2">
-                                <div className="text-base font-black text-primary">
-                                    {((item as any).priceCredits || Math.round(((item as any).priceUsd || 10) * 4000)).toLocaleString()} 
-                                    <span className="text-[10px] font-bold text-gray-400 ml-0.5">CR</span>
+                                <div className="flex items-center gap-1">
+                                    <Icons.Coins className="w-4 h-4 text-yellow-500" />
+                                    <span className="text-base font-black text-primary">
+                                        {((item as any).priceCredits || 1000).toLocaleString()}
+                                    </span>
                                 </div>
                                 <button 
                                     onClick={(e) => { e.stopPropagation(); handleBuyItem(item); }}
                                     className="bg-primary text-white text-[9px] font-bold uppercase tracking-wider px-4 py-2 rounded-xl active:scale-95 transition-transform"
                                 >
-                                    Get
+                                    Buy
                                 </button>
                             </div>
                         </div>
@@ -919,7 +1049,6 @@ export default function SocialView() {
             {/* Challenges Tab */}
             {communityTab === 'challenges' && (
                 <div className="space-y-4">
-                    {/* Create Challenge Button */}
                     <button
                         onClick={() => setShowCreateChallenge(true)}
                         className="w-full p-4 border-2 border-dashed border-primary/30 rounded-2xl flex items-center justify-center gap-3 text-primary hover:bg-primary/5 transition-colors"
@@ -928,7 +1057,6 @@ export default function SocialView() {
                         <span className="font-bold text-sm">Create New Challenge</span>
                     </button>
 
-                    {/* Active Challenges */}
                     <h3 className="font-black text-primary text-sm uppercase tracking-wider mt-6">Active Challenges</h3>
                     {challenges.filter(c => c.status === 'active').map(challenge => (
                         <div 
@@ -946,7 +1074,6 @@ export default function SocialView() {
                                 </div>
                             </div>
                             
-                            {/* Mini Leaderboard */}
                             <div className="bg-white/10 rounded-xl p-3 mt-3">
                                 <div className="flex items-center justify-between mb-2">
                                     <span className="text-[9px] font-bold uppercase text-white/60">Leaderboard</span>
@@ -972,15 +1099,11 @@ export default function SocialView() {
                         </div>
                     ))}
 
-                    {/* Pending Challenges */}
                     {challenges.filter(c => c.status === 'pending').length > 0 && (
                         <>
                             <h3 className="font-black text-primary text-sm uppercase tracking-wider mt-6">Pending Invites</h3>
                             {challenges.filter(c => c.status === 'pending').map(challenge => (
-                                <div 
-                                    key={challenge.id}
-                                    className="bg-white border-2 border-gray-100 p-4 rounded-2xl"
-                                >
+                                <div key={challenge.id} className="bg-white border-2 border-gray-100 p-4 rounded-2xl">
                                     <div className="flex items-start justify-between">
                                         <div>
                                             <h4 className="font-bold text-primary">{challenge.title}</h4>
@@ -1014,10 +1137,7 @@ export default function SocialView() {
                     <h3 className="font-black text-primary text-sm uppercase tracking-wider">Friends' Activity</h3>
                     
                     {friendActivities.map(activity => (
-                        <div 
-                            key={activity.id}
-                            className="bg-white border border-gray-100 rounded-2xl p-4 flex gap-4"
-                        >
+                        <div key={activity.id} className="bg-white border border-gray-100 rounded-2xl p-4 flex gap-4">
                             <button 
                                 onClick={() => {
                                     const friend = MOCK_GLOBAL_USERS.find(u => u.id === activity.odlUserId);
@@ -1171,85 +1291,88 @@ export default function SocialView() {
 
             {/* ==================== MODALS ==================== */}
 
-            {/* Enhanced Profile Modal */}
+            {/* FIXED Profile Modal - No Goal (Private), App Colors, Visible X */}
             {viewingProfile && (
-                <div className="fixed inset-0 z-[100] bg-primary/80 backdrop-blur-md flex items-center justify-center p-6 animate-fade-in">
-                    <Card className="p-8 w-full max-w-sm bg-white border-none shadow-2xl rounded-[2rem] relative flex flex-col items-center text-center overflow-visible max-h-[85vh] overflow-y-auto">
-                        <button onClick={() => setViewingProfile(null)} className="absolute top-5 right-5 p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
-                            <Icons.X className="w-4 h-4"/>
+                <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-md flex items-center justify-center p-6 animate-fade-in">
+                    <div className="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl relative overflow-visible">
+                        {/* Close Button - Fixed visibility */}
+                        <button 
+                            onClick={() => setViewingProfile(null)} 
+                            className="absolute top-4 right-4 p-2.5 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors z-10"
+                        >
+                            <Icons.X className="w-5 h-5 text-primary"/>
                         </button>
                         
-                        <div className="w-24 h-24 rounded-full border-4 border-white shadow-xl -mt-16 mb-4 overflow-hidden">
-                            <img src={viewingProfile.avatar} className="w-full h-full object-cover" />
-                        </div>
-                        
-                        <h2 className="text-xl font-black text-primary uppercase tracking-tight mb-1">{viewingProfile.name}</h2>
-                        <p className="text-xs text-gray-400 font-medium mb-4">{viewingProfile.lastActive}</p>
-
-                        {/* Stats Grid */}
-                        <div className="grid grid-cols-3 gap-3 w-full mb-4">
-                            <div className="bg-orange-50 p-3 rounded-xl">
-                                <Icons.Flame className="w-5 h-5 text-orange-500 mx-auto mb-1" />
-                                <span className="block text-lg font-black text-orange-600">{viewingProfile.streak}</span>
-                                <span className="text-[8px] text-orange-400 uppercase font-bold">Streak</span>
+                        {/* Profile Header */}
+                        <div className="pt-4 pb-6 px-6 flex flex-col items-center text-center">
+                            <div className="w-24 h-24 rounded-full border-4 border-white shadow-xl mb-4 overflow-hidden -mt-12 bg-gray-200">
+                                <img src={viewingProfile.avatar} className="w-full h-full object-cover" />
                             </div>
-                            <div className="bg-yellow-50 p-3 rounded-xl">
-                                <Icons.Coins className="w-5 h-5 text-yellow-500 mx-auto mb-1" />
-                                <span className="block text-lg font-black text-yellow-600">{((viewingProfile as any).credits || 0).toLocaleString()}</span>
-                                <span className="text-[8px] text-yellow-400 uppercase font-bold">Credits</span>
-                            </div>
-                            <div className="bg-green-50 p-3 rounded-xl">
-                                <Icons.CheckCircle className="w-5 h-5 text-green-500 mx-auto mb-1" />
-                                <span className="block text-lg font-black text-green-600">{(viewingProfile as any).tasksCompleted || 0}</span>
-                                <span className="text-[8px] text-green-400 uppercase font-bold">Tasks</span>
-                            </div>
+                            
+                            <h2 className="text-xl font-black text-primary uppercase tracking-tight">{viewingProfile.name}</h2>
+                            <p className="text-xs text-gray-400 font-medium mt-1">{viewingProfile.lastActive}</p>
                         </div>
 
-                        {/* Current Goal */}
-                        <div className="bg-gray-50 p-4 rounded-xl w-full mb-4">
-                            <span className="block text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">Current Goal</span>
-                            <span className="block text-sm font-bold text-primary leading-tight">{viewingProfile.goalTitle}</span>
-                            <div className="mt-2 h-2 bg-gray-200 rounded-full overflow-hidden">
-                                <div 
-                                    className="h-full bg-gradient-to-r from-primary to-secondary rounded-full"
-                                    style={{ width: `${viewingProfile.progress}%` }}
-                                />
+                        {/* Stats Grid - App Colors */}
+                        <div className="px-6 pb-4">
+                            <div className="grid grid-cols-3 gap-3">
+                                <div className="bg-orange-50 p-4 rounded-2xl text-center">
+                                    <Icons.Flame className="w-6 h-6 text-orange-500 mx-auto mb-2" />
+                                    <span className="block text-2xl font-black text-orange-600">{viewingProfile.streak}</span>
+                                    <span className="text-[9px] text-orange-400 uppercase font-bold tracking-wider">Streak</span>
+                                </div>
+                                <div className="bg-yellow-50 p-4 rounded-2xl text-center">
+                                    <Icons.Coins className="w-6 h-6 text-yellow-500 mx-auto mb-2" />
+                                    <span className="block text-2xl font-black text-yellow-600">{((viewingProfile as any).credits || 0).toLocaleString()}</span>
+                                    <span className="text-[9px] text-yellow-400 uppercase font-bold tracking-wider">Credits</span>
+                                </div>
+                                <div className="bg-green-50 p-4 rounded-2xl text-center">
+                                    <Icons.CheckCircle className="w-6 h-6 text-green-500 mx-auto mb-2" />
+                                    <span className="block text-2xl font-black text-green-600">{(viewingProfile as any).tasksCompleted || 0}</span>
+                                    <span className="text-[9px] text-green-400 uppercase font-bold tracking-wider">Tasks</span>
+                                </div>
                             </div>
-                            <span className="text-[10px] text-gray-400 mt-1 block">{viewingProfile.progress}% complete</span>
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="flex gap-3 w-full">
-                            <Button 
-                                onClick={() => handleToggleFriendship(viewingProfile)} 
-                                variant={friends.some(f => f.id === viewingProfile.id) ? 'outline' : 'primary'}
-                                className="flex-1 py-4 text-xs font-black uppercase tracking-widest rounded-xl"
-                            >
-                                {friends.some(f => f.id === viewingProfile.id) ? 'Remove' : 'Add Friend'}
-                            </Button>
-                            {friends.some(f => f.id === viewingProfile.id) && (
-                                <Button 
-                                    onClick={() => {
-                                        setViewingProfile(null);
-                                        setShowCreateChallenge(true);
-                                    }} 
-                                    variant="outline"
-                                    className="py-4 px-4 text-xs font-black uppercase tracking-widest rounded-xl"
+                        <div className="px-6 pb-6">
+                            <div className="flex gap-3">
+                                <button 
+                                    onClick={() => handleToggleFriendship(viewingProfile)} 
+                                    className={`flex-1 py-4 rounded-2xl text-sm font-black uppercase tracking-wider transition-all active:scale-[0.98] ${
+                                        friends.some(f => f.id === viewingProfile.id)
+                                            ? 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                            : 'bg-primary text-white hover:bg-primary/90'
+                                    }`}
                                 >
-                                    <Icons.Trophy className="w-4 h-4" />
-                                </Button>
-                            )}
+                                    {friends.some(f => f.id === viewingProfile.id) ? 'Remove Friend' : 'Add Friend'}
+                                </button>
+                                {friends.some(f => f.id === viewingProfile.id) && (
+                                    <button 
+                                        onClick={() => {
+                                            setViewingProfile(null);
+                                            setShowCreateChallenge(true);
+                                        }} 
+                                        className="p-4 bg-secondary/10 hover:bg-secondary/20 rounded-2xl transition-colors"
+                                    >
+                                        <Icons.Trophy className="w-5 h-5 text-secondary" />
+                                    </button>
+                                )}
+                            </div>
                         </div>
-                    </Card>
+                    </div>
                 </div>
             )}
 
             {/* Create Challenge Modal */}
             {showCreateChallenge && (
-                <div className="fixed inset-0 z-[100] bg-primary/80 backdrop-blur-md flex items-center justify-center p-6 animate-fade-in">
-                    <Card className="p-8 w-full max-w-sm bg-white border-none shadow-2xl rounded-[2rem] relative">
-                        <button onClick={() => setShowCreateChallenge(false)} className="absolute top-5 right-5 p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
-                            <Icons.X className="w-4 h-4"/>
+                <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-md flex items-center justify-center p-6 animate-fade-in">
+                    <div className="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl p-6 relative">
+                        <button 
+                            onClick={() => setShowCreateChallenge(false)} 
+                            className="absolute top-4 right-4 p-2.5 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors"
+                        >
+                            <Icons.X className="w-5 h-5 text-primary"/>
                         </button>
                         
                         <div className="flex items-center gap-3 mb-6">
@@ -1284,7 +1407,7 @@ export default function SocialView() {
                                             className={`p-3 rounded-xl flex flex-col items-center gap-1 transition-all ${
                                                 newChallenge.type === type.id
                                                     ? 'bg-primary text-white'
-                                                    : 'bg-gray-100 text-gray-400'
+                                                    : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
                                             }`}
                                         >
                                             <type.icon className="w-5 h-5" />
@@ -1304,7 +1427,7 @@ export default function SocialView() {
                                             className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${
                                                 newChallenge.duration === days
                                                     ? 'bg-primary text-white'
-                                                    : 'bg-gray-100 text-gray-400'
+                                                    : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
                                             }`}
                                         >
                                             {days}
@@ -1313,20 +1436,26 @@ export default function SocialView() {
                                 </div>
                             </div>
 
-                            <Button onClick={handleCreateChallenge} className="w-full py-4 text-xs font-black uppercase tracking-widest mt-4">
+                            <button 
+                                onClick={handleCreateChallenge} 
+                                className="w-full py-4 bg-primary text-white rounded-2xl text-sm font-black uppercase tracking-widest hover:bg-primary/90 transition-colors mt-4"
+                            >
                                 Create Challenge
-                            </Button>
+                            </button>
                         </div>
-                    </Card>
+                    </div>
                 </div>
             )}
 
             {/* Challenge Detail Modal */}
             {viewingChallenge && (
-                <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-6 animate-fade-in">
-                    <Card className="p-6 w-full max-w-sm bg-white border-none shadow-2xl rounded-[2rem] relative max-h-[85vh] overflow-y-auto">
-                        <button onClick={() => setViewingChallenge(null)} className="absolute top-5 right-5 p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
-                            <Icons.X className="w-4 h-4"/>
+                <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-md flex items-center justify-center p-6 animate-fade-in">
+                    <div className="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl p-6 relative max-h-[85vh] overflow-y-auto">
+                        <button 
+                            onClick={() => setViewingChallenge(null)} 
+                            className="absolute top-4 right-4 p-2.5 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors"
+                        >
+                            <Icons.X className="w-5 h-5 text-primary"/>
                         </button>
                         
                         <div className="text-center mb-6">
@@ -1382,57 +1511,185 @@ export default function SocialView() {
                                 </div>
                             ))}
                         </div>
-                    </Card>
+                    </div>
                 </div>
             )}
 
-            {/* Add Item Modal */}
+            {/* FIXED List Item Modal - Credits pricing, attachments/links */}
             {isAddingItem && (
-                <div className="fixed inset-0 z-[100] bg-primary/80 backdrop-blur-md flex items-center justify-center p-6 animate-fade-in">
-                    <Card className="p-8 w-full max-w-sm bg-white border-none shadow-2xl rounded-[2rem] relative max-h-[90vh] overflow-y-auto">
-                        <button onClick={() => setIsAddingItem(false)} className="absolute top-5 right-5 p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
-                            <Icons.X className="w-4 h-4"/>
+                <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-md flex items-center justify-center p-6 animate-fade-in">
+                    <div className="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl p-6 relative max-h-[90vh] overflow-y-auto">
+                        <button 
+                            onClick={resetAddItemForm} 
+                            className="absolute top-4 right-4 p-2.5 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors z-10"
+                        >
+                            <Icons.X className="w-5 h-5 text-primary"/>
                         </button>
-                        <h3 className="text-xl font-black text-primary uppercase tracking-tight mb-6">List Item</h3>
+                        
+                        <h3 className="text-xl font-black text-primary uppercase tracking-tight mb-6">
+                            List {activeSocialSection === SocialSection.PRODUCTS ? 'Product' : 'Course'}
+                        </h3>
+                        
                         <div className="space-y-4">
-                            <input 
-                                value={newItemTitle} 
-                                onChange={e => setNewItemTitle(e.target.value)} 
-                                className="w-full p-4 bg-gray-50 rounded-xl border-2 border-transparent focus:border-primary/20 outline-none font-bold text-sm" 
-                                placeholder="Title" 
-                            />
-                            <textarea 
-                                value={newItemDesc} 
-                                onChange={e => setNewItemDesc(e.target.value)} 
-                                className="w-full p-4 bg-gray-50 rounded-xl border-2 border-transparent focus:border-primary/20 outline-none font-medium text-sm h-24 resize-none" 
-                                placeholder="Description" 
-                            />
-                            <input 
-                                type="number" 
-                                value={newItemPriceUsd} 
-                                onChange={e => setNewItemPriceUsd(e.target.value)} 
-                                className="w-full p-4 bg-gray-50 rounded-xl border-2 border-transparent focus:border-primary/20 outline-none font-black text-lg" 
-                                placeholder="Price (USD)" 
-                            />
-                            {newItemPriceUsd && (
-                                <div className="p-4 bg-gray-50 rounded-xl space-y-2">
-                                    <div className="flex justify-between text-xs font-medium text-gray-500">
-                                        <span>Base Price</span>
-                                        <span>${parseFloat(newItemPriceUsd).toFixed(2)}</span>
+                            {/* Title */}
+                            <div>
+                                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-2">Title *</label>
+                                <input 
+                                    value={newItemTitle} 
+                                    onChange={e => setNewItemTitle(e.target.value)} 
+                                    className="w-full p-4 bg-gray-50 rounded-xl border-2 border-transparent focus:border-primary/20 outline-none font-bold text-sm" 
+                                    placeholder="Enter title..." 
+                                />
+                            </div>
+                            
+                            {/* Description */}
+                            <div>
+                                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-2">Description</label>
+                                <textarea 
+                                    value={newItemDesc} 
+                                    onChange={e => setNewItemDesc(e.target.value)} 
+                                    className="w-full p-4 bg-gray-50 rounded-xl border-2 border-transparent focus:border-primary/20 outline-none font-medium text-sm h-24 resize-none" 
+                                    placeholder="Describe your item..." 
+                                />
+                            </div>
+                            
+                            {/* Price in Credits */}
+                            <div>
+                                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-2">Price (Credits) *</label>
+                                <div className="relative">
+                                    <Icons.Coins className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-yellow-500" />
+                                    <input 
+                                        type="number" 
+                                        value={newItemPriceCredits} 
+                                        onChange={e => setNewItemPriceCredits(e.target.value)} 
+                                        className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-xl border-2 border-transparent focus:border-primary/20 outline-none font-black text-lg" 
+                                        placeholder="Min 100 credits"
+                                        min="100"
+                                    />
+                                </div>
+                                {newItemPriceCredits && parseInt(newItemPriceCredits) >= 100 && (
+                                    <p className="text-[10px] text-gray-400 mt-2">
+                                        ≈ ${(parseInt(newItemPriceCredits) / 4000).toFixed(2)} USD value
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Attachments Section */}
+                            <div>
+                                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-2">Attachments</label>
+                                
+                                {/* Uploaded Files/Links */}
+                                {newItemAttachments.length > 0 && (
+                                    <div className="space-y-2 mb-3">
+                                        {newItemAttachments.map((att, idx) => (
+                                            <div key={idx} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                                                <div className={`p-2 rounded-lg ${att.type === 'file' ? 'bg-blue-100' : 'bg-green-100'}`}>
+                                                    {att.type === 'file' ? (
+                                                        <Icons.File className="w-4 h-4 text-blue-600" />
+                                                    ) : (
+                                                        <Icons.Link className="w-4 h-4 text-green-600" />
+                                                    )}
+                                                </div>
+                                                <span className="flex-1 text-sm font-medium text-primary truncate">{att.name}</span>
+                                                <button 
+                                                    onClick={() => removeAttachment(idx)}
+                                                    className="p-1.5 hover:bg-red-100 rounded-lg transition-colors"
+                                                >
+                                                    <Icons.X className="w-4 h-4 text-red-500" />
+                                                </button>
+                                            </div>
+                                        ))}
                                     </div>
-                                    <div className="flex justify-between text-xs font-medium text-gray-500">
-                                        <span>Platform Fee (5%)</span>
-                                        <span>+${(parseFloat(newItemPriceUsd) * 0.05).toFixed(2)}</span>
+                                )}
+
+                                {/* Add Link Input */}
+                                {showAddLink && (
+                                    <div className="flex gap-2 mb-3">
+                                        <input 
+                                            value={newLinkUrl}
+                                            onChange={e => setNewLinkUrl(e.target.value)}
+                                            className="flex-1 p-3 bg-gray-50 rounded-xl border-2 border-transparent focus:border-primary/20 outline-none text-sm"
+                                            placeholder="https://..."
+                                        />
+                                        <button 
+                                            onClick={handleAddLink}
+                                            className="px-4 bg-primary text-white rounded-xl font-bold text-sm"
+                                        >
+                                            Add
+                                        </button>
+                                        <button 
+                                            onClick={() => { setShowAddLink(false); setNewLinkUrl(''); }}
+                                            className="p-3 bg-gray-100 rounded-xl"
+                                        >
+                                            <Icons.X className="w-4 h-4 text-gray-500" />
+                                        </button>
                                     </div>
-                                    <div className="flex justify-between text-sm font-black text-primary pt-2 border-t border-gray-200">
-                                        <span>Buyer Pays</span>
-                                        <span>${(parseFloat(newItemPriceUsd) * 1.05).toFixed(2)}</span>
+                                )}
+
+                                {/* Upload Buttons */}
+                                <div className="flex gap-2">
+                                    <input 
+                                        ref={fileInputRef}
+                                        type="file"
+                                        multiple
+                                        onChange={handleFileUpload}
+                                        className="hidden"
+                                        accept="image/*,video/*,.pdf,.doc,.docx,.zip"
+                                    />
+                                    <button 
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="flex-1 p-3 border-2 border-dashed border-gray-200 rounded-xl flex items-center justify-center gap-2 text-gray-400 hover:border-primary/30 hover:text-primary transition-colors"
+                                    >
+                                        <Icons.Upload className="w-5 h-5" />
+                                        <span className="text-sm font-bold">Upload File</span>
+                                    </button>
+                                    <button 
+                                        onClick={() => setShowAddLink(true)}
+                                        className="flex-1 p-3 border-2 border-dashed border-gray-200 rounded-xl flex items-center justify-center gap-2 text-gray-400 hover:border-primary/30 hover:text-primary transition-colors"
+                                    >
+                                        <Icons.Link className="w-5 h-5" />
+                                        <span className="text-sm font-bold">Add Link</span>
+                                    </button>
+                                </div>
+                                <p className="text-[10px] text-gray-400 mt-2">
+                                    Add files or links that buyers will receive after purchase
+                                </p>
+                            </div>
+
+                            {/* Preview */}
+                            {newItemTitle && newItemPriceCredits && (
+                                <div className="p-4 bg-primary/5 rounded-xl border border-primary/10">
+                                    <h4 className="text-[9px] font-black text-primary/50 uppercase tracking-widest mb-2">Preview</h4>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-12 h-12 bg-gray-200 rounded-xl flex items-center justify-center">
+                                            <Icons.ShoppingBag className="w-6 h-6 text-gray-400" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="font-bold text-primary text-sm">{newItemTitle}</p>
+                                            <div className="flex items-center gap-1 mt-1">
+                                                <Icons.Coins className="w-4 h-4 text-yellow-500" />
+                                                <span className="font-black text-primary">{parseInt(newItemPriceCredits || '0').toLocaleString()}</span>
+                                            </div>
+                                        </div>
                                     </div>
+                                    {newItemAttachments.length > 0 && (
+                                        <p className="text-[10px] text-gray-400 mt-2">
+                                            Includes {newItemAttachments.length} attachment{newItemAttachments.length !== 1 ? 's' : ''}
+                                        </p>
+                                    )}
                                 </div>
                             )}
-                            <Button onClick={confirmAddItem} className="w-full py-4 text-xs font-black uppercase tracking-widest mt-4">Publish</Button>
+                            
+                            {/* Publish Button */}
+                            <button 
+                                onClick={confirmAddItem} 
+                                disabled={!newItemTitle || !newItemPriceCredits || parseInt(newItemPriceCredits) < 100}
+                                className="w-full py-4 bg-primary text-white rounded-2xl text-sm font-black uppercase tracking-widest hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+                            >
+                                Publish
+                            </button>
                         </div>
-                    </Card>
+                    </div>
                 </div>
             )}
 
@@ -1446,7 +1703,7 @@ export default function SocialView() {
                                     Question {quizIndex + 1} of {activeQuiz.questions.length}
                                 </span>
                                 <button onClick={() => setActiveQuiz(null)} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
-                                    <Icons.X className="w-5 h-5"/>
+                                    <Icons.X className="w-5 h-5 text-primary"/>
                                 </button>
                             </div>
                             <h2 className="text-2xl font-black text-primary tracking-tight mb-10">
@@ -1471,7 +1728,7 @@ export default function SocialView() {
                             </div>
                             <h2 className="text-2xl font-black text-primary uppercase tracking-tight mb-2">Phase Complete!</h2>
                             <p className="text-gray-500 mb-8">Great job finishing this section.</p>
-                            <Button onClick={() => setActiveQuiz(null)} className="px-10 py-4 text-sm font-black uppercase tracking-widest">Continue</Button>
+                            <button onClick={() => setActiveQuiz(null)} className="px-10 py-4 bg-primary text-white rounded-2xl text-sm font-black uppercase tracking-widest">Continue</button>
                         </div>
                     )}
                 </div>
@@ -1486,7 +1743,7 @@ export default function SocialView() {
                             <h2 className="font-black text-primary text-lg tracking-tight">{viewingLesson.title}</h2>
                         </div>
                         <button onClick={closeLessonModal} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
-                            <Icons.X className="w-5 h-5"/>
+                            <Icons.X className="w-5 h-5 text-primary"/>
                         </button>
                     </div>
                     <div className="flex-1 overflow-y-auto p-6 pb-32 space-y-8 no-scrollbar">
@@ -1540,7 +1797,7 @@ export default function SocialView() {
                                                     </div>
                                                     <h4 className="text-lg font-bold text-green-700 mb-2">Lesson Complete!</h4>
                                                     <p className="text-sm text-gray-500 mb-4">You've mastered this lesson.</p>
-                                                    <Button onClick={closeLessonModal} variant="outline" className="w-full py-4">Close</Button>
+                                                    <button onClick={closeLessonModal} className="w-full py-4 border-2 border-gray-200 rounded-2xl font-bold text-gray-600">Close</button>
                                                 </div>
                                             );
                                         }
@@ -1555,9 +1812,9 @@ export default function SocialView() {
                                                     <p className="text-sm text-gray-500 mb-4">
                                                         Complete {pendingCount} remaining task{pendingCount !== 1 ? 's' : ''} to finish.
                                                     </p>
-                                                    <Button onClick={handleContinueLesson} className="w-full py-4 text-sm font-black uppercase tracking-widest bg-amber-500 hover:bg-amber-600">
+                                                    <button onClick={handleContinueLesson} className="w-full py-4 bg-amber-500 text-white rounded-2xl font-black uppercase tracking-widest">
                                                         Go to Tasks
-                                                    </Button>
+                                                    </button>
                                                 </div>
                                             );
                                         }
@@ -1583,13 +1840,13 @@ export default function SocialView() {
                                                         <span>Track progress in dashboard</span>
                                                     </div>
                                                 </div>
-                                                <Button 
+                                                <button 
                                                     onClick={handleStartLesson} 
-                                                    isLoading={isStartingLesson}
-                                                    className="w-full py-4 text-sm font-black uppercase tracking-widest"
+                                                    disabled={isStartingLesson}
+                                                    className="w-full py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-widest disabled:opacity-50"
                                                 >
-                                                    Start Lesson
-                                                </Button>
+                                                    {isStartingLesson ? 'Starting...' : 'Start Lesson'}
+                                                </button>
                                             </>
                                         );
                                     })()}
@@ -1598,7 +1855,7 @@ export default function SocialView() {
                         ) : (
                             <div className="text-center py-20">
                                 <p className="text-gray-400">Failed to load lesson content.</p>
-                                <Button onClick={closeLessonModal} variant="outline" className="mt-4">Close</Button>
+                                <button onClick={closeLessonModal} className="mt-4 px-6 py-3 border-2 border-gray-200 rounded-xl font-bold text-gray-600">Close</button>
                             </div>
                         )}
                     </div>

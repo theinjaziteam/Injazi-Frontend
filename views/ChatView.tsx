@@ -170,22 +170,23 @@ export default function ChatView() {
 
     // Force canvas re-render when returning from journeys list
     useEffect(() => {
-        if (!showJourneysList && viewMode === 'planet') {
-            setTimeout(() => {
-                setCanvasKey(prev => prev + 1);
-            }, 50);
-        }
-    }, [showJourneysList, viewMode]);
+    if ((!showJourneysList && viewMode === 'planet') || welcomePhase === 'tour') {
+        setTimeout(() => {
+            setCanvasKey(prev => prev + 1);
+        }, 50);
+    }
+}, [showJourneysList, viewMode, welcomePhase]);
 
     // Canvas rendering
-    useEffect(() => {
-        if (viewMode !== 'planet' || showJourneysList) {
-            if (animationRef.current) {
-                cancelAnimationFrame(animationRef.current);
-                animationRef.current = null;
-            }
-            return;
+   useEffect(() => {
+    // Only skip if we're in the intro phase (full screen overlay)
+    if (viewMode !== 'planet' || showJourneysList || welcomePhase === 'intro') {
+        if (animationRef.current) {
+            cancelAnimationFrame(animationRef.current);
+            animationRef.current = null;
         }
+        return;
+    }
         
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -394,7 +395,7 @@ export default function ChatView() {
                 animationRef.current = null;
             }
         };
-    }, [viewMode, showJourneysList, canvasKey, journeySteps, currentStepIndex]);
+    }, [viewMode, showJourneysList, canvasKey, journeySteps, currentStepIndex, welcomePhase]);
 
     // Canvas pointer handlers
     useEffect(() => {

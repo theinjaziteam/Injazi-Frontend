@@ -25,11 +25,13 @@ interface Alert {
     actionView?: AppView;
 }
 
-// SVG Icons for Connected Apps
+// SVG Icons for Connected Apps - Clean versions
 const AppIcons = {
     Shopify: (props: any) => (
-        <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
-            <path d="M15.337 3.415c-.022-.165-.173-.247-.288-.258-.115-.011-2.455-.066-2.455-.066s-1.634-1.629-1.804-1.799c-.17-.17-.503-.119-.632-.082-.003.001-.264.081-.674.208-.402-1.159-1.11-2.223-2.358-2.223-.034 0-.069.001-.104.003C6.582-.246 6.065.11 5.607.658 4.47 1.969 3.794 4.012 3.556 5.415c-1.459.452-2.482.768-2.61.808-.814.251-.839.276-.946 1.042C-.106 8.16 0 19.482 0 19.482l14.463 2.518.915-18.585zM9.958 4.159V4.03c0-.162-.005-.313-.014-.455-.503.156-.988.306-1.439.446.278-1.07.801-2.127 1.44-2.631.259-.204.552-.317.869-.338.359.683.578 1.654.578 2.994 0 .037 0 .075-.001.113h-.019c-.469.001-.955 0-1.414 0zm1.427-.066c.003-.126.005-.248.005-.366 0-1.118-.156-2.013-.419-2.68.52.077.946.474 1.258 1.079.298.577.478 1.292.527 2.154-.461-.063-.921-.127-1.371-.187zm1.427.203c.006.001-.427.068-.427.068V4.03c0-.162.005-.314.015-.457-.153-.017-.305-.033-.457-.049.076-.922.299-1.701.633-2.295.131-.234.285-.428.456-.571.485.747.751 1.855.751 3.342 0 .067-.001.134-.003.201-.322.029-.645.059-.968.095z"/>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <path d="M16 10a4 4 0 0 1-8 0"/>
         </svg>
     ),
     TikTok: (props: any) => (
@@ -38,16 +40,18 @@ const AppIcons = {
         </svg>
     ),
     Instagram: (props: any) => (
-        <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
-            <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+            <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+            <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
         </svg>
     ),
     Google: (props: any) => (
         <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
-            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
         </svg>
     ),
     Meta: (props: any) => (
@@ -80,14 +84,16 @@ export default function StatsView() {
     // Scrollable calendar ref
     const calendarStripRef = useRef<HTMLDivElement>(null);
     const [calendarDays, setCalendarDays] = useState<Date[]>([]);
-    const [hasScrolledToCenter, setHasScrolledToCenter] = useState(false);
+    const isScrollingRef = useRef(false);
+    const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Generate calendar days (30 days before and after today)
+    // Generate calendar days centered on selected date
     useEffect(() => {
         const days: Date[] = [];
-        const today = new Date();
+        const centerDate = new Date(selectedDate);
+        
         for (let i = -30; i <= 30; i++) {
-            const d = new Date(today);
+            const d = new Date(centerDate);
             if (viewMode === 'monthly') {
                 d.setMonth(d.getMonth() + i);
             } else if (viewMode === 'weekly') {
@@ -98,41 +104,82 @@ export default function StatsView() {
             days.push(d);
         }
         setCalendarDays(days);
-        setHasScrolledToCenter(false);
     }, [viewMode]);
 
-    // Scroll to center (today) on mount and when days change
+    // Scroll to selected date when it changes (from click)
     useEffect(() => {
-        if (calendarStripRef.current && calendarDays.length > 0 && !hasScrolledToCenter) {
+        if (calendarStripRef.current && !isScrollingRef.current) {
             const container = calendarStripRef.current;
-            const centerIndex = 30; // Today is at index 30
-            const itemWidth = 46; // Width of each day button + gap
-            const scrollPosition = centerIndex * itemWidth - container.clientWidth / 2 + itemWidth / 2;
+            const itemWidth = 48; // width + gap
             
-            // Use setTimeout to ensure DOM is ready
-            setTimeout(() => {
-                container.scrollLeft = scrollPosition;
-                setHasScrolledToCenter(true);
-            }, 50);
-        }
-    }, [calendarDays, hasScrolledToCenter]);
-
-    // Handle scroll to change selected date
-    const handleCalendarScroll = useCallback(() => {
-        if (!calendarStripRef.current || !hasScrolledToCenter) return;
-        const container = calendarStripRef.current;
-        const itemWidth = 46;
-        const centerOffset = container.scrollLeft + container.clientWidth / 2;
-        const centerIndex = Math.round(centerOffset / itemWidth);
-        
-        if (calendarDays[centerIndex]) {
-            const newDate = calendarDays[centerIndex].getTime();
-            if (Math.abs(newDate - selectedDate) > 1000 * 60 * 60) {
-                setSelectedDate(newDate);
-                setCurrentMonth(calendarDays[centerIndex]);
+            // Find index of selected date
+            const selectedIndex = calendarDays.findIndex(d => 
+                d.toDateString() === new Date(selectedDate).toDateString()
+            );
+            
+            if (selectedIndex !== -1) {
+                const scrollPosition = selectedIndex * itemWidth - container.clientWidth / 2 + itemWidth / 2;
+                container.scrollTo({ left: scrollPosition, behavior: 'smooth' });
             }
         }
-    }, [calendarDays, selectedDate, hasScrolledToCenter]);
+    }, [selectedDate, calendarDays]);
+
+    // Initial scroll to center (today)
+    useEffect(() => {
+        if (calendarStripRef.current && calendarDays.length > 0) {
+            const container = calendarStripRef.current;
+            const itemWidth = 48;
+            const centerIndex = 30; // Today is at index 30
+            const scrollPosition = centerIndex * itemWidth - container.clientWidth / 2 + itemWidth / 2;
+            
+            setTimeout(() => {
+                container.scrollLeft = scrollPosition;
+            }, 100);
+        }
+    }, [calendarDays.length]);
+
+    // Handle scroll end to snap to nearest date
+    const handleCalendarScroll = useCallback(() => {
+        if (!calendarStripRef.current) return;
+        
+        isScrollingRef.current = true;
+        
+        // Clear existing timeout
+        if (scrollTimeoutRef.current) {
+            clearTimeout(scrollTimeoutRef.current);
+        }
+        
+        // Set new timeout to detect scroll end
+        scrollTimeoutRef.current = setTimeout(() => {
+            if (!calendarStripRef.current) return;
+            
+            const container = calendarStripRef.current;
+            const itemWidth = 48;
+            const centerOffset = container.scrollLeft + container.clientWidth / 2;
+            const nearestIndex = Math.round(centerOffset / itemWidth - 0.5);
+            
+            if (calendarDays[nearestIndex]) {
+                const newDate = calendarDays[nearestIndex];
+                setSelectedDate(newDate.getTime());
+                setCurrentMonth(newDate);
+            }
+            
+            isScrollingRef.current = false;
+        }, 150);
+    }, [calendarDays]);
+
+    // Click on date - scroll to it
+    const handleDateClick = useCallback((date: Date, index: number) => {
+        setSelectedDate(date.getTime());
+        setCurrentMonth(date);
+        
+        if (calendarStripRef.current) {
+            const container = calendarStripRef.current;
+            const itemWidth = 48;
+            const scrollPosition = index * itemWidth - container.clientWidth / 2 + itemWidth / 2;
+            container.scrollTo({ left: scrollPosition, behavior: 'smooth' });
+        }
+    }, []);
 
     // Load dismissed alerts
     useEffect(() => {
@@ -403,7 +450,7 @@ export default function StatsView() {
         localStorage.setItem('dismissedAlerts', JSON.stringify({ date: new Date().toDateString(), alerts: updated }));
     };
 
-    // Mock insights
+    // Mock insights - FIXED to always include all fields
     const mockInsights = useMemo(() => {
         const dailyTasks = user.dailyTasks || [];
         const completedTasks = dailyTasks.filter(t => t.status === 'completed' || t.status === 'approved');
@@ -421,15 +468,42 @@ export default function StatsView() {
         const productiveDayName = dayNames[parseInt(mostProductiveDay[0])];
         const weeklyScore = Math.min(100, Math.round((completedTasks.length * 10) + (streak * 5) + (credits / 10)));
         
+        // Determine strength based on user performance
+        let topStrength = 'Getting Started';
+        if (streak >= 7) {
+            topStrength = 'Consistency';
+        } else if (streak >= 3) {
+            topStrength = 'Building Habits';
+        } else if (completedTasks.length >= 10) {
+            topStrength = 'Task Completion';
+        } else if (completedTasks.length >= 5) {
+            topStrength = 'Taking Action';
+        } else if (credits >= 100) {
+            topStrength = 'Earning Rewards';
+        }
+        
+        // Determine focus area
+        let focusArea = 'Getting Started';
+        if (completedTasks.length < 3) {
+            focusArea = 'Complete First Tasks';
+        } else if (streak < 3) {
+            focusArea = 'Build Your Streak';
+        } else if (streak < 7) {
+            focusArea = 'Maintain Consistency';
+        } else {
+            focusArea = 'Push Your Limits';
+        }
+        
         return {
             trend: completedTasks.length > 0 
                 ? `You're most productive on ${productiveDayName}s with ${mostProductiveDay[1]} tasks completed.`
                 : "Start completing tasks to see your productivity patterns.",
-            prediction: streak > 3 ? `${Math.min(95, 60 + streak * 5)}% likely to maintain your streak` : "Build a streak to improve prediction",
-            focusArea: completedTasks.length < 5 ? "Getting started" : streak < 3 ? "Building consistency" : "Maintaining momentum",
+            prediction: streak > 3 
+                ? `${Math.min(95, 60 + streak * 5)}% likely to maintain streak` 
+                : "Build a streak to see predictions",
+            focusArea,
             weeklyScore,
-            improvement: completedTasks.length > 0 ? `+${Math.min(25, completedTasks.length * 3)}% from last week` : "No data yet",
-            topStrength: streak > 5 ? "Consistency" : completedTasks.length > 10 ? "Task completion" : "Getting started"
+            topStrength
         };
     }, [user.dailyTasks, calculatedStats]);
 
@@ -444,7 +518,8 @@ export default function StatsView() {
                         generateDeepInsights(user)
                     ]);
                     setBudgetData(budget);
-                    setInsights(insightData || mockInsights);
+                    // Merge with mock insights to ensure all fields exist
+                    setInsights({ ...mockInsights, ...insightData });
                 } catch (error) {
                     setInsights(mockInsights);
                 }
@@ -556,8 +631,8 @@ export default function StatsView() {
     }, [user.connectedApps]);
 
     // Chart Components
-    const LineChart = ({ data, color = "#4F46E5", height = 100, labels = [], showArea = true, showPoints = true }: { 
-        data: number[], color?: string, height?: number, labels?: string[], showArea?: boolean, showPoints?: boolean 
+    const LineChart = ({ data, color = "#4F46E5", height = 100, labels = [] }: { 
+        data: number[], color?: string, height?: number, labels?: string[]
     }) => {
         const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
         if (!data || data.length === 0) return <div className="flex items-center justify-center text-gray-400 text-sm" style={{ height }}>No data</div>;
@@ -581,13 +656,13 @@ export default function StatsView() {
                 <svg viewBox={`0 0 ${width} ${chartHeight}`} className="w-full" style={{ height }} preserveAspectRatio="none">
                     <defs>
                         <linearGradient id={`gradient-${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor={color} stopOpacity="0.2" />
+                            <stop offset="0%" stopColor={color} stopOpacity="0.15" />
                             <stop offset="100%" stopColor={color} stopOpacity="0.02" />
                         </linearGradient>
                     </defs>
-                    {showArea && <path d={areaPath} fill={`url(#gradient-${color.replace('#', '')})`} />}
+                    <path d={areaPath} fill={`url(#gradient-${color.replace('#', '')})`} />
                     <path d={linePath} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                    {showPoints && points.map((point, i) => (
+                    {points.map((point, i) => (
                         <g key={i}>
                             <circle cx={point.x} cy={point.y} r={hoveredPoint === i ? 6 : 4} fill="white" stroke={color} strokeWidth="2"
                                 className="transition-all cursor-pointer" onMouseEnter={() => setHoveredPoint(i)} onMouseLeave={() => setHoveredPoint(null)} />
@@ -669,7 +744,7 @@ export default function StatsView() {
         );
     };
 
-    // Scrollable Calendar Strip - starts centered on today
+    // Scrollable Calendar Strip - FIXED scrolling behavior
     const renderCalendarStrip = () => {
         const isToday = (date: Date) => date.toDateString() === new Date().toDateString();
         const isSelected = (date: Date) => date.toDateString() === new Date(selectedDate).toDateString();
@@ -678,8 +753,8 @@ export default function StatsView() {
             <div 
                 ref={calendarStripRef}
                 onScroll={handleCalendarScroll}
-                className="flex gap-2 overflow-x-auto scrollbar-hide py-1 px-4"
-                style={{ scrollBehavior: 'smooth' }}
+                className="flex gap-2 overflow-x-auto py-2 px-4 scrollbar-hide"
+                style={{ scrollSnapType: 'x mandatory' }}
             >
                 {calendarDays.map((d, i) => {
                     const selected = isSelected(d);
@@ -690,7 +765,8 @@ export default function StatsView() {
                     return (
                         <button 
                             key={i} 
-                            onClick={() => { setSelectedDate(d.getTime()); setCurrentMonth(d); }}
+                            onClick={() => handleDateClick(d, i)}
+                            style={{ scrollSnapAlign: 'center' }}
                             className={`flex flex-col items-center justify-center min-w-[44px] w-11 h-14 rounded-xl transition-all flex-shrink-0 ${
                                 selected 
                                     ? 'bg-primary text-white shadow-lg' 
@@ -887,64 +963,109 @@ export default function StatsView() {
         );
     };
 
-    // UPGRADED Activity Trend
+    // IMPROVED Activity Section
     const renderActivityChart = () => {
         const chartLabels = calculatedStats.historyData.map(d => {
             if (viewMode === 'daily') return d.date.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 2);
             if (viewMode === 'weekly') return `W${Math.ceil(d.date.getDate() / 7)}`;
             return d.date.toLocaleDateString('en-US', { month: 'short' }).slice(0, 3);
         });
+        
         const hasData = calculatedStats.historyData.some(d => d.tasks > 0);
         const totalTasks = calculatedStats.historyData.reduce((sum, d) => sum + d.tasks, 0);
-        const avgTasks = totalTasks / 7;
+        const avgTasks = (totalTasks / 7).toFixed(1);
         const maxTasks = Math.max(...calculatedStats.historyData.map(d => d.tasks));
-        const trend = calculatedStats.historyData[6]?.tasks > calculatedStats.historyData[0]?.tasks ? 'up' : 'down';
+        const minTasks = Math.min(...calculatedStats.historyData.map(d => d.tasks));
+        
+        // Calculate trend percentage
+        const firstHalf = calculatedStats.historyData.slice(0, 3).reduce((s, d) => s + d.tasks, 0);
+        const secondHalf = calculatedStats.historyData.slice(4).reduce((s, d) => s + d.tasks, 0);
+        const trendPercent = firstHalf > 0 ? Math.round(((secondHalf - firstHalf) / firstHalf) * 100) : secondHalf > 0 ? 100 : 0;
+        const isUp = trendPercent >= 0;
 
         return (
             <Card className="p-4 bg-white border border-gray-200">
-                <div className="flex items-center justify-between mb-1">
-                    <h3 className="font-bold text-gray-800 text-sm flex items-center gap-1.5"><Icons.Activity className="w-4 h-4 text-primary" />Activity</h3>
-                    <div className="flex items-center gap-2">
-                        {hasData && (
-                            <div className={`flex items-center gap-0.5 text-[10px] font-bold ${trend === 'up' ? 'text-emerald-600' : 'text-red-500'}`}>
-                                {trend === 'up' ? <Icons.TrendingUp className="w-3 h-3" /> : <Icons.TrendingDown className="w-3 h-3" />}
-                                {trend === 'up' ? '+' : ''}{Math.round((calculatedStats.historyData[6]?.tasks - calculatedStats.historyData[0]?.tasks))}
-                            </div>
-                        )}
-                        <span className="text-[10px] text-gray-400">7 {viewMode === 'daily' ? 'days' : viewMode === 'weekly' ? 'weeks' : 'months'}</span>
-                    </div>
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-bold text-gray-800 text-sm flex items-center gap-1.5">
+                        <Icons.Activity className="w-4 h-4 text-primary" />
+                        Activity Overview
+                    </h3>
+                    <span className="text-[10px] text-gray-400">
+                        Last 7 {viewMode === 'daily' ? 'days' : viewMode === 'weekly' ? 'weeks' : 'months'}
+                    </span>
                 </div>
                 
-                {hasData && (
-                    <div className="flex gap-3 mb-4 mt-3">
-                        <div className="flex-1 bg-gray-50 rounded-lg p-2.5 text-center">
-                            <div className="text-lg font-black text-gray-800">{totalTasks}</div>
-                            <div className="text-[9px] text-gray-400">Total</div>
-                        </div>
-                        <div className="flex-1 bg-gray-50 rounded-lg p-2.5 text-center">
-                            <div className="text-lg font-black text-gray-800">{avgTasks.toFixed(1)}</div>
-                            <div className="text-[9px] text-gray-400">Avg/day</div>
-                        </div>
-                        <div className="flex-1 bg-gray-50 rounded-lg p-2.5 text-center">
-                            <div className="text-lg font-black text-gray-800">{maxTasks}</div>
-                            <div className="text-[9px] text-gray-400">Best</div>
-                        </div>
-                    </div>
-                )}
-                
                 {hasData ? (
-                    <LineChart data={calculatedStats.historyData.map(d => d.tasks)} color="#4F46E5" height={90} labels={chartLabels} />
+                    <>
+                        {/* Stats Row */}
+                        <div className="grid grid-cols-4 gap-2 mb-4">
+                            <div className="text-center">
+                                <div className="text-lg font-black text-gray-800">{totalTasks}</div>
+                                <div className="text-[9px] text-gray-400 uppercase">Total</div>
+                            </div>
+                            <div className="text-center">
+                                <div className="text-lg font-black text-gray-800">{avgTasks}</div>
+                                <div className="text-[9px] text-gray-400 uppercase">Average</div>
+                            </div>
+                            <div className="text-center">
+                                <div className="text-lg font-black text-gray-800">{maxTasks}</div>
+                                <div className="text-[9px] text-gray-400 uppercase">Best</div>
+                            </div>
+                            <div className="text-center">
+                                <div className={`text-lg font-black flex items-center justify-center gap-0.5 ${isUp ? 'text-emerald-600' : 'text-red-500'}`}>
+                                    {isUp ? <Icons.TrendingUp className="w-3.5 h-3.5" /> : <Icons.TrendingDown className="w-3.5 h-3.5" />}
+                                    {Math.abs(trendPercent)}%
+                                </div>
+                                <div className="text-[9px] text-gray-400 uppercase">Trend</div>
+                            </div>
+                        </div>
+                        
+                        {/* Chart */}
+                        <LineChart 
+                            data={calculatedStats.historyData.map(d => d.tasks)} 
+                            color="#4F46E5" 
+                            height={100} 
+                            labels={chartLabels} 
+                        />
+                        
+                        {/* Daily breakdown */}
+                        <div className="mt-4 pt-3 border-t border-gray-100">
+                            <div className="flex justify-between items-center">
+                                {calculatedStats.historyData.map((d, i) => {
+                                    const isMax = d.tasks === maxTasks && maxTasks > 0;
+                                    const isToday = d.date.toDateString() === new Date().toDateString();
+                                    return (
+                                        <div key={i} className="flex flex-col items-center">
+                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
+                                                isMax ? 'bg-primary text-white' : 
+                                                isToday ? 'bg-primary/10 text-primary' : 
+                                                d.tasks > 0 ? 'bg-gray-100 text-gray-700' : 'bg-gray-50 text-gray-300'
+                                            }`}>
+                                                {d.tasks}
+                                            </div>
+                                            <span className={`text-[8px] mt-1 ${isToday ? 'text-primary font-bold' : 'text-gray-400'}`}>
+                                                {chartLabels[i]}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </>
                 ) : (
-                    <div className="flex flex-col items-center justify-center py-8 text-gray-400">
-                        <Icons.Activity className="w-10 h-10 mb-2 opacity-20" />
-                        <p className="text-xs text-gray-400">Complete tasks to see trends</p>
+                    <div className="flex flex-col items-center justify-center py-10 text-gray-400">
+                        <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+                            <Icons.Activity className="w-8 h-8 text-gray-300" />
+                        </div>
+                        <p className="text-sm text-gray-500 font-medium">No activity yet</p>
+                        <p className="text-xs text-gray-400 mt-1">Complete tasks to see your trends</p>
                     </div>
                 )}
             </Card>
         );
     };
 
-    // Connected Apps Statistics with SVG icons
+    // Connected Apps Statistics with clean SVG icons
     const renderConnectedAppsStats = () => {
         const [activeAppIndex, setActiveAppIndex] = useState(0);
         const activeApp = connectedAppsData[activeAppIndex];
@@ -962,7 +1083,7 @@ export default function StatsView() {
                     </button>
                 </div>
                 
-                {/* App tabs with SVG icons */}
+                {/* App tabs with clean SVG icons */}
                 <div className="flex gap-2 mb-4 overflow-x-auto scrollbar-hide">
                     {connectedAppsData.map((app, i) => {
                         const Icon = app.Icon;
@@ -1011,14 +1132,15 @@ export default function StatsView() {
                         </div>
                     </div>
                 ) : (
-                    <div className="text-center py-6">
-                        <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gray-100 flex items-center justify-center">
-                            <AppIcon className="w-6 h-6 text-gray-400" />
+                    <div className="text-center py-8">
+                        <div className="w-14 h-14 mx-auto mb-3 rounded-xl bg-gray-100 flex items-center justify-center">
+                            <AppIcon className="w-7 h-7 text-gray-400" />
                         </div>
-                        <p className="text-xs text-gray-500 mb-3">Connect {activeApp.name} to see stats</p>
+                        <p className="text-sm text-gray-600 font-medium mb-1">Connect {activeApp.name}</p>
+                        <p className="text-xs text-gray-400 mb-4">View your analytics here</p>
                         <button 
                             onClick={() => setView(AppView.SETTINGS)}
-                            className="px-4 py-2 bg-gray-900 text-white rounded-lg text-xs font-bold"
+                            className="px-5 py-2 bg-gray-900 text-white rounded-lg text-xs font-bold"
                         >
                             Connect
                         </button>
@@ -1087,29 +1209,59 @@ export default function StatsView() {
         );
     };
 
+    // FIXED AI Insights - always shows all fields
     const renderInsights = () => {
         const displayInsights = insights || mockInsights;
+        
         return (
-            <Card className="bg-gradient-to-br from-gray-800 via-gray-900 to-black text-white p-4 border-none relative overflow-hidden shadow-sm">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+            <Card className="bg-gradient-to-br from-gray-800 via-gray-900 to-black text-white p-5 border-none relative overflow-hidden shadow-sm">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+                <div className="absolute bottom-0 left-0 w-20 h-20 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2"></div>
+                
                 <div className="relative">
-                    <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-white/50 text-[10px] font-bold uppercase flex items-center gap-1"><Icons.Sparkles className="w-3 h-3" />AI Insight</h3>
-                        {displayInsights.weeklyScore && <div className="bg-white/10 px-2 py-0.5 rounded-full text-[10px] font-bold">{displayInsights.weeklyScore}/100</div>}
+                    <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-white/50 text-[10px] font-bold uppercase flex items-center gap-1.5">
+                            <Icons.Sparkles className="w-3.5 h-3.5" />
+                            AI Insight
+                        </h3>
+                        {displayInsights?.weeklyScore !== undefined && (
+                            <div className="bg-white/15 px-2.5 py-1 rounded-full text-[10px] font-bold">
+                                Score: {displayInsights.weeklyScore}/100
+                            </div>
+                        )}
                     </div>
+                    
                     {isLoading ? (
-                        <div className="flex items-center gap-2 py-3"><div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div><span className="text-white/50 text-xs">Analyzing...</span></div>
+                        <div className="flex items-center gap-2 py-4">
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                            <span className="text-white/50 text-xs">Analyzing your progress...</span>
+                        </div>
                     ) : (
                         <>
-                            <p className="text-sm font-medium leading-relaxed mb-3">"{displayInsights.trend}"</p>
-                            <div className="grid grid-cols-2 gap-2">
-                                <div className="bg-white/10 rounded-lg p-2.5">
-                                    <div className="text-[9px] text-white/50 uppercase">Focus</div>
-                                    <div className="font-bold text-xs">{displayInsights.focusArea}</div>
+                            {/* Main insight */}
+                            <p className="text-sm font-medium leading-relaxed mb-4 text-white/90">
+                                "{displayInsights?.trend || 'Start completing tasks to see insights.'}"
+                            </p>
+                            
+                            {/* Stats grid - 3 columns now */}
+                            <div className="grid grid-cols-3 gap-2">
+                                <div className="bg-white/10 rounded-xl p-3">
+                                    <div className="text-[9px] text-white/40 uppercase font-medium mb-1">Focus</div>
+                                    <div className="font-bold text-xs text-white">
+                                        {displayInsights?.focusArea || 'Getting Started'}
+                                    </div>
                                 </div>
-                                <div className="bg-white/10 rounded-lg p-2.5">
-                                    <div className="text-[9px] text-white/50 uppercase">Strength</div>
-                                    <div className="font-bold text-xs">{displayInsights.topStrength}</div>
+                                <div className="bg-white/10 rounded-xl p-3">
+                                    <div className="text-[9px] text-white/40 uppercase font-medium mb-1">Strength</div>
+                                    <div className="font-bold text-xs text-white">
+                                        {displayInsights?.topStrength || 'Getting Started'}
+                                    </div>
+                                </div>
+                                <div className="bg-white/10 rounded-xl p-3">
+                                    <div className="text-[9px] text-white/40 uppercase font-medium mb-1">Prediction</div>
+                                    <div className="font-bold text-xs text-white truncate">
+                                        {displayInsights?.prediction?.split(' ').slice(0, 3).join(' ') || 'Build streak'}
+                                    </div>
                                 </div>
                             </div>
                         </>
@@ -1189,7 +1341,7 @@ export default function StatsView() {
     return (
         <div className="h-full overflow-y-auto pb-safe scroll-smooth">
             <div className="min-h-full bg-gray-50 pb-28 flex flex-col">
-                {/* Header - NOT STICKY */}
+                {/* Header */}
                 <div className="p-4 pb-3 bg-white border-b border-gray-200">
                     <div className="flex justify-between items-center mb-3">
                         <h1 className="text-xl font-bold text-gray-800">Analytics</h1>
@@ -1198,25 +1350,19 @@ export default function StatsView() {
                     {renderViewModeToggle()}
                 </div>
                 
-                {/* Scrollable Calendar Strip - starts centered on today */}
-                <div className="bg-white border-b border-gray-200 py-2">
+                {/* Scrollable Calendar Strip */}
+                <div className="bg-white border-b border-gray-200">
                     {renderCalendarStrip()}
                 </div>
 
-                {/* Content with more spacing */}
+                {/* Content */}
                 <div className="flex-1 p-4 space-y-5">
                     {renderStatsCards()}
-                    
                     {renderAlerts()}
-                    
                     {renderGoalProgress()}
-                    
                     {renderActivityChart()}
-                    
                     {renderConnectedAppsStats()}
-                    
                     {renderCreditsChart()}
-                    
                     {renderUpcomingMilestones()}
                     
                     <div>

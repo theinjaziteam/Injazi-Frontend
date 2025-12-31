@@ -521,3 +521,42 @@ export default function GuideWelcome({ onComplete }: { onComplete: () => void })
     />
   );
 }
+export default function GuideWelcome({ onComplete }: { onComplete: () => void }) {
+  const [phase, setPhase] = useState<'intro' | 'tour'>('intro');
+  const [tourStep, setTourStep] = useState(0);
+
+  const handleStartTour = () => {
+    setPhase('tour');
+  };
+
+  const handleSkip = () => {
+    onComplete();
+  };
+
+  const handleNext = () => {
+    if (tourStep < TOUR_STEPS.length - 1) {
+      setTourStep(prev => prev + 1);
+    } else {
+      onComplete();
+    }
+  };
+
+  const handleBack = () => {
+    if (tourStep > 0) {
+      setTourStep(prev => prev - 1);
+    }
+  };
+
+  if (phase === 'intro') {
+    return <WelcomeIntro onStartTour={handleStartTour} onSkip={handleSkip} />;
+  }
+
+  return (
+    <TourOverlay
+      step={tourStep}
+      onNext={handleNext}
+      onBack={handleBack}
+      onSkip={handleSkip}
+    />
+  );
+}

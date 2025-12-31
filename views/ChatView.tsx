@@ -776,52 +776,89 @@ export default function ChatView() {
 
     const activeConvo = conversations.find(c => c.id === activeConversationId);
 
-    // ========== E-COMMERCE AGENT FLOATING BUTTON (for Planet Mode) ==========
-    const EcommerceFloatingButton = () => (
-        <button
-            onClick={() => setView(AppView.ECOMMERCE_AGENT)}
-            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)'}
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0) scale(1)'}
-            style={{
-                position: 'absolute',
-                bottom: 180,
-                right: 20,
-                zIndex: 10,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '12px 18px',
-                borderRadius: '50px',
-                background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #A855F7 100%)',
-                border: '1px solid rgba(255,255,255,0.2)',
-                boxShadow: '0 4px 20px rgba(99, 102, 241, 0.4), 0 0 40px rgba(139, 92, 246, 0.2)',
-                cursor: 'pointer',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                pointerEvents: 'auto'
-            }}
-        >
-            <div style={{
-                width: 32,
-                height: 32,
-                borderRadius: '50%',
-                backgroundColor: 'rgba(255,255,255,0.2)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
+// ========== E-COMMERCE AGENT FLOATING BUTTON (for Planet Mode) ==========
+const EcommerceFloatingButton = () => (
+    <button
+        onClick={() => setView(AppView.ECOMMERCE_AGENT)}
+        style={{
+            position: 'absolute',
+            bottom: 190, // Positioned just above the input area (which has paddingBottom: 100px + input height)
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 10,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            padding: '14px 20px',
+            borderRadius: '50px',
+            // Glassmorphism with dark/starry aesthetic
+            background: 'rgba(0, 0, 0, 0.4)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+            boxShadow: `
+                0 4px 24px rgba(0, 0, 0, 0.4),
+                0 0 40px rgba(255, 255, 255, 0.03),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1)
+            `,
+            cursor: 'pointer',
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            pointerEvents: 'auto'
+        }}
+        onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)';
+            e.currentTarget.style.transform = 'translateX(-50%) translateY(-2px)';
+            e.currentTarget.style.boxShadow = `
+                0 8px 32px rgba(0, 0, 0, 0.5),
+                0 0 60px rgba(255, 255, 255, 0.05),
+                inset 0 1px 0 rgba(255, 255, 255, 0.15)
+            `;
+        }}
+        onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(0, 0, 0, 0.4)';
+            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.12)';
+            e.currentTarget.style.transform = 'translateX(-50%) translateY(0)';
+            e.currentTarget.style.boxShadow = `
+                0 4px 24px rgba(0, 0, 0, 0.4),
+                0 0 40px rgba(255, 255, 255, 0.03),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1)
+            `;
+        }}
+    >
+        <div style={{
+            width: 36,
+            height: 36,
+            borderRadius: '50%',
+            background: 'rgba(255, 255, 255, 0.08)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+        }}>
+            <Icons.ShoppingBag style={{ width: 18, height: 18, color: 'rgba(255, 255, 255, 0.9)' }} />
+        </div>
+        <div style={{ textAlign: 'left' }}>
+            <p style={{ 
+                color: 'rgba(255, 255, 255, 0.95)', 
+                fontWeight: 600, 
+                fontSize: '13px', 
+                margin: 0, 
+                letterSpacing: '0.3px' 
             }}>
-                <Icons.ShoppingBag style={{ width: 18, height: 18, color: '#fff' }} />
-            </div>
-            <div style={{ textAlign: 'left' }}>
-                <p style={{ color: '#fff', fontWeight: 600, fontSize: '13px', margin: 0, letterSpacing: '0.3px' }}>
-                    E-commerce Agent
-                </p>
-                <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', margin: 0 }}>
-                    Grow your Shopify store
-                </p>
-            </div>
-            <Icons.ChevronRight style={{ width: 16, height: 16, color: 'rgba(255,255,255,0.7)' }} />
-        </button>
-    );
+                E-commerce Agent
+            </p>
+            <p style={{ 
+                color: 'rgba(255, 255, 255, 0.4)', 
+                fontSize: '11px', 
+                margin: 0 
+            }}>
+                Grow your Shopify store
+            </p>
+        </div>
+        <Icons.ChevronRight style={{ width: 16, height: 16, color: 'rgba(255, 255, 255, 0.3)' }} />
+    </button>
+);
 
     // ========== E-COMMERCE AGENT QUICK ACTION CARD (for Chat Mode) ==========
     const EcommerceQuickActionCard = () => (

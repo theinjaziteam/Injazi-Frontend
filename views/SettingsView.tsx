@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../App';
-import { Icons, Button, Toggle, Card } from '../UIComponents';
+import { Icons, Button, Toggle, Card } from '../components/UIComponents';
 import { AppView, User, PlanTier, ConnectedApp } from '../types';
 import * as api from '../api';
 

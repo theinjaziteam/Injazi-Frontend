@@ -236,7 +236,6 @@ export const TourOverlay = memo(({
 }) => {
   const currentStep = TOUR_STEPS[step];
   
-  // Spotlight positions matched to ChatView layout
   const getSpotlightStyle = (): React.CSSProperties => {
     const base: React.CSSProperties = {
       position: 'absolute',
@@ -246,13 +245,7 @@ export const TourOverlay = memo(({
       pointerEvents: 'none',
     };
     
-    // Positions based on ChatView's actual element locations:
-    // - Header: padding 12px 16px, buttons are ~36px tall
-    // - Planet: centered between topOffset (180px) and bottomOffset (190px)
-    // - Master Agent button: bottom: 190px, centered
-    // - Input: bottom with paddingBottom: 32px, input height ~48px
     const positions: Record<string, React.CSSProperties> = {
-      // Planet is centered in the available space
       'planet': { 
         ...base, 
         top: 'calc(180px + (100vh - 180px - 190px) / 2)', 
@@ -262,7 +255,6 @@ export const TourOverlay = memo(({
         transform: 'translate(-50%, -50%)', 
         borderRadius: '50%' 
       },
-      // Input at bottom: paddingBottom 32px + padding 16px, input height ~48px
       'input': { 
         ...base, 
         bottom: 32, 
@@ -272,7 +264,6 @@ export const TourOverlay = memo(({
         height: 48, 
         borderRadius: 24 
       },
-      // Header center button (THE GUIDE text)
       'header': { 
         ...base, 
         top: 8, 
@@ -282,7 +273,6 @@ export const TourOverlay = memo(({
         transform: 'translateX(-50%)', 
         borderRadius: 12 
       },
-      // Chat toggle button (top right)
       'chat-toggle': { 
         ...base, 
         top: 8, 
@@ -293,7 +283,6 @@ export const TourOverlay = memo(({
         transform: 'none', 
         borderRadius: 8 
       },
-      // Master Agent button: bottom: 190px from ChatView
       'agent': { 
         ...base, 
         bottom: 180, 
@@ -307,7 +296,6 @@ export const TourOverlay = memo(({
     return positions[currentStep.target] || base;
   };
 
-  // Tooltip positions to not overlap with spotlighted elements
   const getTooltipStyle = (): React.CSSProperties => {
     const base: React.CSSProperties = {
       position: 'absolute',
@@ -325,19 +313,14 @@ export const TourOverlay = memo(({
     
     switch (currentStep.target) {
       case 'planet':
-        // Below the planet
         return { ...base, bottom: 120, left: '50%', transform: 'translateX(-50%)' };
       case 'input':
-        // Above the input
         return { ...base, bottom: 100, left: '50%', transform: 'translateX(-50%)' };
       case 'header':
-        // Below the header
         return { ...base, top: 68, left: '50%', transform: 'translateX(-50%)' };
       case 'chat-toggle':
-        // Below and to the left of the button
         return { ...base, top: 60, right: 16, left: 'auto', transform: 'none' };
       case 'agent':
-        // Below the agent button
         return { ...base, bottom: 80, left: '50%', transform: 'translateX(-50%)' };
       default:
         return { ...base, top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
@@ -351,10 +334,8 @@ export const TourOverlay = memo(({
       zIndex: 1000,
       pointerEvents: 'auto',
     }}>
-      {/* Spotlight */}
       <div style={getSpotlightStyle()} />
       
-      {/* Tooltip */}
       <div style={getTooltipStyle()}>
         <div style={{
           fontSize: 11,
@@ -370,7 +351,6 @@ export const TourOverlay = memo(({
           fontSize: 18,
           fontWeight: 600,
           color: '#fff',
-          marginBottom: 8,
           margin: '0 0 8px 0',
         }}>
           {currentStep.title}
@@ -379,13 +359,11 @@ export const TourOverlay = memo(({
           fontSize: 14,
           color: 'rgba(255,255,255,0.6)',
           lineHeight: 1.5,
-          marginBottom: 20,
           margin: '0 0 20px 0',
         }}>
           {currentStep.description}
         </p>
         
-        {/* Progress dots */}
         <div style={{
           display: 'flex',
           gap: 6,
@@ -406,7 +384,6 @@ export const TourOverlay = memo(({
           ))}
         </div>
         
-        {/* Navigation */}
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -482,45 +459,7 @@ export const TourOverlay = memo(({
 WelcomeIntro.displayName = 'WelcomeIntro';
 TourOverlay.displayName = 'TourOverlay';
 
-export default function GuideWelcome({ onComplete }: { onComplete: () => void }) {
-  const [phase, setPhase] = useState<'intro' | 'tour'>('intro');
-  const [tourStep, setTourStep] = useState(0);
-
-  const handleStartTour = () => {
-    setPhase('tour');
-  };
-
-  const handleSkip = () => {
-    onComplete();
-  };
-
-  const handleNext = () => {
-    if (tourStep < TOUR_STEPS.length - 1) {
-      setTourStep(prev => prev + 1);
-    } else {
-      onComplete();
-    }
-  };
-
-  const handleBack = () => {
-    if (tourStep > 0) {
-      setTourStep(prev => prev - 1);
-    }
-  };
-
-  if (phase === 'intro') {
-    return <WelcomeIntro onStartTour={handleStartTour} onSkip={handleSkip} />;
-  }
-
-  return (
-    <TourOverlay
-      step={tourStep}
-      onNext={handleNext}
-      onBack={handleBack}
-      onSkip={handleSkip}
-    />
-  );
-}
+// Only ONE default export
 export default function GuideWelcome({ onComplete }: { onComplete: () => void }) {
   const [phase, setPhase] = useState<'intro' | 'tour'>('intro');
   const [tourStep, setTourStep] = useState(0);

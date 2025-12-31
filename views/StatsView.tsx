@@ -94,7 +94,6 @@ export default function StatsView() {
             });
         }
         
-        // Add weekly review milestones
         for (let i = 1; i <= 4; i++) {
             const reviewDate = new Date();
             reviewDate.setDate(reviewDate.getDate() + (7 * i) - reviewDate.getDay());
@@ -111,14 +110,11 @@ export default function StatsView() {
         return [...calendarEvents, ...autoMilestones];
     }, [calendarEvents, user.goal]);
 
-    // REAL calculated stats - using user.dailyTasks and user.credits
+    // REAL calculated stats
     const calculatedStats = useMemo(() => {
         const now = new Date(selectedDate);
-        
-        // Use dailyTasks from user state - this is the correct source
         const tasks = user.dailyTasks || [];
         
-        // Filter completed/approved tasks
         const allCompletedTasks = tasks.filter(t => 
             t.status === TaskStatus.COMPLETED || 
             t.status === TaskStatus.APPROVED ||
@@ -126,9 +122,7 @@ export default function StatsView() {
             t.status === 'approved'
         );
         
-        // Filter tasks by selected date/period
         const filterByDate = (task: any) => {
-            // Use completedAt if available, otherwise fall back to other date fields
             const taskDate = new Date(task.completedAt || task.updatedAt || task.createdAt || Date.now());
             
             if (viewMode === 'daily') {
@@ -147,18 +141,13 @@ export default function StatsView() {
 
         const filteredTasks = allCompletedTasks.filter(filterByDate);
         
-        // Calculate credits earned in this period from completed tasks
         const periodCredits = filteredTasks.reduce((sum, t) => {
             return sum + (t.creditsReward || t.credits || t.reward || 0);
         }, 0);
         
-        // Total credits - use user.credits directly (the actual source of truth)
         const totalCredits = user.credits || 0;
-        
-        // Calculate streak from user state or compute from tasks
         let streak = user.streak || 0;
         
-        // If no streak in user state, calculate from completed tasks
         if (streak === 0 && allCompletedTasks.length > 0) {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
@@ -180,7 +169,6 @@ export default function StatsView() {
             }
         }
         
-        // Task breakdown by difficulty
         const easyTasks = filteredTasks.filter(t => {
             const diff = (t.difficulty || '').toString().toLowerCase();
             return diff === 'easy' || diff === '1';
@@ -196,7 +184,6 @@ export default function StatsView() {
             return diff === 'hard' || diff === '3';
         }).length;
 
-        // Generate 7-period history data for charts
         const historyData = Array.from({ length: 7 }, (_, i) => {
             const date = new Date(now);
             if (viewMode === 'daily') {
@@ -244,7 +231,7 @@ export default function StatsView() {
         };
     }, [user.dailyTasks, user.credits, user.streak, selectedDate, viewMode]);
 
-    // Animate numbers when stats change
+    // Animate numbers
     useEffect(() => {
         const newTargets = {
             tasksCompleted: calculatedStats.tasksCompleted,
@@ -254,13 +241,11 @@ export default function StatsView() {
             allTimeCompleted: calculatedStats.allTimeCompleted
         };
 
-        // Check if any values actually changed
         const hasChanges = Object.entries(newTargets).some(
             ([key, value]) => prevStats[key] !== value
         );
 
         if (!hasChanges && Object.keys(prevStats).length > 0) return;
-
         setPrevStats(newTargets);
 
         const duration = 600;
@@ -295,7 +280,7 @@ export default function StatsView() {
         });
     }, [calculatedStats]);
 
-    // Generate alerts based on real data from Guide and Master Agent
+    // Generate alerts
     const alerts = useMemo(() => {
         const generatedAlerts: Alert[] = [];
         const tasks = user.dailyTasks || [];
@@ -305,23 +290,14 @@ export default function StatsView() {
             t.status === 'completed' || 
             t.status === 'approved'
         );
-        const pendingTasks = tasks.filter(t => 
-            t.status === TaskStatus.PENDING || 
-            t.status === 'pending' || 
-            t.status === 'in_progress'
-        );
         const credits = calculatedStats.totalCredits;
         const streak = calculatedStats.streak;
         
-        // Guide data
         const chatHistory = user.chatHistory || [];
         const lastGuideMessage = chatHistory.length > 0 ? chatHistory[chatHistory.length - 1] : null;
-        
-        // Master Agent data
         const agentAlerts = user.agentAlerts || [];
         const unreadAgentAlerts = agentAlerts.filter((a: any) => !a.isRead);
         
-        // Guide-based alerts
         if (chatHistory.length > 0 && lastGuideMessage?.timestamp) {
             const lastConversationDate = new Date(lastGuideMessage.timestamp);
             const daysSinceLastConversation = Math.floor((Date.now() - lastConversationDate.getTime()) / (1000 * 60 * 60 * 24));
@@ -353,7 +329,6 @@ export default function StatsView() {
             });
         }
         
-        // Agent-based alerts
         if (unreadAgentAlerts.length > 0) {
             const highSeverityAlerts = unreadAgentAlerts.filter((a: any) => a.severity === 'high');
             if (highSeverityAlerts.length > 0) {
@@ -370,7 +345,6 @@ export default function StatsView() {
             }
         }
         
-        // System alerts based on data
         if (streak > 0 && streak < 3) {
             generatedAlerts.push({
                 id: 'streak-risk',
@@ -384,7 +358,6 @@ export default function StatsView() {
             });
         }
         
-        // No recent activity alert
         const threeDaysAgo = new Date();
         threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
         const recentActivity = completedTasks.some(t => {
@@ -405,7 +378,6 @@ export default function StatsView() {
             });
         }
         
-        // Goal progress alert
         if (user.goal?.createdAt) {
             const daysElapsed = Math.floor((Date.now() - new Date(user.goal.createdAt).getTime()) / (1000 * 60 * 60 * 24));
             const totalDays = user.goal.durationDays || 30;
@@ -426,21 +398,19 @@ export default function StatsView() {
             }
         }
         
-        // Low credits alert - FIXED: Icons.Coins doesn't exist, use Icons.Zap
         if (credits > 0 && credits < 50) {
             generatedAlerts.push({
                 id: 'low-credits',
                 type: 'info',
                 title: 'Low on Credits',
                 message: `Only ${credits} credits remaining. Complete tasks to earn more!`,
-                icon: Icons.Zap,
+                icon: Icons.Coins,
                 source: 'system',
                 actionLabel: 'Earn More',
                 actionView: AppView.DASHBOARD
             });
         }
         
-        // Positive alerts
         if (streak >= 7) {
             generatedAlerts.push({
                 id: 'streak-celebrate',
@@ -464,7 +434,7 @@ export default function StatsView() {
         }));
     };
 
-    // Mock insights based on real data
+    // Mock insights
     const mockInsights = useMemo(() => {
         const tasks = user.dailyTasks || [];
         const completedTasks = tasks.filter(t => 
@@ -476,7 +446,6 @@ export default function StatsView() {
         const streak = calculatedStats.streak;
         const credits = calculatedStats.totalCredits;
         
-        // Analyze productivity by day of week
         const tasksByDay: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
         completedTasks.forEach(t => {
             const day = new Date(t.completedAt || t.createdAt || Date.now()).getDay();
@@ -537,7 +506,6 @@ export default function StatsView() {
         fetchData();
     }, [user.goal, mockInsights]);
 
-    // Check if a date has completed task activity
     const hasActivity = useCallback((date: Date) => {
         const tasks = user.dailyTasks || [];
         return tasks.some(t => {
@@ -550,12 +518,10 @@ export default function StatsView() {
         });
     }, [user.dailyTasks]);
 
-    // Get events for a specific date
     const getEventsForDate = useCallback((date: Date) => {
         return allEvents.filter(e => new Date(e.date).toDateString() === date.toDateString());
     }, [allEvents]);
 
-    // Handle adding a new event
     const handleAddEvent = () => {
         if (!newEvent.title.trim() || !selectedEventDate) return;
         const event: CalendarEvent = {
@@ -571,7 +537,6 @@ export default function StatsView() {
         setShowEventModal(false);
     };
 
-    // Handle deleting an event
     const handleDeleteEvent = (eventId: string) => {
         setCalendarEvents(prev => prev.filter(e => e.id !== eventId));
     };
@@ -706,7 +671,6 @@ export default function StatsView() {
                         </linearGradient>
                     </defs>
                     
-                    {/* Grid lines */}
                     {[0, 0.5, 1].map((ratio, i) => (
                         <line
                             key={i}
@@ -720,20 +684,9 @@ export default function StatsView() {
                         />
                     ))}
                     
-                    {/* Area fill */}
                     <path d={areaPath} fill={`url(#gradient-${color.replace('#', '')})`} />
+                    <path d={linePath} fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                     
-                    {/* Line */}
-                    <path 
-                        d={linePath} 
-                        fill="none" 
-                        stroke={color} 
-                        strokeWidth="3" 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                    />
-                    
-                    {/* Data points */}
                     {points.map((point, i) => (
                         <g key={i}>
                             <circle
@@ -749,22 +702,8 @@ export default function StatsView() {
                             />
                             {hoveredPoint === i && (
                                 <g>
-                                    <rect
-                                        x={point.x - 20}
-                                        y={point.y - 30}
-                                        width="40"
-                                        height="20"
-                                        rx="4"
-                                        fill={color}
-                                    />
-                                    <text
-                                        x={point.x}
-                                        y={point.y - 16}
-                                        textAnchor="middle"
-                                        fill="white"
-                                        fontSize="11"
-                                        fontWeight="bold"
-                                    >
+                                    <rect x={point.x - 20} y={point.y - 30} width="40" height="20" rx="4" fill={color} />
+                                    <text x={point.x} y={point.y - 16} textAnchor="middle" fill="white" fontSize="11" fontWeight="bold">
                                         {point.value}
                                     </text>
                                 </g>
@@ -840,34 +779,13 @@ export default function StatsView() {
         return (
             <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
                 <svg className="transform -rotate-90" width={size} height={size}>
-                    <circle
-                        cx={size / 2}
-                        cy={size / 2}
-                        r={radius}
-                        fill="none"
-                        stroke="#E5E7EB"
-                        strokeWidth={strokeWidth}
-                    />
-                    <circle
-                        cx={size / 2}
-                        cy={size / 2}
-                        r={radius}
-                        fill="none"
-                        stroke={color}
-                        strokeWidth={strokeWidth}
-                        strokeDasharray={circumference}
-                        strokeDashoffset={offset}
-                        strokeLinecap="round"
-                        className="transition-all duration-1000"
-                    />
+                    <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#E5E7EB" strokeWidth={strokeWidth} />
+                    <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={color} strokeWidth={strokeWidth}
+                        strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round" className="transition-all duration-1000" />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    {value !== undefined && (
-                        <span className="text-lg font-black text-gray-800">{value}</span>
-                    )}
-                    {label && (
-                        <span className="text-[10px] text-gray-500">{label}</span>
-                    )}
+                    {value !== undefined && <span className="text-lg font-black text-gray-800">{value}</span>}
+                    {label && <span className="text-[10px] text-gray-500">{label}</span>}
                 </div>
             </div>
         );
@@ -879,13 +797,9 @@ export default function StatsView() {
         const days = [];
         for (let i = -3; i <= 3; i++) {
             const d = new Date(selectedDate);
-            if (viewMode === 'monthly') {
-                d.setMonth(d.getMonth() + i);
-            } else if (viewMode === 'weekly') {
-                d.setDate(d.getDate() + i * 7);
-            } else {
-                d.setDate(d.getDate() + i);
-            }
+            if (viewMode === 'monthly') d.setMonth(d.getMonth() + i);
+            else if (viewMode === 'weekly') d.setDate(d.getDate() + i * 7);
+            else d.setDate(d.getDate() + i);
             
             const isSelected = i === 0;
             const hasData = hasActivity(d);
@@ -894,37 +808,21 @@ export default function StatsView() {
             days.push(
                 <button
                     key={i}
-                    onClick={() => {
-                        setSelectedDate(d.getTime());
-                        setCurrentMonth(d);
-                    }}
+                    onClick={() => { setSelectedDate(d.getTime()); setCurrentMonth(d); }}
                     className={`flex flex-col items-center justify-center w-12 h-16 rounded-2xl transition-all ${
-                        isSelected
-                            ? 'bg-primary text-white shadow-lg scale-110'
+                        isSelected ? 'bg-primary text-white shadow-lg scale-110'
                             : 'bg-white text-gray-600 border border-gray-200 hover:border-primary/30'
                     }`}
                 >
-                    <span className={`text-[10px] font-bold uppercase ${
-                        isSelected ? 'text-white/80' : 'text-gray-400'
-                    }`}>
-                        {viewMode === 'monthly'
-                            ? d.toLocaleDateString('en-US', { month: 'short' })
-                            : d.toLocaleDateString('en-US', { weekday: 'short' })}
+                    <span className={`text-[10px] font-bold uppercase ${isSelected ? 'text-white/80' : 'text-gray-400'}`}>
+                        {viewMode === 'monthly' ? d.toLocaleDateString('en-US', { month: 'short' }) : d.toLocaleDateString('en-US', { weekday: 'short' })}
                     </span>
                     <span className="text-lg font-black">
                         {viewMode === 'monthly' ? d.getFullYear().toString().slice(-2) : d.getDate()}
                     </span>
                     <div className="flex gap-0.5 mt-0.5">
-                        {hasData && (
-                            <div className={`w-1.5 h-1.5 rounded-full ${
-                                isSelected ? 'bg-white' : 'bg-green-500'
-                            }`} />
-                        )}
-                        {events.length > 0 && (
-                            <div className={`w-1.5 h-1.5 rounded-full ${
-                                isSelected ? 'bg-white/60' : 'bg-purple-500'
-                            }`} />
-                        )}
+                        {hasData && <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-green-500'}`} />}
+                        {events.length > 0 && <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white/60' : 'bg-purple-500'}`} />}
                     </div>
                 </button>
             );
@@ -939,9 +837,7 @@ export default function StatsView() {
                     key={mode}
                     onClick={() => setViewMode(mode)}
                     className={`flex-1 py-2 px-4 rounded-full text-xs font-bold transition-all ${
-                        viewMode === mode
-                            ? 'bg-white text-primary shadow-sm'
-                            : 'text-gray-400 hover:text-gray-600'
+                        viewMode === mode ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'
                     }`}
                 >
                     {mode.charAt(0).toUpperCase() + mode.slice(1)}
@@ -950,69 +846,54 @@ export default function StatsView() {
         </div>
     );
 
-    // Stats Cards - NO LEVEL/XP, using Icons.Zap for credits (Icons.Coins doesn't exist)
     const renderStatsCards = () => (
         <div className="grid grid-cols-3 gap-3 mb-6">
-            {/* Tasks Card */}
             <Card className="p-4 bg-gradient-to-br from-primary to-primary/80 text-white border-none">
                 <div className="flex items-center gap-1 mb-1">
                     <Icons.Check className="w-3 h-3 text-white/60" />
                     <span className="text-[9px] font-bold uppercase text-white/60">Tasks</span>
                 </div>
-                <div className="text-2xl font-black">
-                    {animatedValues.tasksCompleted ?? calculatedStats.tasksCompleted}
-                </div>
+                <div className="text-2xl font-black">{animatedValues.tasksCompleted ?? calculatedStats.tasksCompleted}</div>
                 <div className="text-[10px] text-white/60 mt-0.5">
                     {viewMode === 'daily' ? 'Today' : viewMode === 'weekly' ? 'This Week' : 'This Month'}
                 </div>
             </Card>
             
-            {/* Credits Card - FIXED: Using Icons.Zap instead of Icons.Coins */}
             <Card className="p-4 bg-gradient-to-br from-amber-500 to-amber-400 text-white border-none">
                 <div className="flex items-center gap-1 mb-1">
-                    <Icons.Zap className="w-3 h-3 text-white/60" />
+                    <Icons.Coins className="w-3 h-3 text-white/60" />
                     <span className="text-[9px] font-bold uppercase text-white/60">Credits</span>
                 </div>
-                <div className="text-2xl font-black">
-                    {animatedValues.totalCredits ?? calculatedStats.totalCredits}
-                </div>
+                <div className="text-2xl font-black">{animatedValues.totalCredits ?? calculatedStats.totalCredits}</div>
                 <div className="text-[10px] text-white/60 mt-0.5">
                     +{animatedValues.periodCredits ?? calculatedStats.periodCredits} {viewMode === 'daily' ? 'today' : viewMode === 'weekly' ? 'this week' : 'this month'}
                 </div>
             </Card>
             
-            {/* Streak Card */}
             <Card className="p-4 bg-gradient-to-br from-red-500 to-orange-400 text-white border-none">
                 <div className="flex items-center gap-1 mb-1">
                     <Icons.Flame className="w-3 h-3 text-white/60" />
                     <span className="text-[9px] font-bold uppercase text-white/60">Streak</span>
                 </div>
-                <div className="text-2xl font-black">
-                    {animatedValues.streak ?? calculatedStats.streak}
-                </div>
+                <div className="text-2xl font-black">{animatedValues.streak ?? calculatedStats.streak}</div>
                 <div className="text-[10px] text-white/60 mt-0.5">Days</div>
             </Card>
         </div>
     );
 
-    // Summary Stats - NO LEVEL, using Icons.Zap for credits
     const renderSummaryStats = () => (
         <div className="grid grid-cols-3 gap-2 mb-6">
             <div className="bg-white border border-gray-200 rounded-xl p-3 text-center">
-                <div className="text-lg font-black text-gray-800">
-                    {animatedValues.allTimeCompleted ?? calculatedStats.allTimeCompleted}
-                </div>
+                <div className="text-lg font-black text-gray-800">{animatedValues.allTimeCompleted ?? calculatedStats.allTimeCompleted}</div>
                 <div className="text-[10px] text-gray-500">All Time Tasks</div>
             </div>
             <div className="bg-white border border-gray-200 rounded-xl p-3 text-center">
-                <div className="text-lg font-black text-gray-800">
-                    {calculatedStats.totalTasks}
-                </div>
+                <div className="text-lg font-black text-gray-800">{calculatedStats.totalTasks}</div>
                 <div className="text-[10px] text-gray-500">Total Tasks</div>
             </div>
             <div className="bg-white border border-gray-200 rounded-xl p-3 text-center">
                 <div className="text-lg font-black text-amber-600 flex items-center justify-center gap-1">
-                    <Icons.Zap className="w-4 h-4" />
+                    <Icons.Coins className="w-4 h-4" />
                     {animatedValues.totalCredits ?? calculatedStats.totalCredits}
                 </div>
                 <div className="text-[10px] text-gray-500">Total Credits</div>
@@ -1020,59 +901,23 @@ export default function StatsView() {
         </div>
     );
 
-    // Alerts Section
     const renderAlerts = () => {
         if (alerts.length === 0) return null;
         
         const getAlertStyles = (type: string) => {
             switch (type) {
-                case 'danger':
-                    return {
-                        bg: 'bg-red-50',
-                        border: 'border-red-200',
-                        icon: 'bg-red-100 text-red-600',
-                        title: 'text-red-800',
-                        message: 'text-red-600',
-                        button: 'bg-red-600 hover:bg-red-700 text-white'
-                    };
-                case 'warning':
-                    return {
-                        bg: 'bg-amber-50',
-                        border: 'border-amber-200',
-                        icon: 'bg-amber-100 text-amber-600',
-                        title: 'text-amber-800',
-                        message: 'text-amber-600',
-                        button: 'bg-amber-600 hover:bg-amber-700 text-white'
-                    };
-                case 'success':
-                    return {
-                        bg: 'bg-green-50',
-                        border: 'border-green-200',
-                        icon: 'bg-green-100 text-green-600',
-                        title: 'text-green-800',
-                        message: 'text-green-600',
-                        button: 'bg-green-600 hover:bg-green-700 text-white'
-                    };
-                default:
-                    return {
-                        bg: 'bg-blue-50',
-                        border: 'border-blue-200',
-                        icon: 'bg-blue-100 text-blue-600',
-                        title: 'text-blue-800',
-                        message: 'text-blue-600',
-                        button: 'bg-blue-600 hover:bg-blue-700 text-white'
-                    };
+                case 'danger': return { bg: 'bg-red-50', border: 'border-red-200', icon: 'bg-red-100 text-red-600', title: 'text-red-800', message: 'text-red-600', button: 'bg-red-600 hover:bg-red-700 text-white' };
+                case 'warning': return { bg: 'bg-amber-50', border: 'border-amber-200', icon: 'bg-amber-100 text-amber-600', title: 'text-amber-800', message: 'text-amber-600', button: 'bg-amber-600 hover:bg-amber-700 text-white' };
+                case 'success': return { bg: 'bg-green-50', border: 'border-green-200', icon: 'bg-green-100 text-green-600', title: 'text-green-800', message: 'text-green-600', button: 'bg-green-600 hover:bg-green-700 text-white' };
+                default: return { bg: 'bg-blue-50', border: 'border-blue-200', icon: 'bg-blue-100 text-blue-600', title: 'text-blue-800', message: 'text-blue-600', button: 'bg-blue-600 hover:bg-blue-700 text-white' };
             }
         };
 
         const getSourceLabel = (source: string) => {
             switch (source) {
-                case 'guide':
-                    return { label: 'The Guide', color: 'bg-purple-100 text-purple-700' };
-                case 'agent':
-                    return { label: 'Master Agent', color: 'bg-indigo-100 text-indigo-700' };
-                default:
-                    return { label: 'System', color: 'bg-gray-100 text-gray-700' };
+                case 'guide': return { label: 'The Guide', color: 'bg-purple-100 text-purple-700' };
+                case 'agent': return { label: 'Master Agent', color: 'bg-indigo-100 text-indigo-700' };
+                default: return { label: 'System', color: 'bg-gray-100 text-gray-700' };
             }
         };
         
@@ -1083,9 +928,7 @@ export default function StatsView() {
                         <Icons.Bell className="w-5 h-5 text-primary" />
                         AI Alerts
                     </h3>
-                    <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                        {alerts.length}
-                    </span>
+                    <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{alerts.length}</span>
                 </div>
                 {alerts.map(alert => {
                     const styles = getAlertStyles(alert.type);
@@ -1093,10 +936,7 @@ export default function StatsView() {
                     const IconComponent = alert.icon;
                     return (
                         <div key={alert.id} className={`${styles.bg} ${styles.border} border rounded-2xl p-4 relative`}>
-                            <button
-                                onClick={() => dismissAlert(alert.id)}
-                                className="absolute top-2 right-2 p-1 hover:bg-black/5 rounded-full"
-                            >
+                            <button onClick={() => dismissAlert(alert.id)} className="absolute top-2 right-2 p-1 hover:bg-black/5 rounded-full">
                                 <Icons.X className="w-4 h-4 text-gray-400" />
                             </button>
                             <div className="flex items-start gap-3">
@@ -1105,17 +945,12 @@ export default function StatsView() {
                                 </div>
                                 <div className="flex-1 min-w-0 pr-6">
                                     <div className="flex items-center gap-2 mb-1">
-                                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${sourceInfo.color}`}>
-                                            {sourceInfo.label}
-                                        </span>
+                                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${sourceInfo.color}`}>{sourceInfo.label}</span>
                                     </div>
                                     <h4 className={`font-bold text-sm ${styles.title}`}>{alert.title}</h4>
                                     <p className={`text-xs mt-1 ${styles.message}`}>{alert.message}</p>
                                     {alert.actionLabel && alert.actionView && (
-                                        <button
-                                            onClick={() => setView(alert.actionView!)}
-                                            className={`mt-3 px-3 py-1.5 rounded-lg text-xs font-bold ${styles.button}`}
-                                        >
+                                        <button onClick={() => setView(alert.actionView!)} className={`mt-3 px-3 py-1.5 rounded-lg text-xs font-bold ${styles.button}`}>
                                             {alert.actionLabel}
                                         </button>
                                     )}
@@ -1128,7 +963,6 @@ export default function StatsView() {
         );
     };
 
-    // Goal Progress Section
     const renderGoalProgress = () => {
         if (!user.goal) return null;
         
@@ -1143,18 +977,13 @@ export default function StatsView() {
                         <Icons.Target className="w-5 h-5 text-primary" />
                         Goal Progress
                     </h3>
-                    <span className="text-xs text-gray-500">
-                        Day {Math.min(daysElapsed, totalDays)} of {totalDays}
-                    </span>
+                    <span className="text-xs text-gray-500">Day {Math.min(daysElapsed, totalDays)} of {totalDays}</span>
                 </div>
                 <div className="mb-2">
                     <p className="font-semibold text-gray-700 text-sm">{user.goal.title}</p>
                 </div>
                 <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
-                    <div
-                        className="h-full bg-gradient-to-r from-primary to-primary/70 rounded-full transition-all duration-1000"
-                        style={{ width: `${progress}%` }}
-                    />
+                    <div className="h-full bg-gradient-to-r from-primary to-primary/70 rounded-full transition-all duration-1000" style={{ width: `${progress}%` }} />
                 </div>
                 <div className="flex justify-between mt-2 text-xs text-gray-500">
                     <span>{progress}% complete</span>
@@ -1164,16 +993,11 @@ export default function StatsView() {
         );
     };
 
-    // Activity Trend (Line Chart)
     const renderActivityTrend = () => {
         const labels = calculatedStats.historyData.map((d, i) => {
-            if (viewMode === 'daily') {
-                return d.date.toLocaleDateString('en-US', { weekday: 'short' });
-            } else if (viewMode === 'weekly') {
-                return `W${i + 1}`;
-            } else {
-                return d.date.toLocaleDateString('en-US', { month: 'short' });
-            }
+            if (viewMode === 'daily') return d.date.toLocaleDateString('en-US', { weekday: 'short' });
+            else if (viewMode === 'weekly') return `W${i + 1}`;
+            else return d.date.toLocaleDateString('en-US', { month: 'short' });
         });
 
         return (
@@ -1182,17 +1006,11 @@ export default function StatsView() {
                     <Icons.TrendingUp className="w-5 h-5 text-primary" />
                     Activity Trend
                 </h3>
-                <LineChart
-                    data={calculatedStats.historyData.map(d => d.tasks)}
-                    color="#4F46E5"
-                    height={120}
-                    labels={labels}
-                />
+                <LineChart data={calculatedStats.historyData.map(d => d.tasks)} color="#4F46E5" height={120} labels={labels} />
             </Card>
         );
     };
 
-    // Task Breakdown (Donut Chart)
     const renderTaskBreakdown = () => {
         const data = [
             { value: calculatedStats.easyTasks, color: '#10B981', label: 'Easy' },
@@ -1207,9 +1025,7 @@ export default function StatsView() {
                         <Icons.PieChart className="w-5 h-5 text-primary" />
                         Task Breakdown
                     </h3>
-                    <div className="flex items-center justify-center py-8 text-gray-400 text-sm">
-                        Complete tasks to see breakdown
-                    </div>
+                    <div className="flex items-center justify-center py-8 text-gray-400 text-sm">Complete tasks to see breakdown</div>
                 </Card>
             );
         }
@@ -1225,37 +1041,24 @@ export default function StatsView() {
         );
     };
 
-    // Credits Chart - FIXED: Using Icons.Zap
     const renderCreditsChart = () => {
         const labels = calculatedStats.historyData.map((d, i) => {
-            if (viewMode === 'daily') {
-                return d.date.toLocaleDateString('en-US', { weekday: 'short' });
-            } else if (viewMode === 'weekly') {
-                return `W${i + 1}`;
-            } else {
-                return d.date.toLocaleDateString('en-US', { month: 'short' });
-            }
+            if (viewMode === 'daily') return d.date.toLocaleDateString('en-US', { weekday: 'short' });
+            else if (viewMode === 'weekly') return `W${i + 1}`;
+            else return d.date.toLocaleDateString('en-US', { month: 'short' });
         });
 
         return (
             <Card className="p-4 bg-white border border-gray-200 mb-6">
                 <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <Icons.Zap className="w-5 h-5 text-amber-500" />
+                    <Icons.Coins className="w-5 h-5 text-amber-500" />
                     Credits Earned
                 </h3>
-                <BarChart
-                    data={calculatedStats.historyData.map((d, i) => ({
-                        label: labels[i],
-                        value: d.credits,
-                        color: '#F59E0B'
-                    }))}
-                    height={100}
-                />
+                <BarChart data={calculatedStats.historyData.map((d, i) => ({ label: labels[i], value: d.credits, color: '#F59E0B' }))} height={100} />
             </Card>
         );
     };
 
-    // Portfolio Allocation (Budget Split) - Fixed text visibility
     const renderPortfolioAllocation = () => {
         if (!budgetData || !user.goal) return null;
 
@@ -1269,10 +1072,7 @@ export default function StatsView() {
                     {budgetData.allocations?.map((item: any, i: number) => (
                         <div key={i} className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                                <div 
-                                    className="w-3 h-3 rounded-full" 
-                                    style={{ backgroundColor: ['#4F46E5', '#10B981', '#F59E0B', '#EF4444'][i % 4] }}
-                                />
+                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: ['#4F46E5', '#10B981', '#F59E0B', '#EF4444'][i % 4] }} />
                                 <span className="text-sm text-gray-700">{item.category}</span>
                             </div>
                             <div className="flex items-center gap-2">
@@ -1280,21 +1080,15 @@ export default function StatsView() {
                                 <span className="text-xs text-gray-500">({item.percentage}%)</span>
                             </div>
                         </div>
-                    )) || (
-                        <div className="text-center py-4 text-gray-400 text-sm">
-                            Loading allocation data...
-                        </div>
-                    )}
+                    )) || <div className="text-center py-4 text-gray-400 text-sm">Loading allocation data...</div>}
                 </div>
             </Card>
         );
     };
 
-    // Connected Apps Section
     const renderConnectedApps = () => {
         const apps = user.connectedApps || [];
         const connectedApps = apps.filter(a => a.isConnected);
-        
         if (connectedApps.length === 0) return null;
 
         return (
@@ -1312,9 +1106,7 @@ export default function StatsView() {
                                 </div>
                                 <div>
                                     <p className="font-semibold text-gray-800 text-sm">{app.name}</p>
-                                    <p className="text-xs text-gray-500">
-                                        {app.metrics?.length || 0} metrics tracked
-                                    </p>
+                                    <p className="text-xs text-gray-500">{app.metrics?.length || 0} metrics tracked</p>
                                 </div>
                             </div>
                             <div className="w-2 h-2 rounded-full bg-green-500" />
@@ -1325,13 +1117,12 @@ export default function StatsView() {
         );
     };
 
-    // Upcoming Milestones - Show only next 3 - FIXED: Icons.Flag doesn't exist, use Icons.Calendar
     const renderUpcomingMilestones = () => {
         const now = new Date();
         const upcomingEvents = allEvents
             .filter(e => new Date(e.date) >= now)
             .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-            .slice(0, 3); // Only show next 3
+            .slice(0, 3);
 
         if (upcomingEvents.length === 0) return null;
 
@@ -1348,14 +1139,8 @@ export default function StatsView() {
                         
                         return (
                             <div key={event.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                                <div 
-                                    className="w-10 h-10 rounded-xl flex items-center justify-center"
-                                    style={{ backgroundColor: `${event.color}20` }}
-                                >
-                                    <div 
-                                        className="w-3 h-3 rounded-full"
-                                        style={{ backgroundColor: event.color }}
-                                    />
+                                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${event.color}20` }}>
+                                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: event.color }} />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <p className="font-semibold text-gray-800 text-sm truncate">{event.title}</p>
@@ -1366,10 +1151,7 @@ export default function StatsView() {
                                     </p>
                                 </div>
                                 {event.type === 'custom' && (
-                                    <button
-                                        onClick={() => handleDeleteEvent(event.id)}
-                                        className="p-1 hover:bg-gray-200 rounded-full"
-                                    >
+                                    <button onClick={() => handleDeleteEvent(event.id)} className="p-1 hover:bg-gray-200 rounded-full">
                                         <Icons.X className="w-4 h-4 text-gray-400" />
                                     </button>
                                 )}
@@ -1381,7 +1163,6 @@ export default function StatsView() {
         );
     };
 
-    // Full Calendar
     const renderFullCalendar = () => {
         const year = currentMonth.getFullYear();
         const month = currentMonth.getMonth();
@@ -1394,16 +1175,10 @@ export default function StatsView() {
         const days = [];
         const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         
-        // Previous month days
         for (let i = startingDay - 1; i >= 0; i--) {
-            days.push(
-                <div key={`prev-${i}`} className="h-11 flex items-center justify-center text-gray-300 text-sm">
-                    {prevMonthLastDay - i}
-                </div>
-            );
+            days.push(<div key={`prev-${i}`} className="h-11 flex items-center justify-center text-gray-300 text-sm">{prevMonthLastDay - i}</div>);
         }
         
-        // Current month days
         for (let day = 1; day <= totalDays; day++) {
             const date = new Date(year, month, day);
             const isToday = date.toDateString() === new Date().toDateString();
@@ -1414,33 +1189,19 @@ export default function StatsView() {
             days.push(
                 <button
                     key={day}
-                    onClick={() => {
-                        setSelectedDate(date.getTime());
-                        setSelectedEventDate(date);
-                        if (dayEvents.length > 0) setShowDayEvents(true);
-                    }}
+                    onClick={() => { setSelectedDate(date.getTime()); setSelectedEventDate(date); if (dayEvents.length > 0) setShowDayEvents(true); }}
                     className={`h-11 rounded-xl flex flex-col items-center justify-center relative transition-all ${
-                        isSelected
-                            ? 'bg-primary text-white shadow-md'
-                            : isToday
-                                ? 'bg-primary/10 text-primary font-bold border-2 border-primary/30'
-                                : 'text-gray-700 hover:bg-gray-100'
+                        isSelected ? 'bg-primary text-white shadow-md'
+                        : isToday ? 'bg-primary/10 text-primary font-bold border-2 border-primary/30'
+                        : 'text-gray-700 hover:bg-gray-100'
                     }`}
                 >
                     <span className="text-sm font-semibold">{day}</span>
                     {(dayHasActivity || dayEvents.length > 0) && (
                         <div className="flex gap-0.5 absolute bottom-1">
-                            {dayHasActivity && (
-                                <div className={`w-1.5 h-1.5 rounded-full ${
-                                    isSelected ? 'bg-white' : 'bg-green-500'
-                                }`} />
-                            )}
+                            {dayHasActivity && <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-green-500'}`} />}
                             {dayEvents.slice(0, 2).map((e, i) => (
-                                <div
-                                    key={i}
-                                    className="w-1.5 h-1.5 rounded-full"
-                                    style={{ backgroundColor: isSelected ? 'white' : e.color }}
-                                />
+                                <div key={i} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: isSelected ? 'white' : e.color }} />
                             ))}
                         </div>
                     )}
@@ -1448,61 +1209,31 @@ export default function StatsView() {
             );
         }
         
-        // Next month days
         const remainingDays = 42 - days.length;
         for (let i = 1; i <= remainingDays; i++) {
-            days.push(
-                <div key={`next-${i}`} className="h-11 flex items-center justify-center text-gray-300 text-sm">
-                    {i}
-                </div>
-            );
+            days.push(<div key={`next-${i}`} className="h-11 flex items-center justify-center text-gray-300 text-sm">{i}</div>);
         }
         
         return (
             <Card className="p-4 bg-white border border-gray-200 mb-6">
                 <div className="flex items-center justify-between mb-4">
-                    <button
-                        onClick={() => {
-                            const n = new Date(currentMonth);
-                            n.setMonth(n.getMonth() - 1);
-                            setCurrentMonth(n);
-                        }}
-                        className="p-2 hover:bg-gray-100 rounded-full"
-                    >
+                    <button onClick={() => { const n = new Date(currentMonth); n.setMonth(n.getMonth() - 1); setCurrentMonth(n); }} className="p-2 hover:bg-gray-100 rounded-full">
                         <Icons.ChevronLeft className="w-5 h-5 text-gray-600" />
                     </button>
-                    <h3 className="font-bold text-gray-800 text-lg">
-                        {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                    </h3>
-                    <button
-                        onClick={() => {
-                            const n = new Date(currentMonth);
-                            n.setMonth(n.getMonth() + 1);
-                            setCurrentMonth(n);
-                        }}
-                        className="p-2 hover:bg-gray-100 rounded-full"
-                    >
+                    <h3 className="font-bold text-gray-800 text-lg">{currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</h3>
+                    <button onClick={() => { const n = new Date(currentMonth); n.setMonth(n.getMonth() + 1); setCurrentMonth(n); }} className="p-2 hover:bg-gray-100 rounded-full">
                         <Icons.ChevronRight className="w-5 h-5 text-gray-600" />
                     </button>
                 </div>
                 
                 <div className="grid grid-cols-7 gap-1 mb-2">
-                    {weekDays.map(day => (
-                        <div key={day} className="text-center text-xs font-bold text-gray-500 uppercase py-2">
-                            {day}
-                        </div>
-                    ))}
+                    {weekDays.map(day => <div key={day} className="text-center text-xs font-bold text-gray-500 uppercase py-2">{day}</div>)}
                 </div>
                 
-                <div className="grid grid-cols-7 gap-1 border-t border-gray-100 pt-2">
-                    {days}
-                </div>
+                <div className="grid grid-cols-7 gap-1 border-t border-gray-100 pt-2">{days}</div>
                 
                 <button
-                    onClick={() => {
-                        setSelectedEventDate(new Date(selectedDate));
-                        setShowEventModal(true);
-                    }}
+                    onClick={() => { setSelectedEventDate(new Date(selectedDate)); setShowEventModal(true); }}
                     className="w-full mt-4 py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 text-sm font-medium hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2"
                 >
                     <Icons.Plus className="w-4 h-4" />
@@ -1510,28 +1241,15 @@ export default function StatsView() {
                 </button>
                 
                 <div className="flex flex-wrap items-center justify-center gap-4 mt-4 text-xs text-gray-500">
-                    <span className="flex items-center gap-1.5">
-                        <div className="w-2.5 h-2.5 bg-green-500 rounded-full" />
-                        Activity
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                        <div className="w-2.5 h-2.5 bg-purple-500 rounded-full" />
-                        Custom
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                        <div className="w-2.5 h-2.5 bg-primary rounded-full" />
-                        Goal
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                        <div className="w-2.5 h-2.5 bg-amber-500 rounded-full" />
-                        Milestone
-                    </span>
+                    <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-green-500 rounded-full" />Activity</span>
+                    <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-purple-500 rounded-full" />Custom</span>
+                    <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-primary rounded-full" />Goal</span>
+                    <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-amber-500 rounded-full" />Milestone</span>
                 </div>
             </Card>
         );
     };
 
-    // AI Insights Section
     const renderAIInsights = () => {
         const currentInsights = insights || mockInsights;
         
@@ -1573,106 +1291,50 @@ export default function StatsView() {
 
     return (
         <div className="min-h-full bg-[#F7F8FC] pb-24">
-            {/* Header */}
             <div className="bg-gradient-to-br from-[#171738] via-[#1e1e4a] to-[#2a2a5c] text-white px-5 pt-safe pb-6">
                 <div className="flex items-center justify-between pt-4 mb-4">
                     <h1 className="text-xl font-black">Analytics</h1>
-                    <button
-                        onClick={() => setView(AppView.DASHBOARD)}
-                        className="p-2 bg-white/10 rounded-xl hover:bg-white/20 transition-all"
-                    >
+                    <button onClick={() => setView(AppView.DASHBOARD)} className="p-2 bg-white/10 rounded-xl hover:bg-white/20 transition-all">
                         <Icons.X className="w-5 h-5" />
                     </button>
                 </div>
-                
-                {/* View Mode Toggle */}
                 {renderViewModeToggle()}
-                
-                {/* Calendar Strip */}
                 {renderCalendarStrip()}
             </div>
 
             <div className="px-5 pt-6">
-                {/* 1. Stats Cards (Most Important) */}
                 {renderStatsCards()}
-
-                {/* 2. AI Alerts */}
                 {renderAlerts()}
-
-                {/* 3. Goal Progress */}
                 {renderGoalProgress()}
-
-                {/* 4. Activity Trend */}
                 {renderActivityTrend()}
-
-                {/* 5. Task Breakdown */}
                 {renderTaskBreakdown()}
-
-                {/* 6. Credits Chart */}
                 {renderCreditsChart()}
-
-                {/* 7. Portfolio Allocation */}
                 {renderPortfolioAllocation()}
-
-                {/* 8. Connected Apps */}
                 {renderConnectedApps()}
-
-                {/* 9. Upcoming Milestones (Only 3) */}
                 {renderUpcomingMilestones()}
-
-                {/* 10. Full Calendar */}
                 {renderFullCalendar()}
-
-                {/* 11. AI Insights (Bottom) */}
                 {renderAIInsights()}
             </div>
 
-            {/* Add Event Modal */}
             {showEventModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-5">
                     <div className="bg-white rounded-3xl w-full max-w-sm p-6">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="font-bold text-gray-800 text-lg">Add Event</h3>
-                            <button
-                                onClick={() => setShowEventModal(false)}
-                                className="p-2 hover:bg-gray-100 rounded-full"
-                            >
+                            <button onClick={() => setShowEventModal(false)} className="p-2 hover:bg-gray-100 rounded-full">
                                 <Icons.X className="w-5 h-5 text-gray-400" />
                             </button>
                         </div>
-                        
                         <div className="space-y-4">
-                            <div>
-                                <p className="text-sm text-gray-500 mb-2">
-                                    Date: {selectedEventDate?.toLocaleDateString('en-US', { 
-                                        weekday: 'long', 
-                                        month: 'long', 
-                                        day: 'numeric' 
-                                    })}
-                                </p>
-                            </div>
-                            
-                            <input
-                                type="text"
-                                placeholder="Event title"
-                                value={newEvent.title}
-                                onChange={(e) => setNewEvent(prev => ({ ...prev, title: e.target.value }))}
-                                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-primary text-gray-800"
-                            />
-                            
-                            <textarea
-                                placeholder="Description (optional)"
-                                value={newEvent.description}
-                                onChange={(e) => setNewEvent(prev => ({ ...prev, description: e.target.value }))}
-                                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-primary text-gray-800 resize-none"
-                                rows={3}
-                            />
-                            
-                            <button
-                                onClick={handleAddEvent}
-                                disabled={!newEvent.title.trim()}
-                                className="w-full py-3 bg-primary text-white font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
+                            <p className="text-sm text-gray-500 mb-2">
+                                Date: {selectedEventDate?.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                            </p>
+                            <input type="text" placeholder="Event title" value={newEvent.title} onChange={(e) => setNewEvent(prev => ({ ...prev, title: e.target.value }))}
+                                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-primary text-gray-800" />
+                            <textarea placeholder="Description (optional)" value={newEvent.description} onChange={(e) => setNewEvent(prev => ({ ...prev, description: e.target.value }))}
+                                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-primary text-gray-800 resize-none" rows={3} />
+                            <button onClick={handleAddEvent} disabled={!newEvent.title.trim()}
+                                className="w-full py-3 bg-primary text-white font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed">
                                 Add Event
                             </button>
                         </div>
@@ -1680,69 +1342,36 @@ export default function StatsView() {
                 </div>
             )}
 
-            {/* Day Events Modal - FIXED: Icons.Trash2 doesn't exist, use Icons.Trash */}
             {showDayEvents && selectedEventDate && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-5">
                     <div className="bg-white rounded-3xl w-full max-w-sm p-6 max-h-[80vh] overflow-y-auto">
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="font-bold text-gray-800 text-lg">
-                                {selectedEventDate.toLocaleDateString('en-US', { 
-                                    month: 'long', 
-                                    day: 'numeric' 
-                                })}
-                            </h3>
-                            <button
-                                onClick={() => setShowDayEvents(false)}
-                                className="p-2 hover:bg-gray-100 rounded-full"
-                            >
+                            <h3 className="font-bold text-gray-800 text-lg">{selectedEventDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</h3>
+                            <button onClick={() => setShowDayEvents(false)} className="p-2 hover:bg-gray-100 rounded-full">
                                 <Icons.X className="w-5 h-5 text-gray-400" />
                             </button>
                         </div>
-                        
                         <div className="space-y-3">
                             {getEventsForDate(selectedEventDate).map(event => (
-                                <div
-                                    key={event.id}
-                                    className="p-4 rounded-xl border"
-                                    style={{ borderColor: event.color, backgroundColor: `${event.color}10` }}
-                                >
+                                <div key={event.id} className="p-4 rounded-xl border" style={{ borderColor: event.color, backgroundColor: `${event.color}10` }}>
                                     <div className="flex items-start justify-between">
                                         <div className="flex-1">
-                                            <span
-                                                className="text-[10px] font-bold uppercase px-2 py-0.5 rounded"
-                                                style={{ backgroundColor: event.color, color: 'white' }}
-                                            >
-                                                {event.type}
-                                            </span>
+                                            <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded" style={{ backgroundColor: event.color, color: 'white' }}>{event.type}</span>
                                             <h4 className="font-bold text-gray-800 mt-2">{event.title}</h4>
-                                            {event.description && (
-                                                <p className="text-sm text-gray-500 mt-1">{event.description}</p>
-                                            )}
+                                            {event.description && <p className="text-sm text-gray-500 mt-1">{event.description}</p>}
                                         </div>
                                         {event.type === 'custom' && (
-                                            <button
-                                                onClick={() => handleDeleteEvent(event.id)}
-                                                className="p-1 hover:bg-white rounded-full"
-                                            >
+                                            <button onClick={() => handleDeleteEvent(event.id)} className="p-1 hover:bg-white rounded-full">
                                                 <Icons.Trash className="w-4 h-4 text-red-400" />
                                             </button>
                                         )}
                                     </div>
                                 </div>
                             ))}
-                            
-                            {getEventsForDate(selectedEventDate).length === 0 && (
-                                <p className="text-center text-gray-400 py-4">No events on this day</p>
-                            )}
+                            {getEventsForDate(selectedEventDate).length === 0 && <p className="text-center text-gray-400 py-4">No events on this day</p>}
                         </div>
-                        
-                        <button
-                            onClick={() => {
-                                setShowDayEvents(false);
-                                setShowEventModal(true);
-                            }}
-                            className="w-full mt-4 py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 text-sm font-medium hover:border-primary hover:text-primary transition-colors"
-                        >
+                        <button onClick={() => { setShowDayEvents(false); setShowEventModal(true); }}
+                            className="w-full mt-4 py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 text-sm font-medium hover:border-primary hover:text-primary transition-colors">
                             + Add Event
                         </button>
                     </div>

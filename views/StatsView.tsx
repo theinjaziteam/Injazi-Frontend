@@ -1,8 +1,8 @@
 // views/StatsView.tsx
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { AppView, TaskStatus } from '../types';
-import { Icons, Card, CoinIcon } from '../components/UIComponents';
+import { Icons, Card } from '../components/UIComponents';
 import { calculateBudgetSplit, generateDeepInsights } from '../services/geminiService';
 
 interface CalendarEvent {
@@ -25,6 +25,15 @@ interface Alert {
     actionView?: AppView;
 }
 
+// Local CoinIcon for gradient cards (gold filled version)
+const CoinIcon = (props: any) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" {...props}>
+        <circle cx="12" cy="12" r="10" fill="currentColor" opacity="0.2"/>
+        <circle cx="12" cy="12" r="8" fill="currentColor"/>
+        <text x="12" y="16" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold">$</text>
+    </svg>
+);
+
 export default function StatsView() {
     const { user, setView } = useApp();
     const [selectedDate, setSelectedDate] = useState(Date.now());
@@ -35,6 +44,7 @@ export default function StatsView() {
     const [animatedValues, setAnimatedValues] = useState<Record<string, number>>({});
     const [dismissedAlerts, setDismissedAlerts] = useState<string[]>([]);
     const [prevStats, setPrevStats] = useState<Record<string, number>>({});
+    const dateScrollRef = useRef<HTMLDivElement>(null);
     
     // Calendar states
     const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -43,6 +53,19 @@ export default function StatsView() {
     const [selectedEventDate, setSelectedEventDate] = useState<Date | null>(null);
     const [newEvent, setNewEvent] = useState({ title: '', description: '' });
     const [showDayEvents, setShowDayEvents] = useState(false);
+
+    // Scroll date selector to center on mount
+    useEffect(() => {
+        if (dateScrollRef.current) {
+            setTimeout(() => {
+                if (dateScrollRef.current) {
+                    const scrollWidth = dateScrollRef.current.scrollWidth;
+                    const clientWidth = dateScrollRef.current.clientWidth;
+                    dateScrollRef.current.scrollLeft = (scrollWidth - clientWidth) / 2;
+                }
+            }, 100);
+        }
+    }, []);
 
     // Load dismissed alerts from localStorage
     useEffect(() => {
@@ -77,7 +100,7 @@ export default function StatsView() {
         localStorage.setItem('statsCalendarEvents', JSON.stringify(customEvents));
     }, [calendarEvents]);
 
-    // Generate automatic milestones based on goal
+    // Generate automatic milestones based on goal - only next 3
     const allEvents = useMemo(() => {
         const autoMilestones: CalendarEvent[] = [];
         
@@ -93,7 +116,8 @@ export default function StatsView() {
             });
         }
         
-        for (let i = 1; i <= 4; i++) {
+        // Only add 3 weekly review milestones (next 3)
+        for (let i = 1; i <= 3; i++) {
             const reviewDate = new Date();
             reviewDate.setDate(reviewDate.getDate() + (7 * i) - reviewDate.getDay());
             autoMilestones.push({
@@ -140,12 +164,38 @@ export default function StatsView() {
 
         const filteredTasks = allCompletedTasks.filter(filterByDate);
         
+        // Calculate period credits - check multiple field names, default 25 per task
         const periodCredits = filteredTasks.reduce((sum, t) => {
-            return sum + (t.creditsReward || t.credits || t.reward || 0);
+            const credits = t.creditsReward || t.credits || t.reward || t.creditReward || 25;
+            return sum + credits;
         }, 0);
         
-        const totalCredits = user.credits || 0;
-        let streak = user.streak || 0;
+        // Total credits from user state
+        const totalCredits = user.credits || user.gameState?.credits || 0;
+        
+        // Streak calculation
+        let streak = user.streak || user.gameState?.streak || 0;
+        
+        if (streak === 0 && allCompletedTasks.length > 0) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            for (let i = 0; i < 365; i++) {
+                const checkDate = new Date(today);
+                checkDate.setDate(checkDate.getDate() - i);
+                
+                const hasTaskOnDay = allCompletedTasks.some(t => {
+                    const taskDate = new Date(t.completedAt || t.updatedAt || t.createdAt || 0);
+                    return taskDate.toDateString() === checkDate.toDateString();
+                });
+                
+                if (hasTaskOnDay) {
+                    streak++;
+                } else if (i > 0) {
+                    break;
+                }
+            }
+        }
         
         const easyTasks = filteredTasks.filter(t => {
             const diff = (t.difficulty || '').toString().toLowerCase();
@@ -162,6 +212,7 @@ export default function StatsView() {
             return diff === 'hard' || diff === '3';
         }).length;
 
+        // 7-period history data
         const historyData = Array.from({ length: 7 }, (_, i) => {
             const date = new Date(now);
             if (viewMode === 'daily') {
@@ -191,7 +242,7 @@ export default function StatsView() {
             return {
                 date,
                 tasks: dayTasks.length,
-                credits: dayTasks.reduce((sum, t) => sum + (t.creditsReward || t.credits || t.reward || 0), 0)
+                credits: dayTasks.reduce((sum, t) => sum + (t.creditsReward || t.credits || t.reward || 25), 0)
             };
         });
 
@@ -207,7 +258,7 @@ export default function StatsView() {
             totalTasks: tasks.length,
             allTimeCompleted: allCompletedTasks.length
         };
-    }, [user.dailyTasks, user.credits, user.streak, selectedDate, viewMode]);
+    }, [user.dailyTasks, user.credits, user.gameState, user.streak, selectedDate, viewMode]);
 
     // Animate numbers when stats change
     useEffect(() => {
@@ -224,12 +275,7 @@ export default function StatsView() {
         );
 
         if (!hasChanges && Object.keys(prevStats).length > 0) return;
-
         setPrevStats(newTargets);
-
-        const duration = 600;
-        const steps = 20;
-        const stepDuration = duration / steps;
 
         Object.entries(newTargets).forEach(([key, target]) => {
             const start = animatedValues[key] ?? 0;
@@ -241,6 +287,7 @@ export default function StatsView() {
             }
             
             let step = 0;
+            const steps = 20;
             const animate = () => {
                 step++;
                 const progress = step / steps;
@@ -250,7 +297,7 @@ export default function StatsView() {
                 setAnimatedValues(prev => ({ ...prev, [key]: current }));
                 
                 if (step < steps) {
-                    requestAnimationFrame(() => setTimeout(animate, stepDuration));
+                    requestAnimationFrame(() => setTimeout(animate, 30));
                 } else {
                     setAnimatedValues(prev => ({ ...prev, [key]: target }));
                 }
@@ -259,144 +306,64 @@ export default function StatsView() {
         });
     }, [calculatedStats]);
 
-    // Generate alerts based on real data
+    // Generate alerts from Guide and Master Agent data
     const alerts = useMemo(() => {
         const generatedAlerts: Alert[] = [];
         const tasks = user.dailyTasks || [];
         const completedTasks = tasks.filter(t => 
-            t.status === TaskStatus.COMPLETED || 
-            t.status === TaskStatus.APPROVED ||
-            t.status === 'completed' || 
-            t.status === 'approved'
+            t.status === TaskStatus.COMPLETED || t.status === TaskStatus.APPROVED ||
+            t.status === 'completed' || t.status === 'approved'
         );
         const credits = calculatedStats.totalCredits;
         const streak = calculatedStats.streak;
         
         const chatHistory = user.chatHistory || [];
-        const lastGuideMessage = chatHistory.length > 0 ? chatHistory[chatHistory.length - 1] : null;
         const agentAlerts = user.agentAlerts || [];
         const unreadAgentAlerts = agentAlerts.filter((a: any) => !a.isRead);
         
-        if (chatHistory.length > 0 && lastGuideMessage?.timestamp) {
-            const lastConversationDate = new Date(lastGuideMessage.timestamp);
-            const daysSinceLastConversation = Math.floor((Date.now() - lastConversationDate.getTime()) / (1000 * 60 * 60 * 24));
-            
-            if (daysSinceLastConversation > 2) {
-                generatedAlerts.push({
-                    id: 'guide-inactive',
-                    type: 'info',
-                    title: 'Check in with The Guide',
-                    message: `It's been ${daysSinceLastConversation} days since your last conversation.`,
-                    icon: Icons.MessageCircle,
-                    source: 'guide',
-                    actionLabel: 'Open Guide',
-                    actionView: AppView.CHAT
-                });
-            }
-        }
-        
         if (!user.goal) {
             generatedAlerts.push({
-                id: 'no-goal',
-                type: 'warning',
-                title: 'Set Your First Goal',
+                id: 'no-goal', type: 'warning', title: 'Set Your First Goal',
                 message: 'The Guide recommends setting a goal to start your journey.',
-                icon: Icons.Target,
-                source: 'guide',
-                actionLabel: 'Talk to Guide',
-                actionView: AppView.CHAT
+                icon: Icons.Trophy, source: 'guide',
+                actionLabel: 'Talk to Guide', actionView: AppView.CHAT
             });
         }
         
         if (unreadAgentAlerts.length > 0) {
-            const highSeverityAlerts = unreadAgentAlerts.filter((a: any) => a.severity === 'high');
-            if (highSeverityAlerts.length > 0) {
-                generatedAlerts.push({
-                    id: 'agent-high-severity',
-                    type: 'danger',
-                    title: `${highSeverityAlerts.length} Critical Alert${highSeverityAlerts.length > 1 ? 's' : ''}`,
-                    message: highSeverityAlerts[0].title || 'Requires immediate attention.',
-                    icon: Icons.AlertTriangle,
-                    source: 'agent',
-                    actionLabel: 'View Details',
-                    actionView: AppView.DASHBOARD
-                });
-            }
+            generatedAlerts.push({
+                id: 'agent-alerts', type: 'danger',
+                title: `${unreadAgentAlerts.length} Alert${unreadAgentAlerts.length > 1 ? 's' : ''}`,
+                message: 'Requires your attention.',
+                icon: Icons.AlertTriangle, source: 'agent',
+                actionLabel: 'View', actionView: AppView.DASHBOARD
+            });
         }
         
         if (streak > 0 && streak < 3) {
             generatedAlerts.push({
-                id: 'streak-risk',
-                type: 'warning',
-                title: 'Streak at Risk',
-                message: `Your ${streak}-day streak needs attention! Complete a task today.`,
-                icon: Icons.Flame,
-                source: 'system',
-                actionLabel: 'View Tasks',
-                actionView: AppView.DASHBOARD
-            });
-        }
-        
-        const threeDaysAgo = new Date();
-        threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-        const recentActivity = completedTasks.some(t => {
-            const taskDate = new Date(t.completedAt || t.updatedAt || t.createdAt || 0);
-            return taskDate >= threeDaysAgo;
-        });
-        
-        if (!recentActivity && tasks.length > 0) {
-            generatedAlerts.push({
-                id: 'no-activity',
-                type: 'danger',
-                title: 'No Recent Activity',
-                message: "You haven't completed any tasks in 3+ days. Let's get back on track!",
-                icon: Icons.AlertTriangle,
-                source: 'system',
-                actionLabel: 'Start Now',
-                actionView: AppView.DASHBOARD
-            });
-        }
-        
-        if (user.goal?.createdAt) {
-            const daysElapsed = Math.floor((Date.now() - new Date(user.goal.createdAt).getTime()) / (1000 * 60 * 60 * 24));
-            const totalDays = user.goal.durationDays || 30;
-            const expectedTasks = Math.floor((daysElapsed / totalDays) * (tasks.length || 10));
-            
-            if (completedTasks.length < expectedTasks * 0.5 && daysElapsed > 3) {
-                generatedAlerts.push({
-                    id: 'goal-behind',
-                    type: 'warning',
-                    title: 'Falling Behind on Goal',
-                    message: `You're ${Math.round((daysElapsed / totalDays) * 100)}% through your timeline but behind on tasks.`,
-                    icon: Icons.TrendingDown,
-                    source: 'guide',
-                    actionLabel: 'Get Advice',
-                    actionView: AppView.CHAT
-                });
-            }
-        }
-        
-        if (credits > 0 && credits < 50) {
-            generatedAlerts.push({
-                id: 'low-credits',
-                type: 'info',
-                title: 'Low on Credits',
-                message: `Only ${credits} credits remaining. Complete tasks to earn more!`,
-                icon: Icons.Coins,
-                source: 'system',
-                actionLabel: 'Earn More',
-                actionView: AppView.DASHBOARD
+                id: 'streak-risk', type: 'warning', title: 'Keep Your Streak!',
+                message: `${streak} day streak - don't break it!`,
+                icon: Icons.Flame, source: 'system',
+                actionLabel: 'Do Task', actionView: AppView.DASHBOARD
             });
         }
         
         if (streak >= 7) {
             generatedAlerts.push({
-                id: 'streak-celebrate',
-                type: 'success',
+                id: 'streak-celebrate', type: 'success',
                 title: `${streak} Day Streak!`,
-                message: "Amazing consistency! Keep up the great work!",
-                icon: Icons.Trophy,
-                source: 'guide'
+                message: "Amazing consistency! Keep it up!",
+                icon: Icons.Trophy, source: 'guide'
+            });
+        }
+        
+        if (credits > 0 && credits < 50) {
+            generatedAlerts.push({
+                id: 'low-credits', type: 'info', title: 'Low Credits',
+                message: `${credits} credits left. Earn more!`,
+                icon: Icons.Zap, source: 'system',
+                actionLabel: 'Earn', actionView: AppView.DASHBOARD
             });
         }
         
@@ -409,51 +376,78 @@ export default function StatsView() {
         localStorage.setItem('dismissedAlerts', JSON.stringify({ date: new Date().toDateString(), alerts: updated }));
     };
 
-    // Mock insights
+    // Enhanced mock insights
     const mockInsights = useMemo(() => {
         const tasks = user.dailyTasks || [];
         const completedTasks = tasks.filter(t => 
-            t.status === TaskStatus.COMPLETED || 
-            t.status === TaskStatus.APPROVED ||
-            t.status === 'completed' || 
-            t.status === 'approved'
+            t.status === TaskStatus.COMPLETED || t.status === TaskStatus.APPROVED ||
+            t.status === 'completed' || t.status === 'approved'
         );
         const streak = calculatedStats.streak;
         const credits = calculatedStats.totalCredits;
         
         const tasksByDay: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+        const tasksByHour: Record<number, number> = {};
+        
         completedTasks.forEach(t => {
-            const day = new Date(t.completedAt || t.createdAt || Date.now()).getDay();
-            tasksByDay[day]++;
+            const date = new Date(t.completedAt || t.createdAt || Date.now());
+            tasksByDay[date.getDay()]++;
+            const hour = date.getHours();
+            tasksByHour[hour] = (tasksByHour[hour] || 0) + 1;
         });
         
         const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        const mostProductiveDay = Object.entries(tasksByDay).sort((a, b) => b[1] - a[1])[0];
-        const productiveDayName = dayNames[parseInt(mostProductiveDay[0])];
+        const sortedDays = Object.entries(tasksByDay).sort((a, b) => b[1] - a[1]);
+        const bestDay = dayNames[parseInt(sortedDays[0][0])];
+        const worstDay = dayNames[parseInt(sortedDays[sortedDays.length - 1][0])];
         
-        const weeklyScore = Math.min(100, Math.round((completedTasks.length * 10) + (streak * 5) + (credits / 10)));
+        const sortedHours = Object.entries(tasksByHour).sort((a, b) => b[1] - a[1]);
+        const peakHour = sortedHours.length > 0 ? parseInt(sortedHours[0][0]) : 9;
+        const peakTimeLabel = peakHour < 12 ? `${peakHour || 12}AM` : peakHour === 12 ? '12PM' : `${peakHour - 12}PM`;
+        
+        const weeklyScore = Math.min(100, Math.round((completedTasks.length * 8) + (streak * 6) + (credits / 8)));
+        const avgTasksPerDay = completedTasks.length > 0 ? (completedTasks.length / 7).toFixed(1) : '0';
+        
+        let personality = 'Explorer';
+        let personalityDesc = 'Just getting started on your journey';
+        
+        if (streak >= 14 && completedTasks.length >= 20) {
+            personality = 'Champion';
+            personalityDesc = 'Unstoppable force of productivity';
+        } else if (streak >= 7) {
+            personality = 'Warrior';
+            personalityDesc = 'Consistent and determined';
+        } else if (completedTasks.length >= 10) {
+            personality = 'Achiever';
+            personalityDesc = 'Task completion machine';
+        } else if (credits >= 100) {
+            personality = 'Collector';
+            personalityDesc = 'Building your treasure';
+        }
         
         return {
+            bestDay,
+            worstDay,
+            peakTime: peakTimeLabel,
+            weeklyScore,
+            avgTasksPerDay,
+            personality,
+            personalityDesc,
+            totalCompleted: completedTasks.length,
+            prediction: streak > 3 ? Math.min(95, 60 + streak * 5) : 40,
+            momentum: completedTasks.length > 5 ? 'Rising' : completedTasks.length > 0 ? 'Building' : 'Starting',
+            momentumColor: completedTasks.length > 5 ? '#10B981' : completedTasks.length > 0 ? '#F59E0B' : '#6B7280',
             trend: completedTasks.length > 0 
-                ? `You're most productive on ${productiveDayName}s with ${mostProductiveDay[1]} tasks completed.`
-                : "Start completing tasks to see your productivity patterns.",
-            prediction: streak > 3 
-                ? `${Math.min(95, 60 + streak * 5)}% likely to maintain your streak` 
-                : "Build a streak to improve prediction",
+                ? `You're most productive on ${bestDay}s`
+                : "Start completing tasks to see patterns",
+            improvement: completedTasks.length > 0 
+                ? `+${Math.min(25, completedTasks.length * 3)}% from last week` 
+                : "No data yet",
             focusArea: completedTasks.length < 5 
                 ? "Getting started" 
                 : streak < 3 
                     ? "Building consistency" 
-                    : "Maintaining momentum",
-            weeklyScore,
-            improvement: completedTasks.length > 0 
-                ? `+${Math.min(25, completedTasks.length * 3)}% from last week` 
-                : "No data yet",
-            topStrength: streak > 5 
-                ? "Consistency" 
-                : completedTasks.length > 10 
-                    ? "Task completion" 
-                    : "Getting started"
+                    : "Maintaining momentum"
         };
     }, [user.dailyTasks, calculatedStats]);
 
@@ -478,17 +472,15 @@ export default function StatsView() {
             setIsLoading(false);
         };
         fetchData();
-    }, [user.goal, mockInsights]);
+    }, [user.goal]);
 
     const hasActivity = useCallback((date: Date) => {
         const tasks = user.dailyTasks || [];
         return tasks.some(t => {
             const taskDate = new Date(t.completedAt || t.updatedAt || t.createdAt || Date.now());
             return taskDate.toDateString() === date.toDateString() && 
-                (t.status === TaskStatus.COMPLETED || 
-                 t.status === TaskStatus.APPROVED ||
-                 t.status === 'completed' || 
-                 t.status === 'approved');
+                (t.status === TaskStatus.COMPLETED || t.status === TaskStatus.APPROVED ||
+                 t.status === 'completed' || t.status === 'approved');
         });
     }, [user.dailyTasks]);
 
@@ -517,262 +509,258 @@ export default function StatsView() {
 
     // ==================== CHART COMPONENTS ====================
 
-    const DonutChart = ({ data, size = 160, showLegend = true }: { data: { value: number; color: string; label: string }[], size?: number, showLegend?: boolean }) => {
+    // Smooth Line Chart - proper SVG with bezier curves, NO ugly circles
+    const SmoothLineChart = ({ data, color = "#4F46E5", height = 120 }: { data: number[], color?: string, height?: number }) => {
         const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-        let cumulativePercent = 0;
-        const total = data.reduce((acc, curr) => acc + curr.value, 0);
         
-        if (total === 0) return <div className="flex items-center justify-center p-8 text-gray-500 text-sm">No data available</div>;
-        
-        return (
-            <div className="flex items-center gap-6">
-                <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
-                    <svg viewBox="0 0 100 100" className="-rotate-90 w-full h-full">
-                        {data.map((slice, i) => {
-                            const percent = slice.value / total;
-                            const dashArray = percent * 251.2;
-                            const offset = cumulativePercent * 251.2;
-                            cumulativePercent += percent;
-                            return (
-                                <circle key={i} cx="50" cy="50" r="40" fill="none" stroke={slice.color}
-                                    strokeWidth={hoveredIndex === i ? 24 : 20}
-                                    strokeDasharray={`${dashArray} 251.2`}
-                                    strokeDashoffset={-offset}
-                                    className="transition-all duration-300 cursor-pointer"
-                                    onMouseEnter={() => setHoveredIndex(i)}
-                                    onMouseLeave={() => setHoveredIndex(null)}
-                                />
-                            );
-                        })}
-                    </svg>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className="text-xs font-bold text-gray-500">{hoveredIndex !== null ? data[hoveredIndex].label : 'Total'}</span>
-                        <span className="text-xl font-black text-gray-800">{hoveredIndex !== null ? data[hoveredIndex].value : total}</span>
-                    </div>
-                </div>
-                {showLegend && (
-                    <div className="space-y-2 flex-1">
-                        {data.map((item, i) => (
-                            <div key={i} className={`flex items-center justify-between text-xs p-2 rounded-lg cursor-pointer transition-colors ${hoveredIndex === i ? 'bg-gray-100' : ''}`}
-                                onMouseEnter={() => setHoveredIndex(i)} onMouseLeave={() => setHoveredIndex(null)}>
-                                <span className="flex items-center gap-2 text-gray-700">
-                                    <span className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                                    {item.label}
-                                </span>
-                                <span className="font-bold text-gray-800">{Math.round((item.value / total) * 100)}%</span>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </div>
-        );
-    };
-
-    const LineChart = ({ data, color = "#4F46E5", height = 100, labels = [] }: { data: number[], color?: string, height?: number, labels?: string[] }) => {
-        const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
-        if (!data || data.length === 0) return <div className="flex items-center justify-center text-gray-400 text-sm" style={{ height }}>No data</div>;
+        if (!data || data.length === 0) {
+            return <div className="flex items-center justify-center text-gray-400 text-sm h-[120px]">No activity yet</div>;
+        }
         
         const max = Math.max(...data, 1);
-        const width = 300, chartHeight = 80, paddingX = 20, paddingY = 10;
+        const min = Math.min(...data, 0);
+        const range = max - min || 1;
+        
+        const width = 280;
+        const h = 100;
+        const paddingX = 10;
+        const paddingY = 15;
         
         const points = data.map((val, i) => ({
-            x: paddingX + (data.length > 1 ? (i / (data.length - 1)) * (width - paddingX * 2) : (width - paddingX * 2) / 2),
-            y: paddingY + (chartHeight - paddingY * 2) - ((val / max) * (chartHeight - paddingY * 2)),
+            x: paddingX + (i / Math.max(data.length - 1, 1)) * (width - paddingX * 2),
+            y: paddingY + (h - paddingY * 2) - ((val - min) / range) * (h - paddingY * 2),
             value: val
         }));
 
-        const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-        const areaPath = `${linePath} L ${points[points.length - 1].x} ${chartHeight - paddingY} L ${points[0].x} ${chartHeight - paddingY} Z`;
+        // Create smooth bezier curve
+        let path = `M ${points[0].x} ${points[0].y}`;
+        for (let i = 1; i < points.length; i++) {
+            const prev = points[i - 1];
+            const curr = points[i];
+            const cpx = (prev.x + curr.x) / 2;
+            path += ` C ${cpx} ${prev.y}, ${cpx} ${curr.y}, ${curr.x} ${curr.y}`;
+        }
+
+        const areaPath = `${path} L ${points[points.length - 1].x} ${h - paddingY} L ${points[0].x} ${h - paddingY} Z`;
 
         return (
-            <div className="relative w-full">
-                <svg viewBox={`0 0 ${width} ${chartHeight}`} className="w-full" style={{ height }} preserveAspectRatio="none">
+            <div className="relative w-full" style={{ height }}>
+                <svg viewBox={`0 0 ${width} ${h}`} className="w-full h-full" preserveAspectRatio="xMidYMid meet">
                     <defs>
-                        <linearGradient id={`gradient-${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
+                        <linearGradient id={`areaGrad-${color.replace('#','')}`} x1="0" y1="0" x2="0" y2="1">
                             <stop offset="0%" stopColor={color} stopOpacity="0.3" />
-                            <stop offset="100%" stopColor={color} stopOpacity="0.05" />
+                            <stop offset="100%" stopColor={color} stopOpacity="0.02" />
+                        </linearGradient>
+                        <linearGradient id={`lineGrad-${color.replace('#','')}`} x1="0" y1="0" x2="1" y2="0">
+                            <stop offset="0%" stopColor={color} stopOpacity="0.6" />
+                            <stop offset="50%" stopColor={color} stopOpacity="1" />
+                            <stop offset="100%" stopColor={color} stopOpacity="0.6" />
                         </linearGradient>
                     </defs>
+                    
+                    {/* Grid lines */}
                     {[0, 0.5, 1].map((ratio, i) => (
-                        <line key={i} x1={paddingX} y1={paddingY + (chartHeight - paddingY * 2) * ratio} x2={width - paddingX} y2={paddingY + (chartHeight - paddingY * 2) * ratio} stroke="#E5E7EB" strokeWidth="1" strokeDasharray="4 4" />
+                        <line key={i} x1={paddingX} y1={paddingY + (h - paddingY * 2) * ratio}
+                            x2={width - paddingX} y2={paddingY + (h - paddingY * 2) * ratio}
+                            stroke="#E5E7EB" strokeWidth="1" strokeDasharray="4 4" />
                     ))}
-                    <path d={areaPath} fill={`url(#gradient-${color.replace('#', '')})`} />
-                    <path d={linePath} fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                    
+                    {/* Area fill */}
+                    <path d={areaPath} fill={`url(#areaGrad-${color.replace('#','')})`} />
+                    
+                    {/* Line */}
+                    <path d={path} fill="none" stroke={`url(#lineGrad-${color.replace('#','')})`} 
+                        strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                    
+                    {/* Hover points - small, subtle */}
                     {points.map((point, i) => (
                         <g key={i}>
-                            <circle cx={point.x} cy={point.y} r={hoveredPoint === i ? 8 : 5} fill="white" stroke={color} strokeWidth="3"
-                                className="transition-all cursor-pointer" onMouseEnter={() => setHoveredPoint(i)} onMouseLeave={() => setHoveredPoint(null)} />
-                            {hoveredPoint === i && (
+                            <circle cx={point.x} cy={point.y} r={hoveredIndex === i ? 6 : 4}
+                                fill="white" stroke={color} strokeWidth="2"
+                                className="transition-all cursor-pointer"
+                                onMouseEnter={() => setHoveredIndex(i)}
+                                onMouseLeave={() => setHoveredIndex(null)} />
+                            {hoveredIndex === i && (
                                 <g>
-                                    <rect x={point.x - 20} y={point.y - 30} width="40" height="20" rx="4" fill={color} />
-                                    <text x={point.x} y={point.y - 16} textAnchor="middle" fill="white" fontSize="11" fontWeight="bold">{point.value}</text>
+                                    <rect x={point.x - 18} y={point.y - 28} width="36" height="20"
+                                        rx="4" fill={color} />
+                                    <text x={point.x} y={point.y - 14} textAnchor="middle"
+                                        fill="white" fontSize="11" fontWeight="bold">
+                                        {point.value}
+                                    </text>
                                 </g>
                             )}
                         </g>
                     ))}
                 </svg>
-                {labels.length > 0 && <div className="flex justify-between px-5 mt-1">{labels.map((label, i) => <span key={i} className="text-[10px] text-gray-500">{label}</span>)}</div>}
             </div>
         );
     };
 
-    const BarChart = ({ data, height = 120 }: { data: { label: string; value: number; color?: string }[], height?: number }) => {
-        const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-        const max = Math.max(...data.map(d => d.value), 1);
+    // Mini Progress Ring
+    const MiniRing = ({ progress, size = 44, color = "#4F46E5" }: { progress: number, size?: number, color?: string }) => {
+        const radius = (size - 6) / 2;
+        const circumference = radius * 2 * Math.PI;
+        const offset = circumference - (progress / 100) * circumference;
 
         return (
-            <div className="flex items-end justify-between gap-2" style={{ height }}>
-                {data.map((item, i) => {
-                    const barHeight = (item.value / max) * 100;
+            <svg width={size} height={size} className="transform -rotate-90">
+                <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="#E5E7EB" strokeWidth="3" />
+                <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke={color} strokeWidth="3"
+                    strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round"
+                    className="transition-all duration-1000" />
+            </svg>
+        );
+    };
+
+    // ==================== RENDER FUNCTIONS ====================
+
+    // SCROLLABLE Date Selector - 30 days back, 7 days forward
+    const renderScrollableDateSelector = () => {
+        const dates: Date[] = [];
+        for (let i = -30; i <= 7; i++) {
+            const d = new Date();
+            if (viewMode === 'monthly') d.setMonth(d.getMonth() + i);
+            else if (viewMode === 'weekly') d.setDate(d.getDate() + i * 7);
+            else d.setDate(d.getDate() + i);
+            dates.push(d);
+        }
+        
+        return (
+            <div 
+                ref={dateScrollRef}
+                className="flex gap-2 overflow-x-auto pb-2 px-1 -mx-1"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
+            >
+                <style>{`.scrollbar-hide::-webkit-scrollbar { display: none; }`}</style>
+                {dates.map((d, idx) => {
+                    const isSelected = d.toDateString() === new Date(selectedDate).toDateString();
+                    const isToday = d.toDateString() === new Date().toDateString();
+                    const hasData = hasActivity(d);
+                    const events = getEventsForDate(d);
+                    
                     return (
-                        <div key={i} className="flex-1 flex flex-col items-center gap-2" onMouseEnter={() => setHoveredIndex(i)} onMouseLeave={() => setHoveredIndex(null)}>
-                            <div className="relative w-full flex justify-center">
-                                {hoveredIndex === i && <div className="absolute -top-8 bg-primary text-white text-xs px-2 py-1 rounded-lg z-10">{item.value}</div>}
-                                <div className="w-full max-w-[40px] rounded-t-lg transition-all cursor-pointer"
-                                    style={{ height: `${barHeight}%`, minHeight: 4, backgroundColor: item.color || '#4F46E5', opacity: hoveredIndex === i ? 1 : 0.8 }} />
+                        <button key={idx} onClick={() => { setSelectedDate(d.getTime()); setCurrentMonth(d); }}
+                            className={`flex-shrink-0 flex flex-col items-center justify-center w-12 h-16 rounded-2xl transition-all ${
+                                isSelected ? 'bg-white text-primary shadow-lg scale-105' 
+                                : isToday ? 'bg-white/20 text-white'
+                                : 'bg-white/5 text-white/60 hover:bg-white/10'
+                            }`}
+                        >
+                            <span className={`text-[10px] font-medium uppercase ${isSelected ? 'text-primary/60' : ''}`}>
+                                {viewMode === 'monthly' 
+                                    ? d.toLocaleDateString('en-US', { month: 'short' })
+                                    : d.toLocaleDateString('en-US', { weekday: 'short' })}
+                            </span>
+                            <span className={`text-lg font-black`}>
+                                {viewMode === 'monthly' ? d.getFullYear().toString().slice(-2) : d.getDate()}
+                            </span>
+                            <div className="flex gap-0.5 mt-0.5 h-1.5">
+                                {hasData && <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-green-500' : 'bg-green-400'}`} />}
+                                {events.length > 0 && <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-purple-500' : 'bg-purple-400'}`} />}
                             </div>
-                            <span className="text-[10px] text-gray-500">{item.label}</span>
-                        </div>
+                        </button>
                     );
                 })}
             </div>
         );
     };
 
-    // ==================== RENDER FUNCTIONS ====================
-
-    const renderCalendarStrip = () => {
-        const days = [];
-        for (let i = -3; i <= 3; i++) {
-            const d = new Date(selectedDate);
-            if (viewMode === 'monthly') d.setMonth(d.getMonth() + i);
-            else if (viewMode === 'weekly') d.setDate(d.getDate() + i * 7);
-            else d.setDate(d.getDate() + i);
-            
-            const isSelected = i === 0;
-            const hasData = hasActivity(d);
-            const events = getEventsForDate(d);
-            
-            days.push(
-                <button key={i} onClick={() => { setSelectedDate(d.getTime()); setCurrentMonth(d); }}
-                    className={`flex flex-col items-center justify-center w-12 h-16 rounded-2xl transition-all ${isSelected ? 'bg-primary text-white shadow-lg scale-110' : 'bg-white text-gray-600 border border-gray-200 hover:border-primary/30'}`}>
-                    <span className={`text-[10px] font-bold uppercase ${isSelected ? 'text-white/80' : 'text-gray-400'}`}>
-                        {viewMode === 'monthly' ? d.toLocaleDateString('en-US', { month: 'short' }) : d.toLocaleDateString('en-US', { weekday: 'short' })}
-                    </span>
-                    <span className="text-lg font-black">{viewMode === 'monthly' ? d.getFullYear().toString().slice(-2) : d.getDate()}</span>
-                    <div className="flex gap-0.5 mt-0.5">
-                        {hasData && <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-green-500'}`} />}
-                        {events.length > 0 && <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white/60' : 'bg-purple-500'}`} />}
-                    </div>
-                </button>
-            );
-        }
-        return <div className="flex justify-between px-2">{days}</div>;
-    };
-
     const renderViewModeToggle = () => (
-        <div className="flex bg-white/10 rounded-full p-1 mb-4">
+        <div className="flex bg-white/10 rounded-2xl p-1 mb-4">
             {(['daily', 'weekly', 'monthly'] as const).map(mode => (
                 <button key={mode} onClick={() => setViewMode(mode)}
-                    className={`flex-1 py-2 px-4 rounded-full text-xs font-bold transition-all ${viewMode === mode ? 'bg-white text-primary shadow-sm' : 'text-white/60 hover:text-white'}`}>
+                    className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all ${
+                        viewMode === mode ? 'bg-white text-primary shadow-sm' : 'text-white/60 hover:text-white'
+                    }`}
+                >
                     {mode.charAt(0).toUpperCase() + mode.slice(1)}
                 </button>
             ))}
         </div>
     );
 
-    // Stats Cards - Using CoinIcon (gold filled) in gradient card
+    // Stats Cards - NO XP/Level, using CoinIcon for gradient, Icons.Zap elsewhere
     const renderStatsCards = () => (
         <div className="grid grid-cols-3 gap-3 mb-6">
-            <Card className="p-4 bg-gradient-to-br from-primary to-primary/80 text-white border-none">
-                <div className="flex items-center gap-1 mb-1">
-                    <Icons.Check className="w-3 h-3 text-white/60" />
-                    <span className="text-[9px] font-bold uppercase text-white/60">Tasks</span>
+            <div className="bg-gradient-to-br from-primary via-primary to-indigo-600 rounded-3xl p-4 text-white shadow-lg shadow-primary/20">
+                <div className="flex items-center gap-1.5 mb-2 opacity-80">
+                    <Icons.CheckCircle className="w-3.5 h-3.5" />
+                    <span className="text-[10px] font-bold uppercase tracking-wide">Tasks</span>
                 </div>
-                <div className="text-2xl font-black">{animatedValues.tasksCompleted ?? calculatedStats.tasksCompleted}</div>
-                <div className="text-[10px] text-white/60 mt-0.5">
+                <div className="text-3xl font-black">{animatedValues.tasksCompleted ?? calculatedStats.tasksCompleted}</div>
+                <div className="text-[10px] opacity-60 mt-1">
                     {viewMode === 'daily' ? 'Today' : viewMode === 'weekly' ? 'This Week' : 'This Month'}
                 </div>
-            </Card>
+            </div>
             
-            {/* Credits Card - Using CoinIcon (gold filled) */}
-            <Card className="p-4 bg-gradient-to-br from-amber-500 to-amber-400 text-white border-none">
-                <div className="flex items-center gap-1 mb-1">
-                    <CoinIcon className="w-3 h-3" />
-                    <span className="text-[9px] font-bold uppercase text-white/60">Credits</span>
+            <div className="bg-gradient-to-br from-amber-500 via-amber-500 to-orange-500 rounded-3xl p-4 text-white shadow-lg shadow-amber-500/20">
+                <div className="flex items-center gap-1.5 mb-2 opacity-80">
+                    <CoinIcon className="w-3.5 h-3.5" />
+                    <span className="text-[10px] font-bold uppercase tracking-wide">Credits</span>
                 </div>
-                <div className="text-2xl font-black">{animatedValues.totalCredits ?? calculatedStats.totalCredits}</div>
-                <div className="text-[10px] text-white/60 mt-0.5">
-                    +{animatedValues.periodCredits ?? calculatedStats.periodCredits} {viewMode === 'daily' ? 'today' : viewMode === 'weekly' ? 'this week' : 'this month'}
+                <div className="text-3xl font-black">{animatedValues.totalCredits ?? calculatedStats.totalCredits}</div>
+                <div className="text-[10px] opacity-60 mt-1">
+                    {(animatedValues.periodCredits ?? calculatedStats.periodCredits) > 0 
+                        ? `+${animatedValues.periodCredits ?? calculatedStats.periodCredits} earned`
+                        : viewMode === 'daily' ? 'Today' : viewMode === 'weekly' ? 'This Week' : 'This Month'
+                    }
                 </div>
-            </Card>
+            </div>
             
-            <Card className="p-4 bg-gradient-to-br from-red-500 to-orange-400 text-white border-none">
-                <div className="flex items-center gap-1 mb-1">
-                    <Icons.Flame className="w-3 h-3 text-white/60" />
-                    <span className="text-[9px] font-bold uppercase text-white/60">Streak</span>
+            <div className="bg-gradient-to-br from-rose-500 via-red-500 to-orange-500 rounded-3xl p-4 text-white shadow-lg shadow-rose-500/20">
+                <div className="flex items-center gap-1.5 mb-2 opacity-80">
+                    <Icons.Flame className="w-3.5 h-3.5" />
+                    <span className="text-[10px] font-bold uppercase tracking-wide">Streak</span>
                 </div>
-                <div className="text-2xl font-black">{animatedValues.streak ?? calculatedStats.streak}</div>
-                <div className="text-[10px] text-white/60 mt-0.5">Days</div>
-            </Card>
+                <div className="text-3xl font-black">{animatedValues.streak ?? calculatedStats.streak}</div>
+                <div className="text-[10px] opacity-60 mt-1">
+                    {(animatedValues.streak ?? calculatedStats.streak) > 0 ? 'Days' : 'Start today!'}
+                </div>
+            </div>
         </div>
     );
 
+    // Alerts Section
     const renderAlerts = () => {
         if (alerts.length === 0) return null;
         
-        const getAlertStyles = (type: string) => {
-            switch (type) {
-                case 'danger': return { bg: 'bg-red-50', border: 'border-red-200', icon: 'bg-red-100 text-red-600', title: 'text-red-800', message: 'text-red-600', button: 'bg-red-600 hover:bg-red-700 text-white' };
-                case 'warning': return { bg: 'bg-amber-50', border: 'border-amber-200', icon: 'bg-amber-100 text-amber-600', title: 'text-amber-800', message: 'text-amber-600', button: 'bg-amber-600 hover:bg-amber-700 text-white' };
-                case 'success': return { bg: 'bg-green-50', border: 'border-green-200', icon: 'bg-green-100 text-green-600', title: 'text-green-800', message: 'text-green-600', button: 'bg-green-600 hover:bg-green-700 text-white' };
-                default: return { bg: 'bg-blue-50', border: 'border-blue-200', icon: 'bg-blue-100 text-blue-600', title: 'text-blue-800', message: 'text-blue-600', button: 'bg-blue-600 hover:bg-blue-700 text-white' };
-            }
-        };
-
-        const getSourceLabel = (source: string) => {
-            switch (source) {
-                case 'guide': return { label: 'The Guide', color: 'bg-purple-100 text-purple-700' };
-                case 'agent': return { label: 'Master Agent', color: 'bg-indigo-100 text-indigo-700' };
-                default: return { label: 'System', color: 'bg-gray-100 text-gray-700' };
-            }
-        };
-        
         return (
-            <div className="space-y-3 mb-6">
-                <div className="flex items-center justify-between">
+            <div className="space-y-2 mb-6">
+                <div className="flex items-center justify-between mb-2">
                     <h3 className="font-bold text-gray-800 flex items-center gap-2">
-                        <Icons.Bell className="w-5 h-5 text-primary" />
+                        <Icons.Bell className="w-4 h-4 text-primary" />
                         AI Alerts
                     </h3>
-                    <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{alerts.length}</span>
+                    <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        {alerts.length}
+                    </span>
                 </div>
-                {alerts.map(alert => {
-                    const styles = getAlertStyles(alert.type);
-                    const sourceInfo = getSourceLabel(alert.source);
+                {alerts.slice(0, 3).map(alert => {
+                    const colors: Record<string, string> = {
+                        danger: 'bg-red-50 border-red-100 text-red-700',
+                        warning: 'bg-amber-50 border-amber-100 text-amber-700',
+                        success: 'bg-emerald-50 border-emerald-100 text-emerald-700',
+                        info: 'bg-blue-50 border-blue-100 text-blue-700'
+                    };
                     const IconComponent = alert.icon;
+                    
                     return (
-                        <div key={alert.id} className={`${styles.bg} ${styles.border} border rounded-2xl p-4 relative`}>
-                            <button onClick={() => dismissAlert(alert.id)} className="absolute top-2 right-2 p-1 hover:bg-black/5 rounded-full">
-                                <Icons.X className="w-4 h-4 text-gray-400" />
-                            </button>
-                            <div className="flex items-start gap-3">
-                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${styles.icon}`}>
-                                    <IconComponent className="w-5 h-5" />
-                                </div>
-                                <div className="flex-1 min-w-0 pr-6">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${sourceInfo.color}`}>{sourceInfo.label}</span>
-                                    </div>
-                                    <h4 className={`font-bold text-sm ${styles.title}`}>{alert.title}</h4>
-                                    <p className={`text-xs mt-1 ${styles.message}`}>{alert.message}</p>
-                                    {alert.actionLabel && alert.actionView && (
-                                        <button onClick={() => setView(alert.actionView!)} className={`mt-3 px-3 py-1.5 rounded-lg text-xs font-bold ${styles.button}`}>
-                                            {alert.actionLabel}
-                                        </button>
-                                    )}
-                                </div>
+                        <div key={alert.id} className={`${colors[alert.type]} border rounded-2xl p-3 flex items-center gap-3`}>
+                            <IconComponent className="w-5 h-5 flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                                <p className="font-bold text-sm">{alert.title}</p>
+                                <p className="text-xs opacity-80 truncate">{alert.message}</p>
                             </div>
+                            {alert.actionLabel && (
+                                <button onClick={() => alert.actionView && setView(alert.actionView)}
+                                    className="px-3 py-1.5 bg-white/80 rounded-lg text-xs font-bold flex-shrink-0">
+                                    {alert.actionLabel}
+                                </button>
+                            )}
+                            <button onClick={() => dismissAlert(alert.id)} className="p-1 hover:bg-white/50 rounded-full flex-shrink-0">
+                                <Icons.X className="w-4 h-4 opacity-50" />
+                            </button>
                         </div>
                     );
                 })}
@@ -780,6 +768,7 @@ export default function StatsView() {
         );
     };
 
+    // Goal Progress
     const renderGoalProgress = () => {
         if (!user.goal) return null;
         
@@ -788,166 +777,179 @@ export default function StatsView() {
         const progress = Math.min(100, Math.round((daysElapsed / totalDays) * 100));
         
         return (
-            <Card className="p-4 bg-white border border-gray-200 mb-6">
-                <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-bold text-gray-800 flex items-center gap-2">
+            <div className="bg-white rounded-3xl p-5 mb-4 shadow-sm border border-gray-100">
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 bg-primary/10 rounded-2xl flex items-center justify-center">
                         <Icons.Target className="w-5 h-5 text-primary" />
-                        Goal Progress
-                    </h3>
-                    <span className="text-xs text-gray-500">Day {Math.min(daysElapsed, totalDays)} of {totalDays}</span>
+                    </div>
+                    <div className="flex-1">
+                        <h3 className="font-bold text-gray-800">{user.goal.title}</h3>
+                        <p className="text-xs text-gray-500">Day {Math.min(daysElapsed, totalDays)} of {totalDays}</p>
+                    </div>
+                    <span className="text-2xl font-black text-primary">{progress}%</span>
                 </div>
-                <div className="mb-2">
-                    <p className="font-semibold text-gray-700 text-sm">{user.goal.title}</p>
+                <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-primary to-indigo-500 rounded-full transition-all duration-1000"
+                        style={{ width: `${progress}%` }} />
                 </div>
-                <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-primary to-primary/70 rounded-full transition-all duration-1000" style={{ width: `${progress}%` }} />
-                </div>
-                <div className="flex justify-between mt-2 text-xs text-gray-500">
-                    <span>{progress}% complete</span>
-                    <span>{totalDays - daysElapsed} days remaining</span>
-                </div>
-            </Card>
+            </div>
         );
     };
 
+    // Activity Trend - Clean smooth line chart
     const renderActivityTrend = () => {
         const labels = calculatedStats.historyData.map((d, i) => {
-            if (viewMode === 'daily') return d.date.toLocaleDateString('en-US', { weekday: 'short' });
+            if (viewMode === 'daily') return d.date.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 2);
             else if (viewMode === 'weekly') return `W${i + 1}`;
-            else return d.date.toLocaleDateString('en-US', { month: 'short' });
+            else return d.date.toLocaleDateString('en-US', { month: 'short' }).slice(0, 3);
         });
 
         return (
-            <Card className="p-4 bg-white border border-gray-200 mb-6">
-                <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <Icons.TrendingUp className="w-5 h-5 text-primary" />
-                    Activity Trend
-                </h3>
-                <LineChart data={calculatedStats.historyData.map(d => d.tasks)} color="#4F46E5" height={120} labels={labels} />
-            </Card>
+            <div className="bg-white rounded-3xl p-5 mb-4 shadow-sm border border-gray-100">
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                        <div className="w-8 h-8 bg-primary/10 rounded-xl flex items-center justify-center">
+                            <Icons.TrendingUp className="w-4 h-4 text-primary" />
+                        </div>
+                        Activity Trend
+                    </h3>
+                    <span className="text-xs text-gray-400">Last 7 {viewMode === 'daily' ? 'days' : viewMode === 'weekly' ? 'weeks' : 'months'}</span>
+                </div>
+                <SmoothLineChart data={calculatedStats.historyData.map(d => d.tasks)} color="#4F46E5" height={120} />
+                <div className="flex justify-between mt-2 px-2">
+                    {labels.map((label, i) => (
+                        <span key={i} className="text-[10px] text-gray-400 font-medium">{label}</span>
+                    ))}
+                </div>
+            </div>
         );
     };
 
-    const renderTaskBreakdown = () => {
-        const data = [
-            { value: calculatedStats.easyTasks, color: '#10B981', label: 'Easy' },
-            { value: calculatedStats.mediumTasks, color: '#F59E0B', label: 'Medium' },
-            { value: calculatedStats.hardTasks, color: '#EF4444', label: 'Hard' }
-        ].filter(d => d.value > 0);
+    // Quick Stats Row
+    const renderQuickStats = () => (
+        <div className="flex gap-3 mb-4 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
+            <div className="flex-shrink-0 bg-white rounded-2xl px-4 py-3 shadow-sm border border-gray-100 flex items-center gap-3">
+                <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
+                    <Icons.Check className="w-5 h-5 text-emerald-600" />
+                </div>
+                <div>
+                    <p className="text-xl font-black text-gray-800">{calculatedStats.allTimeCompleted}</p>
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wide">All Time</p>
+                </div>
+            </div>
+            
+            <div className="flex-shrink-0 bg-white rounded-2xl px-4 py-3 shadow-sm border border-gray-100 flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                    <Icons.Calendar className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                    <p className="text-xl font-black text-gray-800">{calculatedStats.totalTasks}</p>
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wide">Total Tasks</p>
+                </div>
+            </div>
+            
+            <div className="flex-shrink-0 bg-white rounded-2xl px-4 py-3 shadow-sm border border-gray-100 flex items-center gap-3">
+                <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
+                    <Icons.Zap className="w-5 h-5 text-amber-600" />
+                </div>
+                <div>
+                    <p className="text-xl font-black text-gray-800">{calculatedStats.periodCredits}</p>
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wide">Period Credits</p>
+                </div>
+            </div>
+        </div>
+    );
 
-        if (data.length === 0) {
-            return (
-                <Card className="p-4 bg-white border border-gray-200 mb-6">
-                    <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                        <Icons.PieChart className="w-5 h-5 text-primary" />
-                        Task Breakdown
-                    </h3>
-                    <div className="flex items-center justify-center py-8 text-gray-400 text-sm">Complete tasks to see breakdown</div>
-                </Card>
+    // Mini Calendar with visible dates and borders
+    const renderMiniCalendar = () => {
+        const year = currentMonth.getFullYear();
+        const month = currentMonth.getMonth();
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+        const startingDay = firstDay.getDay();
+        const totalDays = lastDay.getDate();
+        
+        const days: React.ReactNode[] = [];
+        const weekDays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+        
+        for (let i = 0; i < startingDay; i++) {
+            days.push(<div key={`empty-${i}`} className="h-9" />);
+        }
+        
+        for (let day = 1; day <= totalDays; day++) {
+            const date = new Date(year, month, day);
+            const isToday = date.toDateString() === new Date().toDateString();
+            const isSelected = date.toDateString() === new Date(selectedDate).toDateString();
+            const dayHasActivity = hasActivity(date);
+            const dayEvents = getEventsForDate(date);
+            
+            days.push(
+                <button key={day} onClick={() => { setSelectedDate(date.getTime()); setSelectedEventDate(date); if (dayEvents.length > 0) setShowDayEvents(true); }}
+                    className={`h-9 w-full rounded-lg flex items-center justify-center text-sm font-semibold relative transition-all border ${
+                        isSelected ? 'bg-primary text-white border-primary' 
+                        : isToday ? 'bg-primary/10 text-primary font-bold border-primary/30' 
+                        : 'text-gray-700 hover:bg-gray-50 border-gray-100'
+                    }`}
+                >
+                    {day}
+                    {(dayHasActivity || dayEvents.length > 0) && !isSelected && (
+                        <div className="absolute bottom-1 w-1 h-1 rounded-full bg-green-500" />
+                    )}
+                </button>
             );
         }
-
+        
         return (
-            <Card className="p-4 bg-white border border-gray-200 mb-6">
-                <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <Icons.PieChart className="w-5 h-5 text-primary" />
-                    Task Breakdown
-                </h3>
-                <DonutChart data={data} size={140} />
-            </Card>
-        );
-    };
-
-    const renderCreditsChart = () => {
-        const labels = calculatedStats.historyData.map((d, i) => {
-            if (viewMode === 'daily') return d.date.toLocaleDateString('en-US', { weekday: 'short' });
-            else if (viewMode === 'weekly') return `W${i + 1}`;
-            else return d.date.toLocaleDateString('en-US', { month: 'short' });
-        });
-
-        return (
-            <Card className="p-4 bg-white border border-gray-200 mb-6">
-                <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <Icons.Coins className="w-5 h-5 text-amber-500" />
-                    Credits Earned
-                </h3>
-                <BarChart data={calculatedStats.historyData.map((d, i) => ({ label: labels[i], value: d.credits, color: '#F59E0B' }))} height={100} />
-            </Card>
-        );
-    };
-
-    const renderPortfolioAllocation = () => {
-        if (!budgetData || !user.goal) return null;
-
-        return (
-            <Card className="p-4 bg-white border border-gray-200 mb-6">
-                <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <Icons.DollarSign className="w-5 h-5 text-green-500" />
-                    Budget Allocation
-                </h3>
-                <div className="space-y-3">
-                    {budgetData.allocations?.map((item: any, i: number) => (
-                        <div key={i} className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: ['#4F46E5', '#10B981', '#F59E0B', '#EF4444'][i % 4] }} />
-                                <span className="text-sm text-gray-700">{item.category}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm font-bold text-gray-800">${item.amount}</span>
-                                <span className="text-xs text-gray-500">({item.percentage}%)</span>
-                            </div>
-                        </div>
-                    )) || <div className="text-center py-4 text-gray-400 text-sm">Loading allocation data...</div>}
+            <div className="bg-white rounded-3xl p-5 mb-4 shadow-sm border border-gray-100">
+                <div className="flex items-center justify-between mb-4">
+                    <button onClick={() => { const n = new Date(currentMonth); n.setMonth(n.getMonth() - 1); setCurrentMonth(n); }} 
+                        className="p-2 hover:bg-gray-100 rounded-xl">
+                        <Icons.ChevronLeft className="w-5 h-5 text-gray-600" />
+                    </button>
+                    <h3 className="font-bold text-gray-800 text-lg">
+                        {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                    </h3>
+                    <button onClick={() => { const n = new Date(currentMonth); n.setMonth(n.getMonth() + 1); setCurrentMonth(n); }} 
+                        className="p-2 hover:bg-gray-100 rounded-xl">
+                        <Icons.ChevronRight className="w-5 h-5 text-gray-600" />
+                    </button>
                 </div>
-            </Card>
-        );
-    };
-
-    const renderConnectedApps = () => {
-        const apps = user.connectedApps || [];
-        const connectedApps = apps.filter(a => a.isConnected);
-        if (connectedApps.length === 0) return null;
-
-        return (
-            <Card className="p-4 bg-white border border-gray-200 mb-6">
-                <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <Icons.Link className="w-5 h-5 text-primary" />
-                    Connected Apps
-                </h3>
-                <div className="space-y-3">
-                    {connectedApps.map(app => (
-                        <div key={app.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                                    <Icons.Activity className="w-5 h-5 text-primary" />
-                                </div>
-                                <div>
-                                    <p className="font-semibold text-gray-800 text-sm">{app.name}</p>
-                                    <p className="text-xs text-gray-500">{app.metrics?.length || 0} metrics tracked</p>
-                                </div>
-                            </div>
-                            <div className="w-2 h-2 rounded-full bg-green-500" />
+                
+                <div className="grid grid-cols-7 gap-1 mb-2">
+                    {weekDays.map(day => (
+                        <div key={day} className="text-center text-[11px] font-bold text-gray-400 h-6 flex items-center justify-center">
+                            {day}
                         </div>
                     ))}
                 </div>
-            </Card>
+                
+                <div className="grid grid-cols-7 gap-1">
+                    {days}
+                </div>
+                
+                <button onClick={() => { setSelectedEventDate(new Date(selectedDate)); setShowEventModal(true); }}
+                    className="w-full mt-4 py-2.5 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 text-sm font-medium hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2">
+                    <Icons.Plus className="w-4 h-4" /> Add Event
+                </button>
+            </div>
         );
     };
 
-    const renderUpcomingMilestones = () => {
+    // Upcoming Events - next 5
+    const renderUpcomingEvents = () => {
         const now = new Date();
         const upcomingEvents = allEvents
             .filter(e => new Date(e.date) >= now)
             .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-            .slice(0, 3);
+            .slice(0, 5);
 
         if (upcomingEvents.length === 0) return null;
 
         return (
-            <Card className="p-4 bg-white border border-gray-200 mb-6">
+            <div className="bg-white rounded-3xl p-5 mb-4 shadow-sm border border-gray-100">
                 <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
                     <Icons.Calendar className="w-5 h-5 text-primary" />
-                    Upcoming Milestones
+                    Upcoming Events
                 </h3>
                 <div className="space-y-3">
                     {upcomingEvents.map(event => {
@@ -956,7 +958,8 @@ export default function StatsView() {
                         
                         return (
                             <div key={event.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${event.color}20` }}>
+                                <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+                                    style={{ backgroundColor: `${event.color}15` }}>
                                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: event.color }} />
                                 </div>
                                 <div className="flex-1 min-w-0">
@@ -976,143 +979,138 @@ export default function StatsView() {
                         );
                     })}
                 </div>
-            </Card>
+            </div>
         );
     };
 
-    const renderFullCalendar = () => {
-        const year = currentMonth.getFullYear();
-        const month = currentMonth.getMonth();
-        const firstDay = new Date(year, month, 1);
-        const lastDay = new Date(year, month + 1, 0);
-        const startingDay = firstDay.getDay();
-        const totalDays = lastDay.getDate();
-        const prevMonthLastDay = new Date(year, month, 0).getDate();
-        
-        const days = [];
-        const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        
-        for (let i = startingDay - 1; i >= 0; i--) {
-            days.push(<div key={`prev-${i}`} className="h-11 flex items-center justify-center text-gray-300 text-sm">{prevMonthLastDay - i}</div>);
-        }
-        
-        for (let day = 1; day <= totalDays; day++) {
-            const date = new Date(year, month, day);
-            const isToday = date.toDateString() === new Date().toDateString();
-            const isSelected = date.toDateString() === new Date(selectedDate).toDateString();
-            const dayHasActivity = hasActivity(date);
-            const dayEvents = getEventsForDate(date);
-            
-            days.push(
-                <button key={day} onClick={() => { setSelectedDate(date.getTime()); setSelectedEventDate(date); if (dayEvents.length > 0) setShowDayEvents(true); }}
-                    className={`h-11 rounded-xl flex flex-col items-center justify-center relative transition-all ${
-                        isSelected ? 'bg-primary text-white shadow-md' : isToday ? 'bg-primary/10 text-primary font-bold border-2 border-primary/30' : 'text-gray-700 hover:bg-gray-100'
-                    }`}>
-                    <span className="text-sm font-semibold">{day}</span>
-                    {(dayHasActivity || dayEvents.length > 0) && (
-                        <div className="flex gap-0.5 absolute bottom-1">
-                            {dayHasActivity && <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-green-500'}`} />}
-                            {dayEvents.slice(0, 2).map((e, i) => <div key={i} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: isSelected ? 'white' : e.color }} />)}
-                        </div>
-                    )}
-                </button>
-            );
-        }
-        
-        const remainingDays = 42 - days.length;
-        for (let i = 1; i <= remainingDays; i++) {
-            days.push(<div key={`next-${i}`} className="h-11 flex items-center justify-center text-gray-300 text-sm">{i}</div>);
-        }
-        
-        return (
-            <Card className="p-4 bg-white border border-gray-200 mb-6">
-                <div className="flex items-center justify-between mb-4">
-                    <button onClick={() => { const n = new Date(currentMonth); n.setMonth(n.getMonth() - 1); setCurrentMonth(n); }} className="p-2 hover:bg-gray-100 rounded-full">
-                        <Icons.ChevronLeft className="w-5 h-5 text-gray-600" />
-                    </button>
-                    <h3 className="font-bold text-gray-800 text-lg">{currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</h3>
-                    <button onClick={() => { const n = new Date(currentMonth); n.setMonth(n.getMonth() + 1); setCurrentMonth(n); }} className="p-2 hover:bg-gray-100 rounded-full">
-                        <Icons.ChevronRight className="w-5 h-5 text-gray-600" />
-                    </button>
-                </div>
-                <div className="grid grid-cols-7 gap-1 mb-2">{weekDays.map(day => <div key={day} className="text-center text-xs font-bold text-gray-500 uppercase py-2">{day}</div>)}</div>
-                <div className="grid grid-cols-7 gap-1 border-t border-gray-100 pt-2">{days}</div>
-                <button onClick={() => { setSelectedEventDate(new Date(selectedDate)); setShowEventModal(true); }} className="w-full mt-4 py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 text-sm font-medium hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2">
-                    <Icons.Plus className="w-4 h-4" /> Add Event
-                </button>
-                <div className="flex flex-wrap items-center justify-center gap-4 mt-4 text-xs text-gray-500">
-                    <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-green-500 rounded-full" />Activity</span>
-                    <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-purple-500 rounded-full" />Custom</span>
-                    <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-primary rounded-full" />Goal</span>
-                    <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-amber-500 rounded-full" />Milestone</span>
-                </div>
-            </Card>
-        );
-    };
-
+    // Creative AI Insights - at bottom
     const renderAIInsights = () => {
         const currentInsights = insights || mockInsights;
         
         return (
-            <Card className="p-4 bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20 mb-6">
-                <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <Icons.Sparkles className="w-5 h-5 text-primary" />
-                    AI Insights
-                </h3>
-                <div className="space-y-4">
-                    <div className="bg-white/80 rounded-xl p-3">
-                        <p className="text-xs font-bold text-gray-500 uppercase mb-1">Productivity Trend</p>
-                        <p className="text-sm text-gray-700">{currentInsights.trend}</p>
-                    </div>
-                    <div className="bg-white/80 rounded-xl p-3">
-                        <p className="text-xs font-bold text-gray-500 uppercase mb-1">Prediction</p>
-                        <p className="text-sm text-gray-700">{currentInsights.prediction}</p>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-white/80 rounded-xl p-3 text-center">
-                            <p className="text-2xl font-black text-primary">{currentInsights.weeklyScore}</p>
-                            <p className="text-xs text-gray-500">Weekly Score</p>
+            <div className="mb-4">
+                {/* Personality Card */}
+                <div className="bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-500 rounded-3xl p-5 mb-4 text-white shadow-lg shadow-purple-500/20">
+                    <div className="flex items-start justify-between mb-4">
+                        <div>
+                            <p className="text-white/60 text-xs font-medium uppercase tracking-wider mb-1">Your Profile</p>
+                            <h3 className="text-2xl font-black">{currentInsights.personality}</h3>
+                            <p className="text-white/70 text-sm mt-1">{currentInsights.personalityDesc}</p>
                         </div>
-                        <div className="bg-white/80 rounded-xl p-3 text-center">
-                            <p className="text-sm font-bold text-green-600">{currentInsights.improvement}</p>
-                            <p className="text-xs text-gray-500">vs Last Week</p>
+                        <div className="relative">
+                            <MiniRing progress={currentInsights.weeklyScore} size={56} color="white" />
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <span className="text-sm font-black">{currentInsights.weeklyScore}</span>
+                            </div>
                         </div>
                     </div>
-                    <div className="bg-white/80 rounded-xl p-3">
-                        <p className="text-xs font-bold text-gray-500 uppercase mb-1">Focus Area</p>
-                        <p className="text-sm font-semibold text-primary">{currentInsights.focusArea}</p>
+                    
+                    <div className="grid grid-cols-3 gap-3">
+                        <div className="bg-white/10 backdrop-blur rounded-2xl p-3 text-center">
+                            <p className="text-2xl font-black">{currentInsights.totalCompleted}</p>
+                            <p className="text-[10px] text-white/60 uppercase tracking-wider">Completed</p>
+                        </div>
+                        <div className="bg-white/10 backdrop-blur rounded-2xl p-3 text-center">
+                            <p className="text-2xl font-black">{currentInsights.avgTasksPerDay}</p>
+                            <p className="text-[10px] text-white/60 uppercase tracking-wider">Per Day</p>
+                        </div>
+                        <div className="bg-white/10 backdrop-blur rounded-2xl p-3 text-center">
+                            <p className="text-2xl font-black">{currentInsights.prediction}%</p>
+                            <p className="text-[10px] text-white/60 uppercase tracking-wider">Success</p>
+                        </div>
                     </div>
                 </div>
-            </Card>
+
+                {/* Insights Grid */}
+                <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                        <div className="flex items-center gap-2 mb-2">
+                            <div className="w-8 h-8 bg-emerald-100 rounded-xl flex items-center justify-center">
+                                <Icons.TrendingUp className="w-4 h-4 text-emerald-600" />
+                            </div>
+                            <span className="text-xs text-gray-500 font-medium">Best Day</span>
+                        </div>
+                        <p className="text-lg font-black text-gray-800">{currentInsights.bestDay}</p>
+                    </div>
+                    
+                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                        <div className="flex items-center gap-2 mb-2">
+                            <div className="w-8 h-8 bg-amber-100 rounded-xl flex items-center justify-center">
+                                <Icons.Clock className="w-4 h-4 text-amber-600" />
+                            </div>
+                            <span className="text-xs text-gray-500 font-medium">Peak Time</span>
+                        </div>
+                        <p className="text-lg font-black text-gray-800">{currentInsights.peakTime}</p>
+                    </div>
+                    
+                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                        <div className="flex items-center gap-2 mb-2">
+                            <div className="w-8 h-8 bg-blue-100 rounded-xl flex items-center justify-center">
+                                <Icons.Activity className="w-4 h-4 text-blue-600" />
+                            </div>
+                            <span className="text-xs text-gray-500 font-medium">Momentum</span>
+                        </div>
+                        <p className="text-lg font-black" style={{ color: currentInsights.momentumColor }}>
+                            {currentInsights.momentum}
+                        </p>
+                    </div>
+                    
+                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                        <div className="flex items-center gap-2 mb-2">
+                            <div className="w-8 h-8 bg-rose-100 rounded-xl flex items-center justify-center">
+                                <Icons.Target className="w-4 h-4 text-rose-600" />
+                            </div>
+                            <span className="text-xs text-gray-500 font-medium">Focus On</span>
+                        </div>
+                        <p className="text-lg font-black text-gray-800">{currentInsights.worstDay}</p>
+                    </div>
+                </div>
+            </div>
         );
     };
 
     // ==================== MAIN RENDER ====================
 
     return (
-        <div className="min-h-full bg-[#F7F8FC] pb-24">
-            <div className="bg-gradient-to-br from-[#171738] via-[#1e1e4a] to-[#2a2a5c] text-white px-5 pt-safe pb-6">
+        <div className="h-full flex flex-col bg-[#F7F8FC]">
+            {/* Fixed Header */}
+            <div className="flex-shrink-0 bg-gradient-to-br from-[#171738] via-[#1e1e4a] to-[#2a2a5c] text-white px-5 pt-safe pb-4">
                 <div className="flex items-center justify-between pt-4 mb-4">
                     <h1 className="text-xl font-black">Analytics</h1>
-                    <button onClick={() => setView(AppView.DASHBOARD)} className="p-2 bg-white/10 rounded-xl hover:bg-white/20 transition-all">
+                    <button onClick={() => setView(AppView.DASHBOARD)}
+                        className="p-2 bg-white/10 rounded-xl hover:bg-white/20 transition-all">
                         <Icons.X className="w-5 h-5" />
                     </button>
                 </div>
+                
                 {renderViewModeToggle()}
-                {renderCalendarStrip()}
+                {renderScrollableDateSelector()}
             </div>
 
-            <div className="px-5 pt-6">
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto px-5 pt-6 pb-24">
+                {/* 1. Stats Cards */}
                 {renderStatsCards()}
+
+                {/* 2. AI Alerts */}
                 {renderAlerts()}
+
+                {/* 3. Goal Progress */}
                 {renderGoalProgress()}
+
+                {/* 4. Activity Trend */}
                 {renderActivityTrend()}
-                {renderTaskBreakdown()}
-                {renderCreditsChart()}
-                {renderPortfolioAllocation()}
-                {renderConnectedApps()}
-                {renderUpcomingMilestones()}
-                {renderFullCalendar()}
+
+                {/* 5. Quick Stats */}
+                {renderQuickStats()}
+
+                {/* 6. Calendar */}
+                {renderMiniCalendar()}
+
+                {/* 7. Upcoming Events */}
+                {renderUpcomingEvents()}
+
+                {/* 8. AI Insights (Bottom) */}
                 {renderAIInsights()}
             </div>
 
@@ -1126,18 +1124,23 @@ export default function StatsView() {
                                 <Icons.X className="w-5 h-5 text-gray-400" />
                             </button>
                         </div>
+                        
                         <div className="space-y-4">
                             <p className="text-sm text-gray-500">
                                 Date: {selectedEventDate?.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
                             </p>
+                            
                             <input type="text" placeholder="Event title" value={newEvent.title}
                                 onChange={(e) => setNewEvent(prev => ({ ...prev, title: e.target.value }))}
                                 className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-primary text-gray-800" />
+                            
                             <textarea placeholder="Description (optional)" value={newEvent.description}
                                 onChange={(e) => setNewEvent(prev => ({ ...prev, description: e.target.value }))}
-                                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-primary text-gray-800 resize-none" rows={3} />
+                                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-primary text-gray-800 resize-none"
+                                rows={3} />
+                            
                             <button onClick={handleAddEvent} disabled={!newEvent.title.trim()}
-                                className="w-full py-3 bg-primary text-white font-bold rounded-xl disabled:opacity-50">
+                                className="w-full py-3 bg-primary text-white font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed">
                                 Add Event
                             </button>
                         </div>
@@ -1157,14 +1160,21 @@ export default function StatsView() {
                                 <Icons.X className="w-5 h-5 text-gray-400" />
                             </button>
                         </div>
+                        
                         <div className="space-y-3">
                             {getEventsForDate(selectedEventDate).map(event => (
-                                <div key={event.id} className="p-4 rounded-xl border" style={{ borderColor: event.color, backgroundColor: `${event.color}10` }}>
+                                <div key={event.id} className="p-4 rounded-xl border"
+                                    style={{ borderColor: event.color, backgroundColor: `${event.color}10` }}>
                                     <div className="flex items-start justify-between">
                                         <div className="flex-1">
-                                            <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded" style={{ backgroundColor: event.color, color: 'white' }}>{event.type}</span>
+                                            <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded"
+                                                style={{ backgroundColor: event.color, color: 'white' }}>
+                                                {event.type}
+                                            </span>
                                             <h4 className="font-bold text-gray-800 mt-2">{event.title}</h4>
-                                            {event.description && <p className="text-sm text-gray-500 mt-1">{event.description}</p>}
+                                            {event.description && (
+                                                <p className="text-sm text-gray-500 mt-1">{event.description}</p>
+                                            )}
                                         </div>
                                         {event.type === 'custom' && (
                                             <button onClick={() => handleDeleteEvent(event.id)} className="p-1 hover:bg-white rounded-full">
@@ -1174,10 +1184,12 @@ export default function StatsView() {
                                     </div>
                                 </div>
                             ))}
+                            
                             {getEventsForDate(selectedEventDate).length === 0 && (
                                 <p className="text-center text-gray-400 py-4">No events on this day</p>
                             )}
                         </div>
+                        
                         <button onClick={() => { setShowDayEvents(false); setShowEventModal(true); }}
                             className="w-full mt-4 py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 text-sm font-medium hover:border-primary hover:text-primary transition-colors">
                             + Add Event

@@ -399,10 +399,11 @@ export default function ChatView() {
 
     // Canvas pointer handlers
     useEffect(() => {
-        if (viewMode !== 'planet' || showJourneysList) return;
-        
-        const canvas = canvasRef.current;
-        if (!canvas) return;
+    // Add welcomePhase check here too
+    if (viewMode !== 'planet' || showJourneysList || welcomePhase === 'intro') return;
+    
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
         const handlePointerDown = (e: PointerEvent) => {
             dragRef.current.isDragging = true;
@@ -436,7 +437,7 @@ export default function ChatView() {
             canvas.removeEventListener('pointerup', handlePointerUp);
             canvas.removeEventListener('pointerleave', handlePointerUp);
         };
-    }, [viewMode, showJourneysList, canvasKey]);
+    }, [viewMode, showJourneysList, canvasKey, welcomePhase]);
 
     const typeText = useCallback((text: string) => {
         if (typingRef.current) clearInterval(typingRef.current);

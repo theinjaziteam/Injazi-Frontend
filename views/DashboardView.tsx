@@ -348,9 +348,11 @@ export default function DashboardView() {
                                 <span className="text-sm font-bold text-white/90">{formatCredits(user.credits || 0)}</span>
                             </div>
                             
+                            {/* FIX #6: Added aria-label and focus-visible for accessibility */}
                             <button 
                                 onClick={() => setView(AppView.SETTINGS)} 
-                                className="p-2 bg-white/10 rounded-xl hover:bg-white/20 transition-all active:scale-95 backdrop-blur-sm"
+                                className="p-2 bg-white/10 rounded-xl hover:bg-white/20 transition-all active:scale-95 backdrop-blur-sm focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2"
+                                aria-label="Open settings"
                             >
                                 <Icons.Settings className="w-5 h-5 text-white/80" />
                             </button>
@@ -434,7 +436,8 @@ export default function DashboardView() {
                                 
                                 <div className="absolute inset-0 flex items-center justify-center flex-col">
                                     <div className="relative">
-                                        <span className="text-5xl font-black text-white tracking-tighter">{liquidFill}</span>
+                                        {/* FIX #4: Added tabular-nums for consistent number width */}
+                                        <span className="text-5xl font-black text-white tracking-tighter tabular-nums">{liquidFill}</span>
                                         <span className="text-xl font-bold text-white/60">%</span>
                                     </div>
                                     <span className="text-white/40 text-[10px] font-semibold tracking-wider uppercase mt-1">Complete</span>
@@ -534,13 +537,15 @@ export default function DashboardView() {
                         }}
                     >
                         <div className="p-5">
-                            <div className="flex justify-between items-start mb-5">
+                            {/* FIX #1 & #2: Changed items-start to items-center, mb-5 to mb-6 */}
+                            <div className="flex justify-between items-center mb-6">
                                 <div>
                                     <h3 className="font-black text-[#171738] text-lg tracking-tight">Today's Missions</h3>
                                     <p className="text-[11px] text-gray-400 mt-0.5 font-medium">Small steps, big progress</p>
                                 </div>
                                 {allPendingTasks.length > 0 && (
-                                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#3423A6]/10 text-[#3423A6]">
+                                    /* FIX #1: Added self-start mt-0.5 for proper badge alignment */
+                                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#3423A6]/10 text-[#3423A6] self-start mt-0.5">
                                         {allPendingTasks.length} remaining
                                     </span>
                                 )}
@@ -611,8 +616,9 @@ export default function DashboardView() {
                                                         <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-md ${getDifficultyColor(task.difficulty)}`}>
                                                             {getDifficultyLabel(task.difficulty)}
                                                         </span>
+                                                        {/* FIX #5: Removed ~ from time display */}
                                                         <span className="text-[10px] font-medium text-gray-400">
-                                                            ~{task.estimatedTimeMinutes || 15} min
+                                                            {task.estimatedTimeMinutes || 15} min
                                                         </span>
                                                     </div>
                                                     <h4 className="font-semibold text-[#171738] text-[13px] leading-snug line-clamp-1 group-hover:text-[#3423A6] transition-colors">
@@ -665,8 +671,9 @@ export default function DashboardView() {
                                                                 <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-md bg-[#3423A6]/10 text-[#3423A6] border border-[#3423A6]/20">
                                                                     Lesson
                                                                 </span>
+                                                                {/* FIX #5: Removed ~ from time display */}
                                                                 <span className="text-[10px] font-medium text-gray-400">
-                                                                    ~{task.estimatedTimeMinutes || 15} min
+                                                                    {task.estimatedTimeMinutes || 15} min
                                                                 </span>
                                                             </div>
                                                             <h4 className="font-semibold text-[#171738] text-[13px] leading-snug line-clamp-1 group-hover:text-[#3423A6] transition-colors">

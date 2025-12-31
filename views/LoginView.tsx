@@ -670,15 +670,15 @@ export default function LoginView() {
 
                     {/* Privacy Policy */}
 {mode === 'register' && (
-    <div className="flex items-start gap-3 p-2">
+    <div className="flex items-center gap-3 p-2">
         <input 
             type="checkbox" 
             checked={privacyAccepted} 
             onChange={e => setPrivacyAccepted(e.target.checked)}
-            className="mt-1 w-5 h-5 accent-[#3423A6] cursor-pointer" 
+            className="w-5 h-5 accent-[#3423A6] cursor-pointer flex-shrink-0" 
             required
         />
-        <p className="text-white/50 text-[10px] leading-tight font-medium">
+        <p className="text-white/50 text-[11px] leading-normal font-medium">
             I accept the{' '}
             <button 
                 type="button"

@@ -17,7 +17,6 @@ export default function SettingsView() {
     const [showPlans, setShowPlans] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
-    const [activeSection, setActiveSection] = useState<string | null>(null);
 
     // Sync state with user data
     useEffect(() => {
@@ -55,7 +54,6 @@ export default function SettingsView() {
     };
 
     const handleCancelEdit = () => {
-        // Reset to original values
         setName(user?.name || '');
         setEmail(user?.email || '');
         setPwd(user?.password || '');
@@ -100,18 +98,11 @@ export default function SettingsView() {
         }
     };
 
-    // Section animation helper
-    const getSectionClass = (sectionId: string) => {
-        return `transition-all duration-300 ${
-            activeSection === sectionId ? 'scale-[1.01]' : ''
-        }`;
-    };
-
     if (!user) {
         return (
             <div className="h-full flex items-center justify-center bg-white">
                 <div className="text-center">
-                    <Icons.Loader className="w-8 h-8 text-primary animate-spin mx-auto mb-4" />
+                    <Icons.RefreshCw className="w-8 h-8 text-primary animate-spin mx-auto mb-4" />
                     <p className="text-gray-500">Loading settings...</p>
                 </div>
             </div>
@@ -134,7 +125,7 @@ export default function SettingsView() {
                         <p className="text-xs text-gray-400 font-medium">Manage your account & preferences</p>
                     </div>
                     {saveSuccess && (
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-100 rounded-full animate-fade-in">
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-100 rounded-full">
                             <Icons.Check className="w-4 h-4 text-emerald-600" />
                             <span className="text-xs font-bold text-emerald-600">Saved</span>
                         </div>
@@ -146,13 +137,10 @@ export default function SettingsView() {
             <div className="p-4 space-y-6 pb-24">
                 
                 {/* ============ WALLET SECTION ============ */}
-                <section className={getSectionClass('wallet')}>
+                <section>
                     <div className="grid grid-cols-2 gap-3">
                         {/* Credits Card */}
-                        <button
-                            onClick={() => setActiveSection(activeSection === 'credits' ? null : 'credits')}
-                            className="p-5 bg-primary rounded-3xl shadow-lg shadow-primary/20 relative overflow-hidden text-left transition-all duration-300 hover:shadow-xl hover:shadow-primary/30 active:scale-[0.98]"
-                        >
+                        <div className="p-5 bg-primary rounded-3xl shadow-lg shadow-primary/20 relative overflow-hidden">
                             <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent" />
                             <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-white/5 rounded-full" />
                             <div className="relative z-10">
@@ -163,17 +151,11 @@ export default function SettingsView() {
                                 <div className="text-3xl font-black text-white">
                                     {(user.credits || 0).toLocaleString()}
                                 </div>
-                                <div className="text-[10px] text-white/50 mt-1 font-medium">
-                                    Tap to view history
-                                </div>
                             </div>
-                        </button>
+                        </div>
                         
                         {/* Balance Card */}
-                        <button
-                            onClick={() => setActiveSection(activeSection === 'balance' ? null : 'balance')}
-                            className="p-5 bg-emerald-600 rounded-3xl shadow-lg shadow-emerald-500/20 relative overflow-hidden text-left transition-all duration-300 hover:shadow-xl hover:shadow-emerald-500/30 active:scale-[0.98]"
-                        >
+                        <div className="p-5 bg-emerald-600 rounded-3xl shadow-lg shadow-emerald-500/20 relative overflow-hidden">
                             <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent" />
                             <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-white/5 rounded-full" />
                             <div className="relative z-10">
@@ -184,16 +166,13 @@ export default function SettingsView() {
                                 <div className="text-3xl font-black text-white">
                                     ${(user.realMoneyBalance || 0).toFixed(2)}
                                 </div>
-                                <div className="text-[10px] text-white/50 mt-1 font-medium">
-                                    Tap to withdraw
-                                </div>
                             </div>
-                        </button>
+                        </div>
                     </div>
                 </section>
 
                 {/* ============ MEMBERSHIP CARD ============ */}
-                <section className={getSectionClass('membership')}>
+                <section>
                     <div className={`p-6 rounded-3xl border-2 transition-all duration-300 bg-white ${
                         user.isPremium ? 'border-secondary shadow-lg shadow-secondary/10' : 'border-gray-100'
                     }`}>
@@ -248,7 +227,7 @@ export default function SettingsView() {
                 </section>
 
                 {/* ============ PROFILE SECTION ============ */}
-                <section className={getSectionClass('profile')}>
+                <section>
                     <div className="flex justify-between items-center mb-4">
                         <div className="flex items-center gap-2">
                             <div className="p-2 bg-primary/10 rounded-xl">
@@ -278,7 +257,7 @@ export default function SettingsView() {
                                 >
                                     {isSaving ? (
                                         <>
-                                            <Icons.Loader className="w-3 h-3 animate-spin" />
+                                            <Icons.RefreshCw className="w-3 h-3 animate-spin" />
                                             Saving
                                         </>
                                     ) : (
@@ -345,15 +324,13 @@ export default function SettingsView() {
                                 )}
                             </div>
                             {editMode ? (
-                                <div className="relative">
-                                    <input 
-                                        type={showPwd ? "text" : "password"} 
-                                        value={pwd} 
-                                        onChange={e => setPwd(e.target.value)} 
-                                        className="w-full p-3.5 bg-gray-50 rounded-xl border-2 border-gray-100 font-bold text-primary text-base focus:border-secondary focus:outline-none transition-colors pr-12"
-                                        placeholder="Enter password"
-                                    />
-                                </div>
+                                <input 
+                                    type={showPwd ? "text" : "password"} 
+                                    value={pwd} 
+                                    onChange={e => setPwd(e.target.value)} 
+                                    className="w-full p-3.5 bg-gray-50 rounded-xl border-2 border-gray-100 font-bold text-primary text-base focus:border-secondary focus:outline-none transition-colors"
+                                    placeholder="Enter password"
+                                />
                             ) : (
                                 <div className="text-primary font-bold">••••••••</div>
                             )}
@@ -407,7 +384,7 @@ export default function SettingsView() {
 
                 {/* ============ CONNECTED APPS ============ */}
                 {user.connectedApps && user.connectedApps.length > 0 && (
-                    <section className={getSectionClass('apps')}>
+                    <section>
                         <div className="flex items-center gap-2 mb-4">
                             <div className="p-2 bg-primary/10 rounded-xl">
                                 <Icons.Link className="w-5 h-5 text-primary"/>
@@ -449,7 +426,7 @@ export default function SettingsView() {
                 )}
 
                 {/* ============ PREFERENCES ============ */}
-                <section className={getSectionClass('preferences')}>
+                <section>
                     <div className="flex items-center gap-2 mb-4">
                         <div className="p-2 bg-primary/10 rounded-xl">
                             <Icons.Settings className="w-5 h-5 text-primary"/>
@@ -458,47 +435,38 @@ export default function SettingsView() {
                     </div>
                     
                     <div className="bg-white rounded-3xl border border-gray-100 overflow-hidden">
-                        <button 
-                            onClick={() => {/* Toggle notifications */}}
-                            className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
-                        >
+                        <div className="p-4 flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <Icons.Bell className="w-5 h-5 text-gray-400" />
                                 <span className="font-medium text-primary">Push Notifications</span>
                             </div>
                             <Toggle checked={true} onChange={() => {}} />
-                        </button>
+                        </div>
                         
                         <div className="h-px bg-gray-100" />
                         
-                        <button 
-                            onClick={() => {/* Toggle dark mode */}}
-                            className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
-                        >
+                        <div className="p-4 flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <Icons.Moon className="w-5 h-5 text-gray-400" />
+                                <Icons.Sun className="w-5 h-5 text-gray-400" />
                                 <span className="font-medium text-primary">Dark Mode</span>
                             </div>
                             <Toggle checked={false} onChange={() => {}} />
-                        </button>
+                        </div>
                         
                         <div className="h-px bg-gray-100" />
                         
-                        <button 
-                            onClick={() => {/* Toggle sound */}}
-                            className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
-                        >
+                        <div className="p-4 flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <Icons.Volume2 className="w-5 h-5 text-gray-400" />
+                                <Icons.Mic className="w-5 h-5 text-gray-400" />
                                 <span className="font-medium text-primary">Sound Effects</span>
                             </div>
                             <Toggle checked={true} onChange={() => {}} />
-                        </button>
+                        </div>
                     </div>
                 </section>
 
                 {/* ============ LEGAL & SUPPORT ============ */}
-                <section className={getSectionClass('legal')}>
+                <section>
                     <div className="flex items-center gap-2 mb-4">
                         <div className="p-2 bg-primary/10 rounded-xl">
                             <Icons.Shield className="w-5 h-5 text-primary"/>
@@ -551,7 +519,7 @@ export default function SettingsView() {
                             className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors active:bg-gray-100"
                         >
                             <div className="flex items-center gap-3">
-                                <Icons.MessageSquare className="w-5 h-5 text-gray-400" />
+                                <Icons.MessageCircle className="w-5 h-5 text-gray-400" />
                                 <span className="font-medium text-primary">Send Feedback</span>
                             </div>
                             <Icons.ChevronRight className="w-5 h-5 text-gray-300" />
@@ -560,7 +528,7 @@ export default function SettingsView() {
                 </section>
 
                 {/* ============ DANGER ZONE ============ */}
-                <section className={getSectionClass('danger')}>
+                <section>
                     <div className="space-y-3">
                         {/* Logout Button */}
                         <button 
@@ -595,10 +563,10 @@ export default function SettingsView() {
             {/* ============ PLANS MODAL ============ */}
             {showPlans && (
                 <div 
-                    className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 animate-fade-in"
+                    className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4"
                     onClick={(e) => e.target === e.currentTarget && setShowPlans(false)}
                 >
-                    <div className="w-full max-w-md bg-white rounded-t-[2rem] sm:rounded-[2rem] max-h-[90vh] overflow-hidden flex flex-col animate-slide-up">
+                    <div className="w-full max-w-md bg-white rounded-t-[2rem] sm:rounded-[2rem] max-h-[90vh] overflow-hidden flex flex-col">
                         {/* Modal Header */}
                         <div className="p-6 border-b border-gray-100 flex items-center justify-between">
                             <div>
@@ -623,7 +591,6 @@ export default function SettingsView() {
                                     period: 'forever',
                                     description: 'Perfect for getting started',
                                     features: ['3 Goals Maximum', '3 AI Tasks per Day', 'Daily Questions', 'Basic Analytics', 'Community Access'],
-                                    color: 'gray',
                                     isPremium: false
                                 },
                                 { 
@@ -633,7 +600,6 @@ export default function SettingsView() {
                                     period: '/month',
                                     description: 'For serious achievers',
                                     features: ['Unlimited Goals', 'Unlimited AI Tasks', 'Advanced AI Coaching', 'Deep Analytics', 'No Advertisements', 'Priority Support'],
-                                    color: 'secondary',
                                     isPremium: true,
                                     popular: true
                                 },
@@ -644,7 +610,6 @@ export default function SettingsView() {
                                     period: '/month',
                                     description: 'Build your audience',
                                     features: ['Everything in Premium', 'Create & Sell Courses', 'Run Advertisements', 'Creator Dashboard', 'Revenue Analytics', 'Dedicated Support'],
-                                    color: 'primary',
                                     isPremium: true
                                 }
                             ].map((plan) => {
@@ -725,10 +690,10 @@ export default function SettingsView() {
             {/* ============ COUNTRY PICKER MODAL ============ */}
             {showCountryPicker && (
                 <div 
-                    className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 animate-fade-in"
+                    className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4"
                     onClick={(e) => e.target === e.currentTarget && setShowCountryPicker(false)}
                 >
-                    <div className="w-full max-w-md bg-white rounded-t-[2rem] sm:rounded-[2rem] max-h-[70vh] overflow-hidden flex flex-col animate-slide-up">
+                    <div className="w-full max-w-md bg-white rounded-t-[2rem] sm:rounded-[2rem] max-h-[70vh] overflow-hidden flex flex-col">
                         {/* Modal Header */}
                         <div className="p-6 border-b border-gray-100 flex items-center justify-between">
                             <h2 className="text-xl font-black text-primary">Select Country</h2>
@@ -765,37 +730,6 @@ export default function SettingsView() {
                     </div>
                 </div>
             )}
-
-            {/* ============ CUSTOM STYLES ============ */}
-            <style>{`
-                @keyframes fade-in {
-                    from { opacity: 0; }
-                    to { opacity: 1; }
-                }
-                @keyframes slide-up {
-                    from { 
-                        opacity: 0;
-                        transform: translateY(20px);
-                    }
-                    to { 
-                        opacity: 1;
-                        transform: translateY(0);
-                    }
-                }
-                .animate-fade-in {
-                    animation: fade-in 0.2s ease-out;
-                }
-                .animate-slide-up {
-                    animation: slide-up 0.3s ease-out;
-                }
-                .no-scrollbar::-webkit-scrollbar {
-                    display: none;
-                }
-                .no-scrollbar {
-                    -ms-overflow-style: none;
-                    scrollbar-width: none;
-                }
-            `}</style>
         </div>
     );
 }

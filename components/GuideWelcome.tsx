@@ -236,110 +236,200 @@ export const TourOverlay = memo(({
 }) => {
   const currentStep = TOUR_STEPS[step];
   
-  const getSpotlightStyle = (): React.CSSProperties => {
-    const base: React.CSSProperties = {
-      position: 'absolute',
-      boxShadow: '0 0 0 9999px rgba(0,0,0,0.85)',
-      border: '2px solid rgba(255,255,255,0.25)',
-      animation: 'spotlightPulse 2s ease-in-out infinite',
-      pointerEvents: 'none',
-    };
-    
-    const positions: Record<string, React.CSSProperties> = {
-      'planet': { 
-        ...base, 
-        top: 'calc(180px + (100vh - 180px - 190px) / 2)', 
-        left: '50%', 
-        width: 'min(260px, 50vw)', 
-        height: 'min(260px, 50vw)', 
-        transform: 'translate(-50%, -50%)', 
-        borderRadius: '50%' 
-      },
-      'input': { 
-        ...base, 
-        bottom: 32, 
-        left: 20, 
-        right: 20, 
-        width: 'auto',
-        height: 48, 
-        borderRadius: 24 
-      },
-      'header': { 
-        ...base, 
-        top: 8, 
-        left: '50%', 
-        width: 140, 
-        height: 48, 
-        transform: 'translateX(-50%)', 
-        borderRadius: 12 
-      },
-      'chat-toggle': { 
-        ...base, 
-        top: 8, 
-        right: 8, 
-        left: 'auto', 
-        width: 44, 
-        height: 44, 
-        transform: 'none', 
-        borderRadius: 8 
-      },
-      'agent': { 
-        ...base, 
-        bottom: 180, 
-        left: '50%', 
-        width: 200, 
-        height: 44, 
-        transform: 'translateX(-50%)', 
-        borderRadius: 40 
-      },
-    };
-    return positions[currentStep.target] || base;
+  // Get spotlight position and size based on target
+  // These values match the actual ChatView element positions
+  const getSpotlightConfig = () => {
+    switch (currentStep.target) {
+      case 'planet':
+        // Planet is centered in the middle area
+        return {
+          top: '50%',
+          left: '50%',
+          width: 280,
+          height: 280,
+          transform: 'translate(-50%, -60%)',
+          borderRadius: '50%',
+        };
+      case 'input':
+        // Input box at bottom: paddingBottom 32px, padding 16px 20px
+        return {
+          bottom: 32,
+          left: 20,
+          right: 20,
+          height: 52,
+          borderRadius: 26,
+        };
+      case 'header':
+        // Center header button "THE GUIDE"
+        return {
+          top: 8,
+          left: '50%',
+          width: 130,
+          height: 48,
+          transform: 'translateX(-50%)',
+          borderRadius: 12,
+        };
+      case 'chat-toggle':
+        // Right side button - padding 12px 16px, button has padding 8px
+        return {
+          top: 8,
+          right: 12,
+          width: 40,
+          height: 40,
+          borderRadius: 8,
+        };
+      case 'agent':
+        // Master Agent button: bottom: 190px, centered, padding 10px 24px
+        return {
+          bottom: 185,
+          left: '50%',
+          width: 180,
+          height: 44,
+          transform: 'translateX(-50%)',
+          borderRadius: 40,
+        };
+      default:
+        return {
+          top: '50%',
+          left: '50%',
+          width: 100,
+          height: 100,
+          transform: 'translate(-50%, -50%)',
+          borderRadius: 12,
+        };
+    }
   };
 
   const getTooltipStyle = (): React.CSSProperties => {
     const base: React.CSSProperties = {
-      position: 'absolute',
-      background: 'rgba(0,0,0,0.92)',
+      position: 'fixed',
+      background: 'rgba(0,0,0,0.95)',
       backdropFilter: 'blur(20px)',
       WebkitBackdropFilter: 'blur(20px)',
-      border: '1px solid rgba(255,255,255,0.1)',
+      border: '1px solid rgba(255,255,255,0.15)',
       borderRadius: 16,
       padding: 20,
       width: 280,
       maxWidth: 'calc(100vw - 32px)',
-      zIndex: 1002,
-      boxShadow: '0 16px 48px rgba(0,0,0,0.4)',
+      zIndex: 10002,
+      boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
     };
     
     switch (currentStep.target) {
       case 'planet':
-        return { ...base, bottom: 120, left: '50%', transform: 'translateX(-50%)' };
-      case 'input':
         return { ...base, bottom: 100, left: '50%', transform: 'translateX(-50%)' };
+      case 'input':
+        return { ...base, bottom: 110, left: '50%', transform: 'translateX(-50%)' };
       case 'header':
-        return { ...base, top: 68, left: '50%', transform: 'translateX(-50%)' };
+        return { ...base, top: 70, left: '50%', transform: 'translateX(-50%)' };
       case 'chat-toggle':
-        return { ...base, top: 60, right: 16, left: 'auto', transform: 'none' };
+        return { ...base, top: 60, right: 60, left: 'auto', transform: 'none' };
       case 'agent':
-        return { ...base, bottom: 80, left: '50%', transform: 'translateX(-50%)' };
+        return { ...base, bottom: 250, left: '50%', transform: 'translateX(-50%)' };
       default:
         return { ...base, top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
     }
   };
 
+  const spotlightConfig = getSpotlightConfig();
+
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      zIndex: 1000,
-      pointerEvents: 'auto',
-    }}>
-      <div style={getSpotlightStyle()} />
+    <>
+      {/* SVG Mask Overlay - creates the "cutout" effect */}
+      <svg
+        style={{
+          position: 'fixed',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          zIndex: 10000,
+          pointerEvents: 'none',
+        }}
+      >
+        <defs>
+          <mask id="spotlight-mask">
+            {/* White = visible (darkened area), Black = hidden (spotlight area) */}
+            <rect x="0" y="0" width="100%" height="100%" fill="white" />
+            {currentStep.target === 'planet' && (
+              <ellipse
+                cx="50%"
+                cy="40%"
+                rx="140"
+                ry="140"
+                fill="black"
+              />
+            )}
+            {currentStep.target === 'input' && (
+              <rect
+                x="20"
+                y="calc(100% - 84px)"
+                width="calc(100% - 40px)"
+                height="52"
+                rx="26"
+                fill="black"
+              />
+            )}
+            {currentStep.target === 'header' && (
+              <rect
+                x="calc(50% - 65px)"
+                y="8"
+                width="130"
+                height="48"
+                rx="12"
+                fill="black"
+              />
+            )}
+            {currentStep.target === 'chat-toggle' && (
+              <rect
+                x="calc(100% - 52px)"
+                y="8"
+                width="40"
+                height="40"
+                rx="8"
+                fill="black"
+              />
+            )}
+            {currentStep.target === 'agent' && (
+              <rect
+                x="calc(50% - 90px)"
+                y="calc(100% - 229px)"
+                width="180"
+                height="44"
+                rx="22"
+                fill="black"
+              />
+            )}
+          </mask>
+        </defs>
+        {/* Dark overlay with mask applied */}
+        <rect
+          x="0"
+          y="0"
+          width="100%"
+          height="100%"
+          fill="rgba(0,0,0,0.85)"
+          mask="url(#spotlight-mask)"
+        />
+      </svg>
+
+      {/* Spotlight border/glow effect */}
+      <div
+        style={{
+          position: 'fixed',
+          ...spotlightConfig,
+          border: '2px solid rgba(255,255,255,0.4)',
+          boxShadow: '0 0 30px rgba(255,255,255,0.2), inset 0 0 30px rgba(255,255,255,0.1)',
+          zIndex: 10001,
+          pointerEvents: 'none',
+          animation: 'spotlightPulse 2s ease-in-out infinite',
+        } as React.CSSProperties}
+      />
       
+      {/* Tooltip */}
       <div style={getTooltipStyle()}>
         <div style={{
           fontSize: 11,
-          color: 'rgba(255,255,255,0.35)',
+          color: 'rgba(255,255,255,0.4)',
           marginBottom: 8,
           fontWeight: 600,
           letterSpacing: '0.08em',
@@ -357,13 +447,14 @@ export const TourOverlay = memo(({
         </h3>
         <p style={{
           fontSize: 14,
-          color: 'rgba(255,255,255,0.6)',
+          color: 'rgba(255,255,255,0.65)',
           lineHeight: 1.5,
           margin: '0 0 20px 0',
         }}>
           {currentStep.description}
         </p>
         
+        {/* Progress dots */}
         <div style={{
           display: 'flex',
           gap: 6,
@@ -377,13 +468,14 @@ export const TourOverlay = memo(({
                 width: i === step ? 20 : 6,
                 height: 6,
                 borderRadius: 3,
-                background: i === step ? '#fff' : i < step ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.15)',
+                background: i === step ? '#fff' : i < step ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.2)',
                 transition: 'all 0.3s ease',
               }}
             />
           ))}
         </div>
         
+        {/* Navigation */}
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -394,7 +486,7 @@ export const TourOverlay = memo(({
             style={{
               background: 'transparent',
               border: 'none',
-              color: 'rgba(255,255,255,0.35)',
+              color: 'rgba(255,255,255,0.4)',
               fontSize: 13,
               cursor: 'pointer',
               padding: '8px 0',
@@ -408,8 +500,8 @@ export const TourOverlay = memo(({
                 onClick={onBack}
                 style={{
                   padding: '8px 16px',
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.1)',
+                  background: 'rgba(255,255,255,0.08)',
+                  border: '1px solid rgba(255,255,255,0.15)',
                   borderRadius: 20,
                   color: 'rgba(255,255,255,0.8)',
                   fontSize: 13,
@@ -424,8 +516,8 @@ export const TourOverlay = memo(({
               onClick={onNext}
               style={{
                 padding: '8px 20px',
-                background: 'rgba(255,255,255,0.1)',
-                border: '1px solid rgba(255,255,255,0.15)',
+                background: 'rgba(255,255,255,0.15)',
+                border: '1px solid rgba(255,255,255,0.2)',
                 borderRadius: 20,
                 color: '#fff',
                 fontSize: 13,
@@ -443,23 +535,22 @@ export const TourOverlay = memo(({
       <style>{`
         @keyframes spotlightPulse {
           0%, 100% { 
-            box-shadow: 0 0 0 9999px rgba(0,0,0,0.85), 0 0 20px rgba(255,255,255,0.08); 
-            border-color: rgba(255,255,255,0.25);
+            box-shadow: 0 0 30px rgba(255,255,255,0.2), inset 0 0 30px rgba(255,255,255,0.1);
+            border-color: rgba(255,255,255,0.4);
           }
           50% { 
-            box-shadow: 0 0 0 9999px rgba(0,0,0,0.85), 0 0 40px rgba(255,255,255,0.12); 
-            border-color: rgba(255,255,255,0.35);
+            box-shadow: 0 0 50px rgba(255,255,255,0.3), inset 0 0 40px rgba(255,255,255,0.15);
+            border-color: rgba(255,255,255,0.6);
           }
         }
       `}</style>
-    </div>
+    </>
   );
 });
 
 WelcomeIntro.displayName = 'WelcomeIntro';
 TourOverlay.displayName = 'TourOverlay';
 
-// Only ONE default export
 export default function GuideWelcome({ onComplete }: { onComplete: () => void }) {
   const [phase, setPhase] = useState<'intro' | 'tour'>('intro');
   const [tourStep, setTourStep] = useState(0);

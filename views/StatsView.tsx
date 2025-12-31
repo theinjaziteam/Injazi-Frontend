@@ -16,12 +16,13 @@ interface CalendarEvent {
 
 interface Alert {
     id: string;
-    type: 'warning' | 'danger' | 'info';
+    type: 'warning' | 'danger' | 'info' | 'success';
     title: string;
     message: string;
     icon: any;
-    action?: string;
+    source: 'guide' | 'agent' | 'system';
     actionLabel?: string;
+    actionView?: AppView;
 }
 
 export default function StatsView() {
@@ -48,7 +49,15 @@ export default function StatsView() {
         const saved = localStorage.getItem('dismissedAlerts');
         if (saved) {
             try {
-                setDismissedAlerts(JSON.parse(saved));
+                const parsed = JSON.parse(saved);
+                // Reset dismissed alerts daily
+                const today = new Date().toDateString();
+                if (parsed.date !== today) {
+                    setDismissedAlerts([]);
+                    localStorage.setItem('dismissedAlerts', JSON.stringify({ date: today, alerts: [] }));
+                } else {
+                    setDismissedAlerts(parsed.alerts || []);
+                }
             } catch (e) {
                 console.error('Error parsing dismissed alerts:', e);
             }
@@ -119,27 +128,110 @@ export default function StatsView() {
         return [...calendarEvents, ...autoMilestones];
     }, [calendarEvents, user.goal, user.gameState?.streak]);
 
-    // Generate AI Alerts based on user data
+    // Generate AI Alerts based on Guide conversations and Master Agent data
     const alerts = useMemo(() => {
         const generatedAlerts: Alert[] = [];
         const tasks = user.tasks || [];
         const completedTasks = tasks.filter(t => t.status === 'completed' || t.status === 'approved');
         const pendingTasks = tasks.filter(t => t.status === 'pending' || t.status === 'in_progress');
         const streak = user.gameState?.streak || 0;
+        const credits = user.gameState?.credits || 0;
         
-        // Check for streak break risk
+        // Get Guide conversation data (from localStorage or user data)
+        const guideConversations = user.conversations || [];
+        const lastGuideMessage = guideConversations.length > 0 
+            ? guideConversations[guideConversations.length - 1] 
+            : null;
+        
+        // Get Master Agent data
+        const masterAgentTasks = user.masterAgentTasks || [];
+        const pendingAgentTasks = masterAgentTasks.filter((t: any) => t.status === 'pending' || t.status === 'in_progress');
+        const failedAgentTasks = masterAgentTasks.filter((t: any) => t.status === 'failed');
+        
+        // === GUIDE-BASED ALERTS ===
+        
+        // Check if user hasn't talked to Guide recently
+        const lastConversationDate = lastGuideMessage?.timestamp 
+            ? new Date(lastGuideMessage.timestamp) 
+            : null;
+        const daysSinceLastConversation = lastConversationDate 
+            ? Math.floor((Date.now() - lastConversationDate.getTime()) / (1000 * 60 * 60 * 24))
+            : 999;
+        
+        if (daysSinceLastConversation > 2 && guideConversations.length > 0) {
+            generatedAlerts.push({
+                id: 'guide-inactive',
+                type: 'info',
+                title: 'Check in with The Guide',
+                message: `It's been ${daysSinceLastConversation} days since your last conversation. The Guide can help you stay on track!`,
+                icon: Icons.MessageCircle,
+                source: 'guide',
+                actionLabel: 'Open Guide',
+                actionView: AppView.CHAT
+            });
+        }
+        
+        // No goal set - Guide recommendation
+        if (!user.goal) {
+            generatedAlerts.push({
+                id: 'no-goal',
+                type: 'warning',
+                title: 'Set Your First Goal',
+                message: 'The Guide recommends setting a goal to start your journey. Goals help track progress and stay motivated.',
+                icon: Icons.Trophy,
+                source: 'guide',
+                actionLabel: 'Talk to Guide',
+                actionView: AppView.CHAT
+            });
+        }
+        
+        // === MASTER AGENT ALERTS ===
+        
+        // Failed automation tasks
+        if (failedAgentTasks.length > 0) {
+            generatedAlerts.push({
+                id: 'agent-failed-tasks',
+                type: 'danger',
+                title: `${failedAgentTasks.length} Automation${failedAgentTasks.length > 1 ? 's' : ''} Failed`,
+                message: 'Some Master Agent tasks encountered errors. Review and retry or adjust the parameters.',
+                icon: Icons.AlertTriangle,
+                source: 'agent',
+                actionLabel: 'View Details',
+                actionView: AppView.DASHBOARD
+            });
+        }
+        
+        // Pending agent tasks need attention
+        if (pendingAgentTasks.length > 3) {
+            generatedAlerts.push({
+                id: 'agent-pending-queue',
+                type: 'warning',
+                title: 'Agent Queue Building Up',
+                message: `You have ${pendingAgentTasks.length} tasks waiting in the Master Agent queue. Consider prioritizing or clearing some.`,
+                icon: Icons.Clock,
+                source: 'agent',
+                actionLabel: 'Manage Queue',
+                actionView: AppView.DASHBOARD
+            });
+        }
+        
+        // === SYSTEM/PERFORMANCE ALERTS ===
+        
+        // Streak at risk
         if (streak > 0 && streak < 3) {
             generatedAlerts.push({
                 id: 'streak-risk',
                 type: 'warning',
                 title: 'Streak at Risk',
-                message: `You have a ${streak}-day streak. Complete a task today to keep it going!`,
+                message: `Your ${streak}-day streak needs attention! Complete a task today to keep it going.`,
                 icon: Icons.Flame,
-                actionLabel: 'View Tasks'
+                source: 'system',
+                actionLabel: 'View Tasks',
+                actionView: AppView.DASHBOARD
             });
         }
         
-        // Check for no activity in last 3 days
+        // No activity in last 3 days
         const threeDaysAgo = new Date();
         threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
         const recentActivity = completedTasks.some(t => {
@@ -152,13 +244,15 @@ export default function StatsView() {
                 id: 'no-activity',
                 type: 'danger',
                 title: 'No Recent Activity',
-                message: "You haven't completed any tasks in the last 3 days. Getting back on track is important!",
+                message: "You haven't completed any tasks in 3+ days. Getting back on track is crucial for your goals!",
                 icon: Icons.AlertTriangle,
-                actionLabel: 'Start Now'
+                source: 'system',
+                actionLabel: 'Start Now',
+                actionView: AppView.DASHBOARD
             });
         }
         
-        // Check for overdue tasks
+        // Overdue tasks
         const overdueTasks = pendingTasks.filter(t => {
             if (!t.dueDate) return false;
             return new Date(t.dueDate) < new Date();
@@ -169,13 +263,15 @@ export default function StatsView() {
                 id: 'overdue-tasks',
                 type: 'danger',
                 title: `${overdueTasks.length} Overdue Task${overdueTasks.length > 1 ? 's' : ''}`,
-                message: `You have tasks past their due date. Consider rescheduling or completing them soon.`,
+                message: 'Tasks past their due date need attention. Reschedule or complete them to stay on track.',
                 icon: Icons.Clock,
-                actionLabel: 'View Overdue'
+                source: 'system',
+                actionLabel: 'View Overdue',
+                actionView: AppView.DASHBOARD
             });
         }
         
-        // Check goal progress
+        // Goal progress behind schedule
         if (user.goal?.createdAt) {
             const daysElapsed = Math.floor((Date.now() - new Date(user.goal.createdAt).getTime()) / (1000 * 60 * 60 * 24));
             const totalDays = user.goal.durationDays || 30;
@@ -188,48 +284,91 @@ export default function StatsView() {
                     id: 'goal-behind',
                     type: 'warning',
                     title: 'Falling Behind on Goal',
-                    message: `You're ${Math.round(expectedProgress)}% through your goal timeline but only ${Math.round((actualTasksCompleted / Math.max(expectedTasks, 1)) * 100)}% of expected tasks are done.`,
+                    message: `You're ${Math.round(expectedProgress)}% through your timeline but behind on tasks. The Guide suggests focusing on quick wins.`,
                     icon: Icons.TrendingDown,
-                    actionLabel: 'Adjust Goal'
+                    source: 'guide',
+                    actionLabel: 'Get Advice',
+                    actionView: AppView.CHAT
                 });
             }
         }
         
-        // Low credits warning (mock scenario)
-        const totalCredits = user.gameState?.credits || 0;
-        if (totalCredits < 50 && totalCredits > 0) {
+        // Low credits warning
+        if (credits < 50 && credits > 0) {
             generatedAlerts.push({
                 id: 'low-credits',
                 type: 'info',
                 title: 'Low on Credits',
-                message: `You only have ${totalCredits} credits remaining. Complete more tasks to earn credits!`,
+                message: `Only ${credits} credits remaining. Complete tasks to earn more and unlock rewards!`,
                 icon: Icons.Zap,
-                actionLabel: 'Earn More'
+                source: 'system',
+                actionLabel: 'Earn More',
+                actionView: AppView.DASHBOARD
             });
         }
         
-        // Money goal specific alerts
+        // Money goal specific - Portfolio/Investment alerts
         if (user.goal?.category === 'Money & Career') {
-            // Mock: Investment performance warning
+            // Check connected financial apps
+            const financialApps = (user.connectedApps || []).filter(app => 
+                app.category === 'finance' || app.name?.toLowerCase().includes('bank')
+            );
+            
+            if (financialApps.length === 0) {
+                generatedAlerts.push({
+                    id: 'no-financial-apps',
+                    type: 'info',
+                    title: 'Connect Financial Apps',
+                    message: 'Link your bank or investment accounts to get personalized financial insights from the Master Agent.',
+                    icon: Icons.CreditCard,
+                    source: 'agent',
+                    actionLabel: 'Connect Apps',
+                    actionView: AppView.SETTINGS
+                });
+            }
+            
+            // Mock market alert for demo
             generatedAlerts.push({
-                id: 'investment-alert',
+                id: 'market-volatility',
                 type: 'warning',
-                title: 'Market Volatility Detected',
-                message: 'Your high-risk investments may be affected. Consider reviewing your portfolio allocation.',
+                title: 'Market Update',
+                message: 'The Master Agent detected increased volatility in your watched sectors. Consider reviewing your portfolio allocation.',
                 icon: Icons.TrendingDown,
+                source: 'agent',
                 actionLabel: 'Review Portfolio'
             });
         }
         
-        // Positive reinforcement (not always warnings!)
+        // === POSITIVE ALERTS ===
+        
+        // Streak celebration
         if (streak >= 7) {
             generatedAlerts.push({
                 id: 'streak-celebration',
-                type: 'info',
+                type: 'success',
                 title: `${streak} Day Streak! 🔥`,
-                message: "Amazing consistency! You're building great habits. Keep it up!",
-                icon: Icons.Trophy
+                message: "Amazing consistency! The Guide is impressed with your dedication. Keep building momentum!",
+                icon: Icons.Trophy,
+                source: 'guide'
             });
+        }
+        
+        // Goal near completion
+        if (user.goal?.createdAt) {
+            const daysElapsed = Math.floor((Date.now() - new Date(user.goal.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+            const totalDays = user.goal.durationDays || 30;
+            const progress = (daysElapsed / totalDays) * 100;
+            
+            if (progress >= 80 && progress < 100) {
+                generatedAlerts.push({
+                    id: 'goal-almost-done',
+                    type: 'success',
+                    title: 'Goal Almost Complete!',
+                    message: `You're ${Math.round(progress)}% through your goal timeline. The finish line is in sight!`,
+                    icon: Icons.Trophy,
+                    source: 'guide'
+                });
+            }
         }
         
         // Filter out dismissed alerts
@@ -240,7 +379,10 @@ export default function StatsView() {
     const dismissAlert = (alertId: string) => {
         const updated = [...dismissedAlerts, alertId];
         setDismissedAlerts(updated);
-        localStorage.setItem('dismissedAlerts', JSON.stringify(updated));
+        localStorage.setItem('dismissedAlerts', JSON.stringify({ 
+            date: new Date().toDateString(), 
+            alerts: updated 
+        }));
     };
 
     // Mock AI Insights data
@@ -423,7 +565,7 @@ export default function StatsView() {
         setCalendarEvents(prev => prev.filter(e => e.id !== eventId));
     };
 
-    // Donut Chart Component
+    // Donut Chart Component - FIXED TEXT COLORS
     const DonutChart = ({ data, size = 160, showLegend = true }: { 
         data: { value: number; color: string; label: string }[], 
         size?: number,
@@ -435,8 +577,8 @@ export default function StatsView() {
         
         if (total === 0) {
             return (
-                <div className="flex items-center justify-center p-8 text-gray-400 text-sm">
-                    No task data available
+                <div className="flex items-center justify-center p-8 text-gray-500 text-sm">
+                    No data available
                 </div>
             );
         }
@@ -472,10 +614,10 @@ export default function StatsView() {
                         })}
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className="text-xs font-bold text-gray-400">
+                        <span className="text-xs font-bold text-gray-500">
                             {hoveredIndex !== null ? data[hoveredIndex].label : 'Total'}
                         </span>
-                        <span className="text-xl font-black text-primary">
+                        <span className="text-xl font-black text-gray-800">
                             {hoveredIndex !== null ? data[hoveredIndex].value : total}
                         </span>
                     </div>
@@ -489,11 +631,11 @@ export default function StatsView() {
                                 onMouseEnter={() => setHoveredIndex(i)}
                                 onMouseLeave={() => setHoveredIndex(null)}
                             >
-                                <span className="flex items-center gap-2">
+                                <span className="flex items-center gap-2 text-gray-700">
                                     <span className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></span>
                                     {item.label}
                                 </span>
-                                <span className="font-bold">{total > 0 ? Math.round((item.value / total) * 100) : 0}%</span>
+                                <span className="font-bold text-gray-800">{total > 0 ? Math.round((item.value / total) * 100) : 0}%</span>
                             </div>
                         ))}
                     </div>
@@ -626,7 +768,7 @@ export default function StatsView() {
                 {labels.length > 0 && (
                     <div className="flex justify-between px-5 mt-1">
                         {labels.map((label, i) => (
-                            <span key={i} className="text-[10px] text-gray-400 font-medium">{label}</span>
+                            <span key={i} className="text-[10px] text-gray-500 font-medium">{label}</span>
                         ))}
                     </div>
                 )}
@@ -677,7 +819,7 @@ export default function StatsView() {
                                     }}
                                 />
                             </div>
-                            <span className="text-[10px] text-gray-400 font-medium">{item.label}</span>
+                            <span className="text-[10px] text-gray-500 font-medium">{item.label}</span>
                         </div>
                     );
                 })}
@@ -730,8 +872,8 @@ export default function StatsView() {
                     />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    {value !== undefined && <span className="text-lg font-black text-primary">{value}</span>}
-                    {label && <span className="text-[10px] text-gray-400">{label}</span>}
+                    {value !== undefined && <span className="text-lg font-black text-gray-800">{value}</span>}
+                    {label && <span className="text-[10px] text-gray-500">{label}</span>}
                 </div>
             </div>
         );
@@ -798,13 +940,11 @@ export default function StatsView() {
         const startingDay = firstDay.getDay();
         const totalDays = lastDay.getDate();
         
-        // Get previous month's last days for filling
         const prevMonthLastDay = new Date(year, month, 0).getDate();
         
         const days = [];
         const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         
-        // Previous month's trailing days
         for (let i = startingDay - 1; i >= 0; i--) {
             const dayNum = prevMonthLastDay - i;
             days.push(
@@ -814,7 +954,6 @@ export default function StatsView() {
             );
         }
         
-        // Current month's days
         for (let day = 1; day <= totalDays; day++) {
             const date = new Date(year, month, day);
             const isToday = date.toDateString() === new Date().toDateString();
@@ -862,8 +1001,7 @@ export default function StatsView() {
             );
         }
         
-        // Next month's leading days
-        const remainingDays = 42 - days.length; // 6 rows * 7 days = 42
+        const remainingDays = 42 - days.length;
         for (let i = 1; i <= remainingDays; i++) {
             days.push(
                 <div key={`next-${i}`} className="h-11 flex flex-col items-center justify-center text-gray-300">
@@ -873,8 +1011,7 @@ export default function StatsView() {
         }
         
         return (
-            <Card className="p-4 mb-6 bg-white border border-gray-200">
-                {/* Calendar Header */}
+            <Card className="p-4 bg-white border border-gray-200">
                 <div className="flex items-center justify-between mb-4">
                     <button 
                         onClick={() => {
@@ -901,7 +1038,6 @@ export default function StatsView() {
                     </button>
                 </div>
                 
-                {/* Week Days Header */}
                 <div className="grid grid-cols-7 gap-1 mb-2">
                     {weekDays.map(day => (
                         <div key={day} className="text-center text-xs font-bold text-gray-500 uppercase py-2">
@@ -910,12 +1046,10 @@ export default function StatsView() {
                     ))}
                 </div>
                 
-                {/* Calendar Grid */}
                 <div className="grid grid-cols-7 gap-1 border-t border-gray-100 pt-2">
                     {days}
                 </div>
                 
-                {/* Add Event Button */}
                 <button
                     onClick={() => {
                         setSelectedEventDate(new Date(selectedDate));
@@ -927,7 +1061,6 @@ export default function StatsView() {
                     Add Event
                 </button>
                 
-                {/* Legend */}
                 <div className="flex flex-wrap items-center justify-center gap-4 mt-4 text-xs text-gray-500">
                     <span className="flex items-center gap-1.5">
                         <div className="w-2.5 h-2.5 bg-green-500 rounded-full"></div>
@@ -1003,7 +1136,7 @@ export default function StatsView() {
         </div>
     );
 
-    // AI Alerts Section - NEW
+    // AI Alerts Section
     const renderAlerts = () => {
         if (alerts.length === 0) return null;
         
@@ -1027,6 +1160,15 @@ export default function StatsView() {
                         message: 'text-amber-600',
                         button: 'bg-amber-600 hover:bg-amber-700 text-white'
                     };
+                case 'success':
+                    return {
+                        bg: 'bg-green-50',
+                        border: 'border-green-200',
+                        icon: 'bg-green-100 text-green-600',
+                        title: 'text-green-800',
+                        message: 'text-green-600',
+                        button: 'bg-green-600 hover:bg-green-700 text-white'
+                    };
                 case 'info':
                 default:
                     return {
@@ -1039,19 +1181,30 @@ export default function StatsView() {
                     };
             }
         };
+
+        const getSourceLabel = (source: string) => {
+            switch (source) {
+                case 'guide': return { label: 'The Guide', color: 'bg-purple-100 text-purple-700' };
+                case 'agent': return { label: 'Master Agent', color: 'bg-indigo-100 text-indigo-700' };
+                default: return { label: 'System', color: 'bg-gray-100 text-gray-700' };
+            }
+        };
         
         return (
             <div className="space-y-3 mb-6">
-                <h3 className="font-bold text-primary flex items-center gap-2">
-                    <Icons.Bell className="w-5 h-5" />
-                    AI Alerts
-                    <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                        <Icons.Bell className="w-5 h-5 text-primary" />
+                        Alerts & Recommendations
+                    </h3>
+                    <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
                         {alerts.length}
                     </span>
-                </h3>
+                </div>
                 
                 {alerts.map(alert => {
                     const styles = getAlertStyles(alert.type);
+                    const sourceInfo = getSourceLabel(alert.source);
                     const IconComponent = alert.icon;
                     
                     return (
@@ -1059,7 +1212,6 @@ export default function StatsView() {
                             key={alert.id}
                             className={`${styles.bg} ${styles.border} border rounded-2xl p-4 relative overflow-hidden`}
                         >
-                            {/* Dismiss button */}
                             <button 
                                 onClick={() => dismissAlert(alert.id)}
                                 className="absolute top-2 right-2 p-1 hover:bg-black/5 rounded-full transition-colors"
@@ -1072,7 +1224,12 @@ export default function StatsView() {
                                     <IconComponent className="w-5 h-5" />
                                 </div>
                                 <div className="flex-1 pr-6">
-                                    <h4 className={`${styles.title} font-bold text-sm mb-1`}>{alert.title}</h4>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <h4 className={`${styles.title} font-bold text-sm`}>{alert.title}</h4>
+                                        <span className={`${sourceInfo.color} text-[9px] font-bold px-1.5 py-0.5 rounded-full`}>
+                                            {sourceInfo.label}
+                                        </span>
+                                    </div>
                                     <p className={`${styles.message} text-xs leading-relaxed`}>{alert.message}</p>
                                     
                                     {alert.actionLabel && (
@@ -1080,8 +1237,8 @@ export default function StatsView() {
                                             className={`${styles.button} mt-3 px-4 py-2 rounded-lg text-xs font-bold transition-colors`}
                                             onClick={() => {
                                                 dismissAlert(alert.id);
-                                                if (alert.id.includes('task') || alert.id.includes('activity')) {
-                                                    setView(AppView.DASHBOARD);
+                                                if (alert.actionView) {
+                                                    setView(alert.actionView);
                                                 }
                                             }}
                                         >
@@ -1097,13 +1254,319 @@ export default function StatsView() {
         );
     };
 
-    // AI Insights Section - WITH MOCK DATA
+    // Goal Progress Section
+    const renderGoalProgress = () => {
+        if (!user.goal) return null;
+        
+        const daysElapsed = user.goal.createdAt 
+            ? Math.floor((Date.now() - new Date(user.goal.createdAt).getTime()) / (1000 * 60 * 60 * 24))
+            : 0;
+        const totalDays = user.goal.durationDays || 30;
+        const progress = Math.min((daysElapsed / totalDays) * 100, 100);
+
+        return (
+            <Card className="p-5 mb-6 bg-white border border-gray-200">
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                        <Icons.Trophy className="w-5 h-5 text-primary" />
+                        Goal Progress
+                    </h3>
+                    <span className="text-xs text-gray-500">{daysElapsed}/{totalDays} days</span>
+                </div>
+                <div className="flex items-center gap-6">
+                    <ProgressRing 
+                        progress={progress} 
+                        size={100} 
+                        strokeWidth={10}
+                        color="#4F46E5"
+                        value={`${Math.round(progress)}%`}
+                        label="Complete"
+                    />
+                    <div className="flex-1">
+                        <h4 className="font-bold text-gray-800 mb-1">{user.goal.title}</h4>
+                        <p className="text-xs text-gray-500 mb-3">{user.goal.category}</p>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div 
+                                className="bg-primary h-2 rounded-full transition-all duration-1000"
+                                style={{ width: `${progress}%` }}
+                            />
+                        </div>
+                    </div>
+                </div>
+            </Card>
+        );
+    };
+
+    // Activity Chart Section
+    const renderActivityChart = () => {
+        const chartLabels = calculatedStats.historyData.map(d => {
+            if (viewMode === 'daily') {
+                return d.date.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 2);
+            } else if (viewMode === 'weekly') {
+                return `W${Math.ceil(d.date.getDate() / 7)}`;
+            } else {
+                return d.date.toLocaleDateString('en-US', { month: 'short' }).slice(0, 3);
+            }
+        });
+
+        const hasData = calculatedStats.historyData.some(d => d.tasks > 0);
+
+        return (
+            <Card className="p-5 mb-6 bg-white border border-gray-200">
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                        <Icons.Activity className="w-5 h-5 text-primary" />
+                        Activity Trend
+                    </h3>
+                    <span className="text-xs text-gray-500">
+                        Last 7 {viewMode === 'daily' ? 'days' : viewMode === 'weekly' ? 'weeks' : 'months'}
+                    </span>
+                </div>
+                {hasData ? (
+                    <LineChart 
+                        data={calculatedStats.historyData.map(d => d.tasks)}
+                        color="#4F46E5"
+                        height={120}
+                        labels={chartLabels}
+                    />
+                ) : (
+                    <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+                        <Icons.Activity className="w-12 h-12 mb-2 opacity-30" />
+                        <p className="text-sm text-gray-500">No activity data yet</p>
+                        <p className="text-xs text-gray-400">Complete tasks to see your trend</p>
+                    </div>
+                )}
+            </Card>
+        );
+    };
+
+    // Task Breakdown Section
+    const renderTaskBreakdown = () => {
+        const hasData = calculatedStats.easyTasks > 0 || calculatedStats.mediumTasks > 0 || calculatedStats.hardTasks > 0;
+        
+        return (
+            <Card className="p-5 mb-6 bg-white border border-gray-200">
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                        <Icons.PieChart className="w-5 h-5 text-primary" />
+                        Task Breakdown
+                    </h3>
+                </div>
+                {hasData ? (
+                    <DonutChart 
+                        data={[
+                            { value: calculatedStats.easyTasks, color: '#10B981', label: 'Easy' },
+                            { value: calculatedStats.mediumTasks, color: '#F59E0B', label: 'Medium' },
+                            { value: calculatedStats.hardTasks, color: '#EF4444', label: 'Hard' }
+                        ]}
+                        size={140}
+                    />
+                ) : (
+                    <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+                        <Icons.PieChart className="w-12 h-12 mb-2 opacity-30" />
+                        <p className="text-sm text-gray-500">No completed tasks</p>
+                        <p className="text-xs text-gray-400">Complete tasks to see breakdown</p>
+                    </div>
+                )}
+            </Card>
+        );
+    };
+
+    // Credits Bar Chart
+    const renderCreditsChart = () => {
+        const hasData = calculatedStats.historyData.some(d => d.credits > 0);
+        
+        return (
+            <Card className="p-5 mb-6 bg-white border border-gray-200">
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                        <Icons.BarChart className="w-5 h-5 text-primary" />
+                        Credits Earned
+                    </h3>
+                </div>
+                {hasData ? (
+                    <BarChart 
+                        data={calculatedStats.historyData.map((d, i) => ({
+                            label: viewMode === 'daily' 
+                                ? d.date.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 2)
+                                : viewMode === 'weekly'
+                                ? `W${i + 1}`
+                                : d.date.toLocaleDateString('en-US', { month: 'short' }).slice(0, 3),
+                            value: d.credits,
+                            color: i === calculatedStats.historyData.length - 1 ? '#4F46E5' : '#CBD5E1'
+                        }))}
+                        height={100}
+                    />
+                ) : (
+                    <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+                        <Icons.BarChart className="w-12 h-12 mb-2 opacity-30" />
+                        <p className="text-sm text-gray-500">No credits earned yet</p>
+                        <p className="text-xs text-gray-400">Complete tasks to earn credits</p>
+                    </div>
+                )}
+            </Card>
+        );
+    };
+
+    // Portfolio Allocation - FIXED TEXT COLORS
+    const renderPortfolioAllocation = () => {
+        if (user.goal?.category !== 'Money & Career' || !budgetData) return null;
+        
+        return (
+            <Card className="p-5 mb-6 bg-white border border-gray-200">
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                        <Icons.PieChart className="w-5 h-5 text-primary" />
+                        Portfolio Allocation
+                    </h3>
+                </div>
+                <DonutChart 
+                    data={[
+                        { value: budgetData.lowRisk?.amount || 0, color: '#10B981', label: 'Low Risk' },
+                        { value: budgetData.mediumRisk?.amount || 0, color: '#F59E0B', label: 'Medium' },
+                        { value: budgetData.highYield?.amount || 0, color: '#EF4444', label: 'High Yield' }
+                    ]} 
+                />
+                {/* Additional portfolio info */}
+                <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-3 gap-2">
+                    <div className="text-center p-2 bg-green-50 rounded-lg">
+                        <div className="text-xs text-gray-500">Low Risk</div>
+                        <div className="font-bold text-green-700">${budgetData.lowRisk?.amount || 0}</div>
+                    </div>
+                    <div className="text-center p-2 bg-amber-50 rounded-lg">
+                        <div className="text-xs text-gray-500">Medium</div>
+                        <div className="font-bold text-amber-700">${budgetData.mediumRisk?.amount || 0}</div>
+                    </div>
+                    <div className="text-center p-2 bg-red-50 rounded-lg">
+                        <div className="text-xs text-gray-500">High Yield</div>
+                        <div className="font-bold text-red-700">${budgetData.highYield?.amount || 0}</div>
+                    </div>
+                </div>
+            </Card>
+        );
+    };
+
+    // Connected Apps Section
+    const renderConnectedApps = () => {
+        const relevantApps = (user.connectedApps || []).filter(app => app.isConnected);
+        
+        if (relevantApps.length === 0) return null;
+
+        return (
+            <div className="mb-6">
+                <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <Icons.Cpu className="w-5 h-5 text-primary"/> 
+                    Connected Integrations
+                </h3>
+                <div className="space-y-4">
+                    {relevantApps.map(app => (
+                        <Card 
+                            key={app.id} 
+                            className={`p-5 cursor-pointer transition-all bg-white border border-gray-200 ${expandedCard === app.id ? 'ring-2 ring-primary' : ''}`}
+                            onClick={() => setExpandedCard(expandedCard === app.id ? null : app.id)}
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-primary/10 rounded-xl">
+                                    <Icons.Activity className="w-5 h-5 text-primary"/>
+                                </div>
+                                <div className="flex-1">
+                                    <h4 className="font-bold text-gray-800">{app.name}</h4>
+                                    <span className="text-[10px] text-green-600 uppercase font-bold tracking-wider flex items-center gap-1">
+                                        <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+                                        Connected
+                                    </span>
+                                </div>
+                                <Icons.ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${expandedCard === app.id ? 'rotate-180' : ''}`} />
+                            </div>
+                            
+                            {expandedCard === app.id && app.metrics && (
+                                <div className="grid grid-cols-2 gap-4 pt-4 mt-4 border-t border-gray-100">
+                                    {app.metrics.map(metric => (
+                                        <div key={metric.id} className="bg-gray-50 rounded-xl p-3">
+                                            <div className="text-xs text-gray-500 mb-1">{metric.name}</div>
+                                            <div className="flex items-end gap-2 mb-2">
+                                                <span className="text-xl font-black text-gray-800">{metric.value}</span>
+                                                <span className="text-xs text-gray-500 mb-1">{metric.unit}</span>
+                                            </div>
+                                            <LineChart 
+                                                data={metric.history || [0, 0, 0, 0, 0]} 
+                                                color={metric.status === 'good' ? '#10B981' : '#EF4444'} 
+                                                height={40}
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </Card>
+                    ))}
+                </div>
+            </div>
+        );
+    };
+
+    // Upcoming Milestones - ONLY SHOW NEXT 3
+    const renderUpcomingMilestones = () => {
+        const upcomingEvents = allEvents
+            .filter(e => new Date(e.date) >= new Date())
+            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+            .slice(0, 3); // Only show next 3
+        
+        if (upcomingEvents.length === 0) {
+            return null;
+        }
+        
+        return (
+            <div className="mb-6">
+                <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <Icons.Clock className="w-5 h-5 text-primary"/> 
+                    Next Milestones
+                </h3>
+                <div className="space-y-3">
+                    {upcomingEvents.map((event) => {
+                        const eventDate = new Date(event.date);
+                        const daysUntil = Math.ceil((eventDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                        
+                        return (
+                            <div 
+                                key={event.id} 
+                                className="flex gap-4 items-center p-4 bg-white rounded-2xl border border-gray-200 transition-all hover:border-primary/30 hover:shadow-sm"
+                            >
+                                <div 
+                                    className="w-12 h-12 rounded-xl flex items-center justify-center"
+                                    style={{ backgroundColor: `${event.color}20` }}
+                                >
+                                    <span className="text-lg font-black" style={{ color: event.color }}>
+                                        {eventDate.getDate()}
+                                    </span>
+                                </div>
+                                <div className="flex-1">
+                                    <h4 className="font-bold text-gray-800 text-sm">{event.title}</h4>
+                                    <p className="text-xs text-gray-500">
+                                        {eventDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                        {event.description && ` • ${event.description}`}
+                                    </p>
+                                </div>
+                                <div className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                    daysUntil <= 3 
+                                        ? 'bg-amber-100 text-amber-700' 
+                                        : 'bg-gray-100 text-gray-600'
+                                }`}>
+                                    {daysUntil === 0 ? 'Today' : daysUntil === 1 ? 'Tomorrow' : `${daysUntil}d`}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        );
+    };
+
+    // AI Insights Section - WITH MOCK DATA (MOVED TO BOTTOM)
     const renderInsights = () => {
         const displayInsights = insights || mockInsights;
         
         return (
-            <Card className="bg-gradient-to-br from-primary via-primary to-indigo-700 text-white p-6 shadow-2xl shadow-primary/20 border-none mb-6 relative overflow-hidden">
-                {/* Background decoration */}
+            <Card className="bg-gradient-to-br from-primary via-primary to-indigo-700 text-white p-6 shadow-2xl shadow-primary/20 border-none relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2"></div>
                 <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2"></div>
                 
@@ -1160,285 +1623,6 @@ export default function StatsView() {
         );
     };
 
-    // Activity Chart Section
-    const renderActivityChart = () => {
-        const chartLabels = calculatedStats.historyData.map(d => {
-            if (viewMode === 'daily') {
-                return d.date.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 2);
-            } else if (viewMode === 'weekly') {
-                return `W${Math.ceil(d.date.getDate() / 7)}`;
-            } else {
-                return d.date.toLocaleDateString('en-US', { month: 'short' }).slice(0, 3);
-            }
-        });
-
-        const hasData = calculatedStats.historyData.some(d => d.tasks > 0);
-
-        return (
-            <Card className="p-5 mb-6">
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-bold text-primary flex items-center gap-2">
-                        <Icons.Activity className="w-5 h-5" />
-                        Activity Trend
-                    </h3>
-                    <span className="text-xs text-gray-400">
-                        Last 7 {viewMode === 'daily' ? 'days' : viewMode === 'weekly' ? 'weeks' : 'months'}
-                    </span>
-                </div>
-                {hasData ? (
-                    <LineChart 
-                        data={calculatedStats.historyData.map(d => d.tasks)}
-                        color="#4F46E5"
-                        height={120}
-                        labels={chartLabels}
-                    />
-                ) : (
-                    <div className="flex flex-col items-center justify-center py-8 text-gray-400">
-                        <Icons.Activity className="w-12 h-12 mb-2 opacity-30" />
-                        <p className="text-sm">No activity data yet</p>
-                        <p className="text-xs">Complete tasks to see your trend</p>
-                    </div>
-                )}
-            </Card>
-        );
-    };
-
-    // Task Breakdown Section
-    const renderTaskBreakdown = () => {
-        const hasData = calculatedStats.easyTasks > 0 || calculatedStats.mediumTasks > 0 || calculatedStats.hardTasks > 0;
-        
-        return (
-            <Card className="p-5 mb-6">
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-bold text-primary flex items-center gap-2">
-                        <Icons.PieChart className="w-5 h-5" />
-                        Task Breakdown
-                    </h3>
-                </div>
-                {hasData ? (
-                    <DonutChart 
-                        data={[
-                            { value: calculatedStats.easyTasks, color: '#10B981', label: 'Easy' },
-                            { value: calculatedStats.mediumTasks, color: '#F59E0B', label: 'Medium' },
-                            { value: calculatedStats.hardTasks, color: '#EF4444', label: 'Hard' }
-                        ]}
-                        size={140}
-                    />
-                ) : (
-                    <div className="flex flex-col items-center justify-center py-8 text-gray-400">
-                        <Icons.PieChart className="w-12 h-12 mb-2 opacity-30" />
-                        <p className="text-sm">No completed tasks</p>
-                        <p className="text-xs">Complete tasks to see breakdown</p>
-                    </div>
-                )}
-            </Card>
-        );
-    };
-
-    // Credits Bar Chart
-    const renderCreditsChart = () => {
-        const hasData = calculatedStats.historyData.some(d => d.credits > 0);
-        
-        return (
-            <Card className="p-5 mb-6">
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-bold text-primary flex items-center gap-2">
-                        <Icons.BarChart className="w-5 h-5" />
-                        Credits Earned
-                    </h3>
-                </div>
-                {hasData ? (
-                    <BarChart 
-                        data={calculatedStats.historyData.map((d, i) => ({
-                            label: viewMode === 'daily' 
-                                ? d.date.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 2)
-                                : viewMode === 'weekly'
-                                ? `W${i + 1}`
-                                : d.date.toLocaleDateString('en-US', { month: 'short' }).slice(0, 3),
-                            value: d.credits,
-                            color: i === calculatedStats.historyData.length - 1 ? '#4F46E5' : '#CBD5E1'
-                        }))}
-                        height={100}
-                    />
-                ) : (
-                    <div className="flex flex-col items-center justify-center py-8 text-gray-400">
-                        <Icons.BarChart className="w-12 h-12 mb-2 opacity-30" />
-                        <p className="text-sm">No credits earned yet</p>
-                        <p className="text-xs">Complete tasks to earn credits</p>
-                    </div>
-                )}
-            </Card>
-        );
-    };
-
-    // Goal Progress Section
-    const renderGoalProgress = () => {
-        if (!user.goal) return null;
-        
-        const daysElapsed = user.goal.createdAt 
-            ? Math.floor((Date.now() - new Date(user.goal.createdAt).getTime()) / (1000 * 60 * 60 * 24))
-            : 0;
-        const totalDays = user.goal.durationDays || 30;
-        const progress = Math.min((daysElapsed / totalDays) * 100, 100);
-
-        return (
-            <Card className="p-5 mb-6">
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-bold text-primary flex items-center gap-2">
-                        <Icons.Trophy className="w-5 h-5" />
-                        Goal Progress
-                    </h3>
-                    <span className="text-xs text-gray-400">{daysElapsed}/{totalDays} days</span>
-                </div>
-                <div className="flex items-center gap-6">
-                    <ProgressRing 
-                        progress={progress} 
-                        size={100} 
-                        strokeWidth={10}
-                        color="#4F46E5"
-                        value={`${Math.round(progress)}%`}
-                        label="Complete"
-                    />
-                    <div className="flex-1">
-                        <h4 className="font-bold text-primary mb-1">{user.goal.title}</h4>
-                        <p className="text-xs text-gray-400 mb-3">{user.goal.category}</p>
-                        <div className="w-full bg-gray-100 rounded-full h-2">
-                            <div 
-                                className="bg-primary h-2 rounded-full transition-all duration-1000"
-                                style={{ width: `${progress}%` }}
-                            />
-                        </div>
-                    </div>
-                </div>
-            </Card>
-        );
-    };
-
-    // Upcoming Events Section
-    const renderUpcomingEvents = () => {
-        const upcomingEvents = allEvents
-            .filter(e => new Date(e.date) >= new Date())
-            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-            .slice(0, 5);
-        
-        if (upcomingEvents.length === 0) {
-            return (
-                <Card className="p-6 text-center border border-dashed border-gray-200 mb-6">
-                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                        <Icons.Clock className="w-6 h-6 text-gray-400" />
-                    </div>
-                    <p className="text-gray-400 text-sm mb-2">No upcoming events</p>
-                    <p className="text-gray-300 text-xs">Add events from the calendar above</p>
-                </Card>
-            );
-        }
-        
-        return (
-            <div className="space-y-3 mb-6">
-                {upcomingEvents.map((event) => {
-                    const eventDate = new Date(event.date);
-                    const daysUntil = Math.ceil((eventDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-                    
-                    return (
-                        <div 
-                            key={event.id} 
-                            className="flex gap-4 items-start p-4 bg-white rounded-2xl border border-gray-200 transition-all hover:border-primary/30 hover:shadow-sm"
-                        >
-                            <div className="w-12 text-center">
-                                <span className="block text-xs font-bold text-gray-400">
-                                    {eventDate.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}
-                                </span>
-                                <span className="block text-xl font-black text-primary">
-                                    {eventDate.getDate()}
-                                </span>
-                            </div>
-                            <div className="flex-1">
-                                <h4 className="font-bold text-gray-800 flex items-center gap-2">
-                                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: event.color }}></span>
-                                    {event.title}
-                                </h4>
-                                {event.description && (
-                                    <p className="text-xs text-gray-400">{event.description}</p>
-                                )}
-                            </div>
-                            <div className="text-right flex flex-col items-end gap-1">
-                                <span className={`text-xs font-bold ${daysUntil <= 3 ? 'text-amber-500' : 'text-gray-400'}`}>
-                                    {daysUntil === 0 ? 'Today' : daysUntil === 1 ? 'Tomorrow' : `${daysUntil}d`}
-                                </span>
-                                {event.type === 'custom' && (
-                                    <button 
-                                        onClick={() => handleDeleteEvent(event.id)}
-                                        className="text-gray-300 hover:text-red-500 transition-colors"
-                                    >
-                                        <Icons.Trash className="w-4 h-4" />
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-        );
-    };
-
-    // Connected Apps Section
-    const renderConnectedApps = () => {
-        const relevantApps = (user.connectedApps || []).filter(app => app.isConnected);
-        
-        if (relevantApps.length === 0) return null;
-
-        return (
-            <div className="mb-6">
-                <h3 className="font-bold text-primary mb-4 flex items-center gap-2">
-                    <Icons.Cpu className="w-5 h-5"/> 
-                    Connected Integrations
-                </h3>
-                <div className="space-y-4">
-                    {relevantApps.map(app => (
-                        <Card 
-                            key={app.id} 
-                            className={`p-5 cursor-pointer transition-all ${expandedCard === app.id ? 'ring-2 ring-primary' : ''}`}
-                            onClick={() => setExpandedCard(expandedCard === app.id ? null : app.id)}
-                        >
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="p-2 bg-primary/10 rounded-xl">
-                                    <Icons.Activity className="w-5 h-5 text-primary"/>
-                                </div>
-                                <div className="flex-1">
-                                    <h4 className="font-bold text-primary">{app.name}</h4>
-                                    <span className="text-[10px] text-green-500 uppercase font-bold tracking-wider flex items-center gap-1">
-                                        <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
-                                        Connected
-                                    </span>
-                                </div>
-                                <Icons.ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${expandedCard === app.id ? 'rotate-180' : ''}`} />
-                            </div>
-                            
-                            {expandedCard === app.id && (
-                                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100">
-                                    {app.metrics?.map(metric => (
-                                        <div key={metric.id} className="bg-gray-50 rounded-xl p-3">
-                                            <div className="text-xs text-gray-400 mb-1">{metric.name}</div>
-                                            <div className="flex items-end gap-2 mb-2">
-                                                <span className="text-xl font-black text-primary">{metric.value}</span>
-                                                <span className="text-xs text-gray-400 mb-1">{metric.unit}</span>
-                                            </div>
-                                            <LineChart 
-                                                data={metric.history || [0, 0, 0, 0, 0]} 
-                                                color={metric.status === 'good' ? '#10B981' : '#EF4444'} 
-                                                height={40}
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </Card>
-                    ))}
-                </div>
-            </div>
-        );
-    };
-
     // Event Modal
     const renderEventModal = () => {
         if (!showEventModal) return null;
@@ -1447,7 +1631,7 @@ export default function StatsView() {
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
                 <Card className="w-full max-w-md p-6 bg-white">
                     <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-bold text-primary text-lg">Add Event</h3>
+                        <h3 className="font-bold text-gray-800 text-lg">Add Event</h3>
                         <button 
                             onClick={() => setShowEventModal(false)}
                             className="p-2 hover:bg-gray-100 rounded-full"
@@ -1459,7 +1643,7 @@ export default function StatsView() {
                     <div className="space-y-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                            <div className="px-4 py-3 bg-gray-50 rounded-xl text-gray-600 font-medium">
+                            <div className="px-4 py-3 bg-gray-50 rounded-xl text-gray-700 font-medium">
                                 {selectedEventDate?.toLocaleDateString('en-US', { 
                                     weekday: 'long', 
                                     year: 'numeric', 
@@ -1523,14 +1707,14 @@ export default function StatsView() {
                 <Card className="w-full max-w-md rounded-t-3xl rounded-b-none p-6 max-h-[70vh] overflow-y-auto bg-white">
                     <div className="flex items-center justify-between mb-4">
                         <div>
-                            <h3 className="font-bold text-primary text-lg">
+                            <h3 className="font-bold text-gray-800 text-lg">
                                 {new Date(selectedDate).toLocaleDateString('en-US', { 
                                     weekday: 'long', 
                                     month: 'long', 
                                     day: 'numeric' 
                                 })}
                             </h3>
-                            <p className="text-sm text-gray-400">{dayEvents.length} event(s)</p>
+                            <p className="text-sm text-gray-500">{dayEvents.length} event(s)</p>
                         </div>
                         <button 
                             onClick={() => setShowDayEvents(false)}
@@ -1543,7 +1727,7 @@ export default function StatsView() {
                     {dayEvents.length === 0 ? (
                         <div className="text-center py-8 text-gray-400">
                             <Icons.Clock className="w-12 h-12 mx-auto mb-2 opacity-30" />
-                            <p>No events on this day</p>
+                            <p className="text-gray-500">No events on this day</p>
                         </div>
                     ) : (
                         <div className="space-y-3">
@@ -1557,7 +1741,7 @@ export default function StatsView() {
                                         <div>
                                             <h4 className="font-bold text-gray-800">{event.title}</h4>
                                             {event.description && (
-                                                <p className="text-xs text-gray-400 mt-1">{event.description}</p>
+                                                <p className="text-xs text-gray-500 mt-1">{event.description}</p>
                                             )}
                                             <span className="text-[10px] uppercase font-bold text-gray-400 mt-2 inline-block">
                                                 {event.type}
@@ -1598,7 +1782,7 @@ export default function StatsView() {
                 {/* Header */}
                 <div className="p-6 border-b border-gray-200 bg-white sticky top-0 z-20">
                     <div className="flex justify-between items-center mb-4 mt-2">
-                        <h1 className="text-2xl font-bold text-primary">Analytics</h1>
+                        <h1 className="text-2xl font-bold text-gray-800">Analytics</h1>
                         <button 
                             onClick={() => setView(AppView.DASHBOARD)} 
                             className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
@@ -1611,66 +1795,52 @@ export default function StatsView() {
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                    {/* Stats Cards */}
+                    {/* === PRIORITY ORDER: Most important first === */}
+                    
+                    {/* 1. Stats Cards */}
                     {renderStatsCards()}
                     
-                    {/* AI Alerts - NEW SECTION */}
+                    {/* 2. AI Alerts - Critical warnings and recommendations */}
                     {renderAlerts()}
                     
-                    {/* AI Insights */}
-                    {renderInsights()}
-                    
-                    {/* Goal Progress */}
+                    {/* 3. Goal Progress */}
                     {renderGoalProgress()}
                     
-                    {/* Full Calendar */}
+                    {/* 4. Activity Trend */}
+                    {renderActivityChart()}
+                    
+                    {/* 5. Task Breakdown */}
+                    {renderTaskBreakdown()}
+                    
+                    {/* 6. Credits Chart */}
+                    {renderCreditsChart()}
+                    
+                    {/* 7. Portfolio Allocation (Money Goals Only) - FIXED */}
+                    {renderPortfolioAllocation()}
+                    
+                    {/* 8. Connected Apps */}
+                    {renderConnectedApps()}
+                    
+                    {/* 9. Upcoming Milestones - Only next 3 */}
+                    {renderUpcomingMilestones()}
+                    
+                    {/* 10. Full Calendar */}
                     <div>
-                        <h3 className="font-bold text-primary mb-4 flex items-center gap-2">
-                            <Icons.Clock className="w-5 h-5"/> 
+                        <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <Icons.Clock className="w-5 h-5 text-primary"/> 
                             Calendar
                         </h3>
                         {renderFullCalendar()}
                     </div>
                     
-                    {/* Upcoming Events */}
+                    {/* 11. AI Insights - At the bottom */}
                     <div>
-                        <h3 className="font-bold text-primary mb-4 flex items-center gap-2">
-                            <Icons.Bell className="w-5 h-5"/> 
-                            Upcoming Events
+                        <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <Icons.Sparkles className="w-5 h-5 text-primary"/> 
+                            AI Analysis
                         </h3>
-                        {renderUpcomingEvents()}
+                        {renderInsights()}
                     </div>
-                    
-                    {/* Activity Trend */}
-                    {renderActivityChart()}
-                    
-                    {/* Task Breakdown */}
-                    {renderTaskBreakdown()}
-                    
-                    {/* Credits Chart */}
-                    {renderCreditsChart()}
-
-                    {/* Budget Allocation (Money Goals Only) */}
-                    {user.goal?.category === 'Money & Career' && budgetData && (
-                        <div>
-                            <h3 className="font-bold text-primary mb-4 flex items-center gap-2">
-                                <Icons.PieChart className="w-5 h-5"/> 
-                                Portfolio Allocation
-                            </h3>
-                            <Card className="p-6">
-                                <DonutChart 
-                                    data={[
-                                        { value: budgetData.lowRisk?.amount || 0, color: '#10B981', label: 'Low Risk' },
-                                        { value: budgetData.mediumRisk?.amount || 0, color: '#F59E0B', label: 'Medium' },
-                                        { value: budgetData.highYield?.amount || 0, color: '#EF4444', label: 'High Yield' }
-                                    ]} 
-                                />
-                            </Card>
-                        </div>
-                    )}
-
-                    {/* Connected Apps */}
-                    {renderConnectedApps()}
                 </div>
             </div>
             

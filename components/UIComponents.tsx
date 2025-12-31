@@ -241,9 +241,6 @@ ArrowLeft: (props: any) => (
   Coins: (props: any) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/><path d="m13.88 16.71.71.7 2.82-2.82"/></svg>
   ),
-  Link: (props: any) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-  ),
   Heart: (props: any) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
   ),
@@ -259,20 +256,16 @@ ArrowLeft: (props: any) => (
   MapPin: (props: any) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
   ),
-  Calendar: (props: any) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-  ),
   Smile: (props: any) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
   ),
   
-  // --- ADDED PAUSE ICON HERE ---
   Pause: (props: any) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
   )
 };
-// Add these new components to UIComponents.tsx
 
+// CoinIcon Component
 export const CoinIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
     <svg className={className} viewBox="0 0 24 24" fill="none">
         <ellipse cx="12" cy="14" rx="9" ry="4" fill="#D97706"/>
@@ -290,9 +283,7 @@ export const CoinIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
     </svg>
 );
 
-// ============================================
-// E-COMMERCE AGENT ICONS
-// ============================================
+// E-Commerce Icons
 export const EcommerceIcons = {
     Store: (props: any) => (
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -381,9 +372,7 @@ export const EcommerceIcons = {
     )
 };
 
-// ============================================
-// AGENT ACTION CARD
-// ============================================
+// Agent Action Card Component
 interface AgentActionCardProps {
     action: {
         id: string;
@@ -461,9 +450,7 @@ export const AgentActionCard: React.FC<AgentActionCardProps> = ({ action, onAppr
     );
 };
 
-// ============================================
-// ANALYTICS KPI CARD
-// ============================================
+// KPI Card Component
 interface KPICardProps {
     title: string;
     value: string | number;
@@ -497,9 +484,7 @@ export const KPICard: React.FC<KPICardProps> = ({ title, value, change, icon, tr
     );
 };
 
-// ============================================
-// PRODUCT DRAFT CARD
-// ============================================
+// Product Draft Card Component
 interface ProductDraftCardProps {
     draft: {
         id: string;
@@ -594,9 +579,7 @@ export const ProductDraftCard: React.FC<ProductDraftCardProps> = ({
     );
 };
 
-// ============================================
-// AI INSIGHT CARD
-// ============================================
+// Insight Card Component
 interface InsightCardProps {
     insight: {
         id: string;
@@ -656,9 +639,7 @@ export const InsightCard: React.FC<InsightCardProps> = ({ insight, onTakeAction 
     );
 };
 
-// ============================================
-// EMAIL PREVIEW CARD
-// ============================================
+// Email Preview Card Component
 interface EmailPreviewCardProps {
     email: {
         id: string;
@@ -743,9 +724,7 @@ export const EmailPreviewCard: React.FC<EmailPreviewCardProps> = ({
     );
 };
 
-// ============================================
-// SOCIAL CONTENT CARD
-// ============================================
+// Social Content Card Component
 interface SocialContentCardProps {
     content: {
         id: string;
@@ -768,7 +747,6 @@ export const SocialContentCard: React.FC<SocialContentCardProps> = ({
     onEdit
 }) => {
     const getPlatformIcon = () => {
-        // Return simple text for now - in production use actual platform icons
         const icons: Record<string, string> = {
             tiktok: 'TT',
             instagram: 'IG',
@@ -833,9 +811,7 @@ export const SocialContentCard: React.FC<SocialContentCardProps> = ({
     );
 };
 
-// ============================================
-// CONNECTED ACCOUNT CARD
-// ============================================
+// Connected Account Card Component
 interface ConnectedAccountCardProps {
     account: {
         platform: string;
@@ -902,7 +878,7 @@ export const ConnectedAccountCard: React.FC<ConnectedAccountCardProps> = ({
     );
 };
 
-
+// Button Component
 export const Button: React.FC<{
   onClick: () => void;
   children: React.ReactNode;
@@ -934,6 +910,7 @@ export const Button: React.FC<{
   );
 };
 
+// Card Component
 export const Card: React.FC<{ children: React.ReactNode; className?: string; onClick?: () => void; isSelected?: boolean }> = ({ children, className = '', onClick, isSelected = false }) => (
   <div 
     onClick={onClick} 
@@ -951,6 +928,7 @@ export const Card: React.FC<{ children: React.ReactNode; className?: string; onC
   </div>
 );
 
+// Badge Component
 export const Badge: React.FC<{ children: React.ReactNode; color?: string }> = ({ children, color }) => {
   const appliedColor = color || 'bg-accent text-secondary';
   return (
@@ -960,6 +938,7 @@ export const Badge: React.FC<{ children: React.ReactNode; color?: string }> = ({
   );
 };
 
+// Toggle Component
 export const Toggle: React.FC<{ checked: boolean; onChange: (checked: boolean) => void }> = ({ checked, onChange }) => (
   <button 
     onClick={() => onChange(!checked)} 
@@ -969,7 +948,7 @@ export const Toggle: React.FC<{ checked: boolean; onChange: (checked: boolean) =
   </button>
 );
 
-// Find the BottomNav export and replace with:
+// BottomNav Component - FIXED with active indicator and accessibility
 export const BottomNav: React.FC<{
   activeTab: string;
   onTabChange: (tab: string) => void;
@@ -992,12 +971,18 @@ export const BottomNav: React.FC<{
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className={`flex flex-col items-center justify-center gap-1 py-2 px-4 rounded-xl transition-all ${
+              className={`flex flex-col items-center justify-center gap-1 py-2 px-4 rounded-xl transition-all relative focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2 ${
                 isActive 
                   ? 'text-white' 
-                  : 'text-white/40 hover:text-white/70'
+                  : 'text-white/40 hover:text-white/60'
               }`}
+              aria-label={tab.label}
+              aria-current={isActive ? 'page' : undefined}
             >
+              {/* Active indicator dot */}
+              {isActive && (
+                <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-white rounded-full" />
+              )}
               <Icon className={`w-5 h-5 transition-transform ${isActive ? 'scale-110' : ''}`} />
               <span className={`text-[9px] font-bold uppercase tracking-wider ${isActive ? 'opacity-100' : 'opacity-60'}`}>
                 {tab.label}

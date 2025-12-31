@@ -1,5 +1,5 @@
 // views/ChatView.tsx
-import GuideWelcome from '../components/GuideWelcome';
+import { WelcomeIntro, TourOverlay } from '../components/GuideWelcome';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { AppView, ChatMessage, ChatAttachment } from '../types';
@@ -41,10 +41,13 @@ export default function ChatView() {
     const [chatInput, setChatInput] = useState('');
     const [isChatLoading, setIsChatLoading] = useState(false);
     const [isInputFocused, setIsInputFocused] = useState(false);
-    const [showWelcome, setShowWelcome] = useState(() => {
+    
+    // Welcome/Tour state - split into phases
+    const [welcomePhase, setWelcomePhase] = useState<'intro' | 'tour' | 'complete'>(() => {
         const hasSeenWelcome = localStorage.getItem('guideWelcomeSeen');
-        return !hasSeenWelcome;
+        return hasSeenWelcome ? 'complete' : 'intro';
     });
+    const [tourStep, setTourStep] = useState(0);
     
     const [attachment, setAttachment] = useState<ChatAttachment | null>(null);
     const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null);
@@ -65,7 +68,6 @@ export default function ChatView() {
     const [isTyping, setIsTyping] = useState(false);
     const typingRef = useRef<number | null>(null);
     
-    // Canvas state - using state to force re-renders
     const [canvasKey, setCanvasKey] = useState(0);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const animationRef = useRef<number | null>(null);
@@ -90,9 +92,29 @@ export default function ChatView() {
         }
     }, [conversations]);
 
-    const handleWelcomeComplete = () => {
+    // Welcome/Tour handlers
+    const handleStartTour = () => {
+        setWelcomePhase('tour');
+    };
+
+    const handleSkipWelcome = () => {
         localStorage.setItem('guideWelcomeSeen', 'true');
-        setShowWelcome(false);
+        setWelcomePhase('complete');
+    };
+
+    const handleTourNext = () => {
+        if (tourStep < 4) {
+            setTourStep(prev => prev + 1);
+        } else {
+            localStorage.setItem('guideWelcomeSeen', 'true');
+            setWelcomePhase('complete');
+        }
+    };
+
+    const handleTourBack = () => {
+        if (tourStep > 0) {
+            setTourStep(prev => prev - 1);
+        }
     };
 
     // Handle active conversation change
@@ -149,17 +171,15 @@ export default function ChatView() {
     // Force canvas re-render when returning from journeys list
     useEffect(() => {
         if (!showJourneysList && viewMode === 'planet') {
-            // Small delay to ensure DOM is ready
             setTimeout(() => {
                 setCanvasKey(prev => prev + 1);
             }, 50);
         }
     }, [showJourneysList, viewMode]);
 
-    // Canvas rendering - FIXED: proper cleanup and re-initialization
+    // Canvas rendering
     useEffect(() => {
         if (viewMode !== 'planet' || showJourneysList) {
-            // Clean up animation when not in planet view
             if (animationRef.current) {
                 cancelAnimationFrame(animationRef.current);
                 animationRef.current = null;
@@ -189,7 +209,6 @@ export default function ChatView() {
         resize();
         window.addEventListener('resize', resize);
 
-        // Initialize stars if needed
         if (starsRef.current.length === 0) {
             starsRef.current = Array.from({ length: 200 }, () => ({
                 x: Math.random() * 2 - 1,
@@ -224,13 +243,14 @@ export default function ChatView() {
                 ctx.fill();
             });
 
-            // Planet position - centered but slightly up
-            const topOffset = 180; // Approximate bottom of welcome text
-            const bottomOffset = 190; // Button position from bottom
+            // Planet position
+            const topOffset = 180;
+            const bottomOffset = 190;
             const availableHeight = h - topOffset - bottomOffset;
             const centerX = w * 0.5;
             const centerY = topOffset + (availableHeight / 2);
             const radius = Math.min(w, h) * 0.25;
+
             // Handle rotation
             if (!dragRef.current.isDragging) {
                 rotationRef.current.y += (rotationRef.current.targetY - rotationRef.current.y) * 0.05;
@@ -788,118 +808,119 @@ export default function ChatView() {
 
     const activeConvo = conversations.find(c => c.id === activeConversationId);
 
-// ========== MASTER AGENT FLOATING BUTTON (for Planet Mode) ==========
-const MasterAgentButton = () => (
-    <button
-        onClick={() => setView(AppView.ECOMMERCE_AGENT)}
-        style={{
-            position: 'absolute',
-            bottom: 190,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 10,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            padding: '10px 24px',
-            borderRadius: '40px',
-            background: 'rgba(255, 255, 255, 0.03)',
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.05)',
-            cursor: 'pointer',
-            transition: 'all 0.3s ease',
-            pointerEvents: 'auto'
-        }}
-        onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
-            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
-            e.currentTarget.style.transform = 'translateX(-50%) translateY(-2px)';
-        }}
-        onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
-            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
-            e.currentTarget.style.transform = 'translateX(-50%) translateY(0)';
-        }}
-    >
-        <Icons.Zap style={{ width: 16, height: 16, color: 'rgba(255, 255, 255, 0.6)' }} />
-        <span style={{ 
-            color: 'rgba(255, 255, 255, 0.7)', 
-            fontWeight: 500, 
-            fontSize: '13px',
-            letterSpacing: '0.2px'
-        }}>
-            Master Agent
-        </span>
-        <Icons.ChevronRight style={{ width: 14, height: 14, color: 'rgba(255, 255, 255, 0.3)' }} />
-    </button>
-);
-
+    // ========== MASTER AGENT FLOATING BUTTON (for Planet Mode) ==========
+    const MasterAgentButton = () => (
+        <button
+            onClick={() => setView(AppView.ECOMMERCE_AGENT)}
+            style={{
+                position: 'absolute',
+                bottom: 190,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                zIndex: 10,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '10px 24px',
+                borderRadius: '40px',
+                background: 'rgba(255, 255, 255, 0.03)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                pointerEvents: 'auto'
+            }}
+            onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+                e.currentTarget.style.transform = 'translateX(-50%) translateY(-2px)';
+            }}
+            onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                e.currentTarget.style.transform = 'translateX(-50%) translateY(0)';
+            }}
+        >
+            <Icons.Zap style={{ width: 16, height: 16, color: 'rgba(255, 255, 255, 0.6)' }} />
+            <span style={{ 
+                color: 'rgba(255, 255, 255, 0.7)', 
+                fontWeight: 500, 
+                fontSize: '13px',
+                letterSpacing: '0.2px'
+            }}>
+                Master Agent
+            </span>
+            <Icons.ChevronRight style={{ width: 14, height: 14, color: 'rgba(255, 255, 255, 0.3)' }} />
+        </button>
+    );
 
     // ========== MASTER AGENT QUICK ACTION CARD (for Chat Mode) ==========
-const MasterAgentQuickActionCard = () => (
-    <button
-        onClick={() => setView(AppView.ECOMMERCE_AGENT)}
-        onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-        onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-        style={{
-            width: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '16px',
-            padding: '16px',
-            marginBottom: '16px',
-            borderRadius: '16px',
-            background: 'rgba(255, 255, 255, 0.03)',
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            textAlign: 'left'
-        }}
-    >
-        <div style={{
-            width: 44,
-            height: 44,
-            borderRadius: '12px',
-            background: 'rgba(255, 255, 255, 0.06)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0
-        }}>
-            <Icons.Zap style={{ width: 22, height: 22, color: 'rgba(255, 255, 255, 0.7)' }} />
-        </div>
-        <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                <h3 style={{ color: 'rgba(255, 255, 255, 0.9)', fontWeight: 600, fontSize: '15px', margin: 0 }}>
-                    Master Agent
-                </h3>
-                <span style={{
-                    padding: '2px 8px',
-                    borderRadius: '12px',
-                    background: 'rgba(255, 255, 255, 0.06)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    color: 'rgba(255, 255, 255, 0.5)',
-                    fontSize: '10px',
-                    fontWeight: 600,
-                    textTransform: 'uppercase'
-                }}>
-                    NEW
-                </span>
+    const MasterAgentQuickActionCard = () => (
+        <button
+            onClick={() => setView(AppView.ECOMMERCE_AGENT)}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+            style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '16px',
+                padding: '16px',
+                marginBottom: '16px',
+                borderRadius: '16px',
+                background: 'rgba(255, 255, 255, 0.03)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                textAlign: 'left'
+            }}
+        >
+            <div style={{
+                width: 44,
+                height: 44,
+                borderRadius: '12px',
+                background: 'rgba(255, 255, 255, 0.06)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0
+            }}>
+                <Icons.Zap style={{ width: 22, height: 22, color: 'rgba(255, 255, 255, 0.7)' }} />
             </div>
-            <p style={{ color: 'rgba(255, 255, 255, 0.4)', fontSize: '12px', margin: 0 }}>
-                AI-powered automation for your business
-            </p>
-        </div>
-        <Icons.ChevronRight style={{ width: 20, height: 20, color: 'rgba(255, 255, 255, 0.3)' }} />
-    </button>
-);
-    if (showWelcome) {
-        return <GuideWelcome onComplete={handleWelcomeComplete} />;
+            <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                    <h3 style={{ color: 'rgba(255, 255, 255, 0.9)', fontWeight: 600, fontSize: '15px', margin: 0 }}>
+                        Master Agent
+                    </h3>
+                    <span style={{
+                        padding: '2px 8px',
+                        borderRadius: '12px',
+                        background: 'rgba(255, 255, 255, 0.06)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        color: 'rgba(255, 255, 255, 0.5)',
+                        fontSize: '10px',
+                        fontWeight: 600,
+                        textTransform: 'uppercase'
+                    }}>
+                        NEW
+                    </span>
+                </div>
+                <p style={{ color: 'rgba(255, 255, 255, 0.4)', fontSize: '12px', margin: 0 }}>
+                    AI-powered automation for your business
+                </p>
+            </div>
+            <Icons.ChevronRight style={{ width: 20, height: 20, color: 'rgba(255, 255, 255, 0.3)' }} />
+        </button>
+    );
+
+    // ========== WELCOME INTRO (full screen overlay) ==========
+    if (welcomePhase === 'intro') {
+        return <WelcomeIntro onStartTour={handleStartTour} onSkip={handleSkipWelcome} />;
     }
 
     // ========== JOURNEYS LIST VIEW ==========
@@ -1082,20 +1103,19 @@ const MasterAgentQuickActionCard = () => (
                 </div>
 
                 {/* Messages */}
-<div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
-    {/* Master Agent Quick Action Card - shown when no active conversation */}
-    {(!activeConvo || activeConvo.messages.length === 0) && (
-        <>
-            <MasterAgentQuickActionCard />
-            <div style={{ textAlign: 'center', padding: '32px 0' }}>
-                <div style={{ width: 64, height: 64, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-                    <Icons.Zap style={{ width: 32, height: 32, color: 'rgba(255,255,255,0.3)' }} />
-                </div>
-                <h2 style={{ color: '#fff', fontWeight: 'bold', fontSize: '18px', margin: '0 0 8px' }}>Ask Your Guide</h2>
-                <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '14px', margin: 0 }}>What do you need help with?</p>
-            </div>
-        </>
-    )}
+                <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+                    {(!activeConvo || activeConvo.messages.length === 0) && (
+                        <>
+                            <MasterAgentQuickActionCard />
+                            <div style={{ textAlign: 'center', padding: '32px 0' }}>
+                                <div style={{ width: 64, height: 64, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                                    <Icons.Zap style={{ width: 32, height: 32, color: 'rgba(255,255,255,0.3)' }} />
+                                </div>
+                                <h2 style={{ color: '#fff', fontWeight: 'bold', fontSize: '18px', margin: '0 0 8px' }}>Ask Your Guide</h2>
+                                <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '14px', margin: 0 }}>What do you need help with?</p>
+                            </div>
+                        </>
+                    )}
 
                     {activeConvo?.messages.map((msg) => (
                         <div key={msg.id} style={{ display: 'flex', marginBottom: '16px', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
@@ -1217,6 +1237,16 @@ const MasterAgentQuickActionCard = () => (
                         </button>
                     </div>
                 </div>
+
+                {/* Tour overlay for chat view */}
+                {welcomePhase === 'tour' && (
+                    <TourOverlay
+                        step={tourStep}
+                        onNext={handleTourNext}
+                        onBack={handleTourBack}
+                        onSkip={handleSkipWelcome}
+                    />
+                )}
             </div>
         );
     }
@@ -1268,9 +1298,8 @@ const MasterAgentQuickActionCard = () => (
                 </button>
             </div>
 
-            {/* Master Agent Floating Button - Only show when journey is NOT active */}
-{!isJourneyActive && !isChatLoading && <MasterAgentButton />}
-
+            {/* Master Agent Floating Button */}
+            {!isJourneyActive && !isChatLoading && <MasterAgentButton />}
 
             {/* Welcome Panel or Journey Steps */}
             <div style={{ position: 'relative', zIndex: 10, padding: '0 16px', pointerEvents: 'none' }}>
@@ -1349,10 +1378,10 @@ const MasterAgentQuickActionCard = () => (
                 )}
             </div>
 
-            {/* Spacer to push input up */}
+            {/* Spacer */}
             <div style={{ flex: 1 }} />
 
-            {/* Input at bottom - CHANGED: reduced paddingBottom from 100px to 32px */}
+            {/* Input at bottom */}
             <div style={{
                 position: 'relative',
                 zIndex: 10,
@@ -1430,6 +1459,16 @@ const MasterAgentQuickActionCard = () => (
                     </button>
                 </div>
             </div>
+
+            {/* Tour overlay for planet view - renders on TOP of everything */}
+            {welcomePhase === 'tour' && (
+                <TourOverlay
+                    step={tourStep}
+                    onNext={handleTourNext}
+                    onBack={handleTourBack}
+                    onSkip={handleSkipWelcome}
+                />
+            )}
         </div>
     );
 }

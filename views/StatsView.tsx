@@ -5,6 +5,15 @@ import { AppView } from '../types';
 import { Icons, Card, Button } from '../components/UIComponents';
 import { calculateBudgetSplit, generateDeepInsights } from '../services/geminiService';
 
+interface CalendarEvent {
+    id: string;
+    date: string; // ISO string for easier storage
+    title: string;
+    description?: string;
+    type: 'milestone' | 'goal' | 'task' | 'custom';
+    color: string;
+}
+
 export default function StatsView() {
     const { user, setView } = useApp();
     const [selectedDate, setSelectedDate] = useState(Date.now());
@@ -14,18 +23,97 @@ export default function StatsView() {
     const [isLoading, setIsLoading] = useState(true);
     const [expandedCard, setExpandedCard] = useState<string | null>(null);
     const [animatedValues, setAnimatedValues] = useState<Record<string, number>>({});
+    
+    // Calendar states
+    const [currentMonth, setCurrentMonth] = useState(new Date());
+    const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
+    const [showEventModal, setShowEventModal] = useState(false);
+    const [selectedEventDate, setSelectedEventDate] = useState<Date | null>(null);
+    const [newEvent, setNewEvent] = useState({ title: '', description: '' });
+    const [showDayEvents, setShowDayEvents] = useState(false);
+
+    // Load events from localStorage
+    useEffect(() => {
+        const savedEvents = localStorage.getItem('statsCalendarEvents');
+        if (savedEvents) {
+            try {
+                setCalendarEvents(JSON.parse(savedEvents));
+            } catch (e) {
+                console.error('Error parsing saved events:', e);
+            }
+        }
+    }, []);
+
+    // Save events to localStorage
+    useEffect(() => {
+        const customEvents = calendarEvents.filter(e => e.type === 'custom');
+        localStorage.setItem('statsCalendarEvents', JSON.stringify(customEvents));
+    }, [calendarEvents]);
+
+    // Generate automatic milestones
+    const allEvents = useMemo(() => {
+        const autoMilestones: CalendarEvent[] = [];
+        
+        // Goal completion milestone
+        if (user.goal?.createdAt) {
+            const goalEnd = new Date(new Date(user.goal.createdAt).getTime() + (user.goal.durationDays || 30) * 24 * 60 * 60 * 1000);
+            autoMilestones.push({
+                id: 'goal-completion',
+                date: goalEnd.toISOString(),
+                title: 'Goal Target Date',
+                description: user.goal.title,
+                type: 'goal',
+                color: '#4F46E5'
+            });
+        }
+        
+        // Weekly review milestones (next 4 weeks)
+        for (let i = 1; i <= 4; i++) {
+            const reviewDate = new Date();
+            reviewDate.setDate(reviewDate.getDate() + (7 * i) - reviewDate.getDay()); // Next Sunday
+            autoMilestones.push({
+                id: `weekly-review-${i}`,
+                date: reviewDate.toISOString(),
+                title: `Week ${i} Review`,
+                description: 'Evaluate progress and adjust goals',
+                type: 'milestone',
+                color: '#10B981'
+            });
+        }
+        
+        // Streak milestones
+        const currentStreak = user.gameState?.streak || 0;
+        const nextStreakMilestone = Math.ceil((currentStreak + 1) / 7) * 7;
+        const daysUntilMilestone = nextStreakMilestone - currentStreak;
+        const streakDate = new Date();
+        streakDate.setDate(streakDate.getDate() + daysUntilMilestone);
+        autoMilestones.push({
+            id: 'streak-milestone',
+            date: streakDate.toISOString(),
+            title: `${nextStreakMilestone} Day Streak`,
+            description: `${daysUntilMilestone} days to go!`,
+            type: 'milestone',
+            color: '#F59E0B'
+        });
+        
+        return [...calendarEvents, ...autoMilestones];
+    }, [calendarEvents, user.goal, user.gameState?.streak]);
 
     // Fetch AI data
     useEffect(() => {
         const fetchData = async () => {
             setIsLoading(true);
             if (user.goal) {
-                const [budget, insightData] = await Promise.all([
-                    calculateBudgetSplit(1000, user.goal, user.userProfile),
-                    generateDeepInsights(user)
-                ]);
-                setBudgetData(budget);
-                setInsights(insightData);
+                try {
+                    const [budget, insightData] = await Promise.all([
+                        calculateBudgetSplit(1000, user.goal, user.userProfile),
+                        generateDeepInsights(user)
+                    ]);
+                    setBudgetData(budget);
+                    setInsights(insightData);
+                } catch (error) {
+                    console.error('Error fetching data:', error);
+                }
             }
             setIsLoading(false);
         };
@@ -38,7 +126,6 @@ export default function StatsView() {
         const tasks = user.tasks || [];
         const completedTasks = tasks.filter(t => t.status === 'completed' || t.status === 'approved');
         
-        // Filter tasks based on view mode
         const filterByDate = (task: any) => {
             const taskDate = new Date(task.completedAt || task.createdAt || Date.now());
             
@@ -57,17 +144,12 @@ export default function StatsView() {
 
         const filteredTasks = completedTasks.filter(filterByDate);
         const totalCredits = filteredTasks.reduce((sum, t) => sum + (t.creditsReward || 0), 0);
-        const totalXP = filteredTasks.length * 25; // Assuming 25 XP per task
-        
-        // Calculate streak
         const streak = user.gameState?.streak || 0;
         
-        // Task breakdown by difficulty
         const easyTasks = filteredTasks.filter(t => t.difficulty === 'Easy').length;
         const mediumTasks = filteredTasks.filter(t => t.difficulty === 'Medium').length;
         const hardTasks = filteredTasks.filter(t => t.difficulty === 'Hard').length;
 
-        // Generate history data for charts (last 7 days or weeks or months)
         const historyData = Array.from({ length: 7 }, (_, i) => {
             const date = new Date(now);
             if (viewMode === 'daily') {
@@ -96,15 +178,13 @@ export default function StatsView() {
             return {
                 date,
                 tasks: dayTasks.length,
-                credits: dayTasks.reduce((sum, t) => sum + (t.creditsReward || 0), 0),
-                xp: dayTasks.length * 25
+                credits: dayTasks.reduce((sum, t) => sum + (t.creditsReward || 0), 0)
             };
         });
 
         return {
             tasksCompleted: filteredTasks.length,
             totalCredits,
-            totalXP,
             streak,
             easyTasks,
             mediumTasks,
@@ -120,7 +200,6 @@ export default function StatsView() {
         const targets = {
             tasksCompleted: calculatedStats.tasksCompleted,
             totalCredits: calculatedStats.totalCredits,
-            totalXP: calculatedStats.totalXP,
             streak: calculatedStats.streak
         };
 
@@ -136,7 +215,7 @@ export default function StatsView() {
             const animate = () => {
                 step++;
                 const progress = step / steps;
-                const eased = 1 - Math.pow(1 - progress, 3); // Ease out cubic
+                const eased = 1 - Math.pow(1 - progress, 3);
                 const current = Math.round(start + diff * eased);
                 
                 setAnimatedValues(prev => ({ ...prev, [key]: current }));
@@ -147,7 +226,7 @@ export default function StatsView() {
             };
             animate();
         });
-    }, [calculatedStats]);
+    }, [calculatedStats.tasksCompleted, calculatedStats.totalCredits, calculatedStats.streak]);
 
     // Check if a date has activity
     const hasActivity = useCallback((date: Date) => {
@@ -157,6 +236,34 @@ export default function StatsView() {
             return taskDate.toDateString() === date.toDateString() && (t.status === 'completed' || t.status === 'approved');
         });
     }, [user.tasks]);
+
+    // Get events for a specific date
+    const getEventsForDate = useCallback((date: Date) => {
+        return allEvents.filter(e => new Date(e.date).toDateString() === date.toDateString());
+    }, [allEvents]);
+
+    // Add new event
+    const handleAddEvent = () => {
+        if (!newEvent.title.trim() || !selectedEventDate) return;
+        
+        const event: CalendarEvent = {
+            id: `custom-${Date.now()}`,
+            date: selectedEventDate.toISOString(),
+            title: newEvent.title,
+            description: newEvent.description,
+            type: 'custom',
+            color: '#8B5CF6'
+        };
+        
+        setCalendarEvents(prev => [...prev, event]);
+        setNewEvent({ title: '', description: '' });
+        setShowEventModal(false);
+    };
+
+    // Delete event
+    const handleDeleteEvent = (eventId: string) => {
+        setCalendarEvents(prev => prev.filter(e => e.id !== eventId));
+    };
 
     // Donut Chart Component
     const DonutChart = ({ data, size = 160, showLegend = true }: { 
@@ -168,13 +275,21 @@ export default function StatsView() {
         let cumulativePercent = 0;
         const total = data.reduce((acc, curr) => acc + curr.value, 0);
         
+        if (total === 0) {
+            return (
+                <div className="flex items-center justify-center p-8 text-gray-400 text-sm">
+                    No task data available
+                </div>
+            );
+        }
+        
         return (
             <div className="flex items-center gap-6">
                 <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
                     <svg viewBox="0 0 100 100" className="-rotate-90 w-full h-full">
                         {data.map((slice, i) => {
                             const percent = total > 0 ? slice.value / total : 0;
-                            const dashArray = percent * 251.2; // 2 * PI * 40
+                            const dashArray = percent * 251.2;
                             const offset = cumulativePercent * 251.2;
                             cumulativePercent += percent;
                             const isHovered = hoveredIndex === i;
@@ -229,101 +344,139 @@ export default function StatsView() {
         );
     };
 
-    // Enhanced Line Chart with gradient and points
+    // Fixed Line Chart Component - Proper SVG rendering
     const LineChart = ({ 
         data, 
         color = "#4F46E5", 
-        height = 80,
-        showPoints = true,
-        showGradient = true,
+        height = 100,
         labels = []
     }: { 
         data: number[], 
         color?: string, 
         height?: number,
-        showPoints?: boolean,
-        showGradient?: boolean,
         labels?: string[]
     }) => {
         const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
+        
+        if (!data || data.length === 0) {
+            return (
+                <div className="flex items-center justify-center text-gray-400 text-sm" style={{ height }}>
+                    No data available
+                </div>
+            );
+        }
+        
         const max = Math.max(...data, 1);
-        const min = Math.min(...data, 0);
+        const min = 0;
         const range = max - min || 1;
         
+        const width = 300;
+        const chartHeight = 80;
+        const paddingX = 20;
+        const paddingY = 10;
+        
         const points = data.map((val, i) => ({
-            x: data.length > 1 ? (i / (data.length - 1)) * 100 : 50,
-            y: 100 - ((val - min) / range) * 80 - 10,
+            x: paddingX + (data.length > 1 ? (i / (data.length - 1)) * (width - paddingX * 2) : (width - paddingX * 2) / 2),
+            y: paddingY + (chartHeight - paddingY * 2) - ((val - min) / range) * (chartHeight - paddingY * 2),
             value: val
         }));
 
-        const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-        const gradientPath = `${pathD} L ${points[points.length - 1]?.x || 0} 100 L ${points[0]?.x || 0} 100 Z`;
+        // Create line path
+        const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+        
+        // Create area path for gradient fill
+        const areaPath = `${linePath} L ${points[points.length - 1].x} ${chartHeight - paddingY} L ${points[0].x} ${chartHeight - paddingY} Z`;
 
         return (
-            <div className="relative">
-                <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full overflow-visible" style={{ height }}>
+            <div className="relative w-full">
+                <svg 
+                    viewBox={`0 0 ${width} ${chartHeight}`} 
+                    className="w-full"
+                    style={{ height }}
+                    preserveAspectRatio="none"
+                >
                     <defs>
-                        <linearGradient id={`gradient-${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
+                        <linearGradient id={`lineGradient-${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
                             <stop offset="0%" stopColor={color} stopOpacity="0.3" />
-                            <stop offset="100%" stopColor={color} stopOpacity="0" />
+                            <stop offset="100%" stopColor={color} stopOpacity="0.05" />
                         </linearGradient>
                     </defs>
                     
-                    {showGradient && (
-                        <path
-                            d={gradientPath}
-                            fill={`url(#gradient-${color.replace('#', '')})`}
-                            className="transition-all duration-500"
+                    {/* Grid lines */}
+                    {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => (
+                        <line
+                            key={i}
+                            x1={paddingX}
+                            y1={paddingY + (chartHeight - paddingY * 2) * ratio}
+                            x2={width - paddingX}
+                            y2={paddingY + (chartHeight - paddingY * 2) * ratio}
+                            stroke="#E5E7EB"
+                            strokeWidth="1"
+                            strokeDasharray="4 4"
                         />
-                    )}
+                    ))}
                     
+                    {/* Area fill */}
                     <path
-                        d={pathD}
-                        fill="none"
-                        stroke={color}
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        vectorEffect="non-scaling-stroke"
-                        className="transition-all duration-500"
+                        d={areaPath}
+                        fill={`url(#lineGradient-${color.replace('#', '')})`}
                     />
                     
-                    {showPoints && points.map((point, i) => (
+                    {/* Line */}
+                    <path
+                        d={linePath}
+                        fill="none"
+                        stroke={color}
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                    />
+                    
+                    {/* Data points */}
+                    {points.map((point, i) => (
                         <g key={i}>
                             <circle
                                 cx={point.x}
                                 cy={point.y}
-                                r={hoveredPoint === i ? 6 : 4}
+                                r={hoveredPoint === i ? 8 : 5}
                                 fill="white"
                                 stroke={color}
-                                strokeWidth="2"
+                                strokeWidth="3"
                                 className="transition-all duration-200 cursor-pointer"
                                 onMouseEnter={() => setHoveredPoint(i)}
                                 onMouseLeave={() => setHoveredPoint(null)}
                             />
+                            {hoveredPoint === i && (
+                                <g>
+                                    <rect
+                                        x={point.x - 20}
+                                        y={point.y - 30}
+                                        width="40"
+                                        height="20"
+                                        rx="4"
+                                        fill={color}
+                                    />
+                                    <text
+                                        x={point.x}
+                                        y={point.y - 16}
+                                        textAnchor="middle"
+                                        fill="white"
+                                        fontSize="11"
+                                        fontWeight="bold"
+                                    >
+                                        {point.value}
+                                    </text>
+                                </g>
+                            )}
                         </g>
                     ))}
                 </svg>
                 
-                {/* Tooltip */}
-                {hoveredPoint !== null && (
-                    <div 
-                        className="absolute bg-primary text-white text-xs px-2 py-1 rounded-lg shadow-lg pointer-events-none transform -translate-x-1/2 -translate-y-full"
-                        style={{ 
-                            left: `${points[hoveredPoint].x}%`, 
-                            top: `${(points[hoveredPoint].y / 100) * height - 8}px` 
-                        }}
-                    >
-                        {points[hoveredPoint].value}
-                        {labels[hoveredPoint] && <span className="text-white/60 ml-1">{labels[hoveredPoint]}</span>}
-                    </div>
-                )}
-                
                 {/* X-axis labels */}
                 {labels.length > 0 && (
-                    <div className="flex justify-between mt-2">
+                    <div className="flex justify-between px-5 mt-1">
                         {labels.map((label, i) => (
-                            <span key={i} className="text-[10px] text-gray-400">{label}</span>
+                            <span key={i} className="text-[10px] text-gray-400 font-medium">{label}</span>
                         ))}
                     </div>
                 )}
@@ -358,7 +511,7 @@ export default function StatsView() {
                         >
                             <div className="relative w-full flex justify-center">
                                 {isHovered && (
-                                    <div className="absolute -top-8 bg-primary text-white text-xs px-2 py-1 rounded-lg shadow-lg">
+                                    <div className="absolute -top-8 bg-primary text-white text-xs px-2 py-1 rounded-lg shadow-lg z-10">
                                         {item.value}
                                     </div>
                                 )}
@@ -434,7 +587,7 @@ export default function StatsView() {
         );
     };
 
-    // Calendar Strip with activity indicators
+    // Calendar Strip (Quick Navigation)
     const renderCalendarStrip = () => {
         const days = [];
         const range = viewMode === 'monthly' ? 3 : 3;
@@ -451,11 +604,15 @@ export default function StatsView() {
             
             const isSelected = i === 0;
             const hasData = hasActivity(d);
+            const events = getEventsForDate(d);
             
             days.push(
                 <button 
                     key={i} 
-                    onClick={() => setSelectedDate(d.getTime())} 
+                    onClick={() => {
+                        setSelectedDate(d.getTime());
+                        setCurrentMonth(d);
+                    }} 
                     className={`flex flex-col items-center justify-center w-12 h-16 rounded-2xl transition-all ${
                         isSelected 
                             ? 'bg-primary text-white shadow-lg shadow-primary/30 scale-110' 
@@ -471,14 +628,141 @@ export default function StatsView() {
                     <span className="text-lg font-black">
                         {viewMode === 'monthly' ? d.getFullYear().toString().slice(-2) : d.getDate()}
                     </span>
-                    {hasData && !isSelected && (
-                        <div className="w-1.5 h-1.5 bg-green-500 rounded-full mt-0.5"></div>
-                    )}
-                    {isSelected && <div className="w-1 h-1 bg-white rounded-full mt-1"></div>}
+                    <div className="flex gap-0.5 mt-0.5">
+                        {hasData && <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>}
+                        {events.length > 0 && <div className="w-1.5 h-1.5 bg-purple-500 rounded-full"></div>}
+                    </div>
                 </button>
             );
         }
         return <div className="flex justify-between px-2">{days}</div>;
+    };
+
+    // Full Calendar Component
+    const renderFullCalendar = () => {
+        const year = currentMonth.getFullYear();
+        const month = currentMonth.getMonth();
+        
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+        const startingDay = firstDay.getDay();
+        const totalDays = lastDay.getDate();
+        
+        const days = [];
+        const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        
+        // Empty cells for days before the first of the month
+        for (let i = 0; i < startingDay; i++) {
+            days.push(<div key={`empty-${i}`} className="h-10"></div>);
+        }
+        
+        // Days of the month
+        for (let day = 1; day <= totalDays; day++) {
+            const date = new Date(year, month, day);
+            const isToday = date.toDateString() === new Date().toDateString();
+            const isSelected = date.toDateString() === new Date(selectedDate).toDateString();
+            const dayHasActivity = hasActivity(date);
+            const dayEvents = getEventsForDate(date);
+            
+            days.push(
+                <button
+                    key={day}
+                    onClick={() => {
+                        setSelectedDate(date.getTime());
+                        setSelectedEventDate(date);
+                        if (dayEvents.length > 0) {
+                            setShowDayEvents(true);
+                        }
+                    }}
+                    className={`h-10 rounded-xl flex flex-col items-center justify-center relative transition-all ${
+                        isSelected
+                            ? 'bg-primary text-white shadow-md'
+                            : isToday
+                            ? 'bg-primary/10 text-primary font-bold'
+                            : 'hover:bg-gray-100'
+                    }`}
+                >
+                    <span className="text-sm font-medium">{day}</span>
+                    {(dayHasActivity || dayEvents.length > 0) && (
+                        <div className="flex gap-0.5 absolute -bottom-0.5">
+                            {dayHasActivity && <div className="w-1 h-1 bg-green-500 rounded-full"></div>}
+                            {dayEvents.map((e, i) => (
+                                <div key={i} className="w-1 h-1 rounded-full" style={{ backgroundColor: e.color }}></div>
+                            ))}
+                        </div>
+                    )}
+                </button>
+            );
+        }
+        
+        return (
+            <Card className="p-4 mb-6">
+                {/* Calendar Header */}
+                <div className="flex items-center justify-between mb-4">
+                    <button 
+                        onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() - 1)))}
+                        className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                    >
+                        <Icons.ChevronLeft className="w-5 h-5 text-gray-400" />
+                    </button>
+                    <h3 className="font-bold text-primary">
+                        {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                    </h3>
+                    <button 
+                        onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() + 1)))}
+                        className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                    >
+                        <Icons.ChevronRight className="w-5 h-5 text-gray-400" />
+                    </button>
+                </div>
+                
+                {/* Week Days Header */}
+                <div className="grid grid-cols-7 gap-1 mb-2">
+                    {weekDays.map(day => (
+                        <div key={day} className="text-center text-[10px] font-bold text-gray-400 uppercase">
+                            {day}
+                        </div>
+                    ))}
+                </div>
+                
+                {/* Calendar Grid */}
+                <div className="grid grid-cols-7 gap-1">
+                    {days}
+                </div>
+                
+                {/* Add Event Button */}
+                <button
+                    onClick={() => {
+                        setSelectedEventDate(new Date(selectedDate));
+                        setShowEventModal(true);
+                    }}
+                    className="w-full mt-4 py-3 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 text-sm font-medium hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2"
+                >
+                    <Icons.Plus className="w-4 h-4" />
+                    Add Event
+                </button>
+                
+                {/* Legend */}
+                <div className="flex items-center justify-center gap-4 mt-4 text-xs text-gray-400">
+                    <span className="flex items-center gap-1">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        Activity
+                    </span>
+                    <span className="flex items-center gap-1">
+                        <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                        Custom Event
+                    </span>
+                    <span className="flex items-center gap-1">
+                        <div className="w-2 h-2 bg-primary rounded-full"></div>
+                        Goal
+                    </span>
+                    <span className="flex items-center gap-1">
+                        <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+                        Milestone
+                    </span>
+                </div>
+            </Card>
+        );
     };
 
     // View Mode Toggle
@@ -500,50 +784,41 @@ export default function StatsView() {
         </div>
     );
 
-    // Stats Cards
+    // Stats Cards - Removed XP, kept relevant stats
     const renderStatsCards = () => (
-        <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-3 gap-3 mb-6">
             <Card className="p-4 bg-gradient-to-br from-primary to-primary/80 text-white border-none">
-                <div className="flex items-center gap-2 mb-2">
-                    <Icons.CheckCircle className="w-4 h-4 text-white/60" />
-                    <span className="text-[10px] font-bold uppercase text-white/60">Tasks Done</span>
+                <div className="flex items-center gap-1 mb-1">
+                    <Icons.Check className="w-3 h-3 text-white/60" />
+                    <span className="text-[9px] font-bold uppercase text-white/60">Tasks</span>
                 </div>
-                <div className="text-3xl font-black">{animatedValues.tasksCompleted || 0}</div>
-                <div className="text-xs text-white/60 mt-1">
+                <div className="text-2xl font-black">{animatedValues.tasksCompleted || 0}</div>
+                <div className="text-[10px] text-white/60 mt-0.5">
                     {viewMode === 'daily' ? 'Today' : viewMode === 'weekly' ? 'This Week' : 'This Month'}
                 </div>
             </Card>
             
             <Card className="p-4 bg-gradient-to-br from-amber-500 to-amber-400 text-white border-none">
-                <div className="flex items-center gap-2 mb-2">
-                    <Icons.Zap className="w-4 h-4 text-white/60" />
-                    <span className="text-[10px] font-bold uppercase text-white/60">Credits</span>
+                <div className="flex items-center gap-1 mb-1">
+                    <Icons.Zap className="w-3 h-3 text-white/60" />
+                    <span className="text-[9px] font-bold uppercase text-white/60">Credits</span>
                 </div>
-                <div className="text-3xl font-black">{animatedValues.totalCredits || 0}</div>
-                <div className="text-xs text-white/60 mt-1">Earned</div>
-            </Card>
-            
-            <Card className="p-4 bg-gradient-to-br from-green-500 to-green-400 text-white border-none">
-                <div className="flex items-center gap-2 mb-2">
-                    <Icons.TrendingUp className="w-4 h-4 text-white/60" />
-                    <span className="text-[10px] font-bold uppercase text-white/60">XP Gained</span>
-                </div>
-                <div className="text-3xl font-black">{animatedValues.totalXP || 0}</div>
-                <div className="text-xs text-white/60 mt-1">Level {calculatedStats.level}</div>
+                <div className="text-2xl font-black">{animatedValues.totalCredits || 0}</div>
+                <div className="text-[10px] text-white/60 mt-0.5">Earned</div>
             </Card>
             
             <Card className="p-4 bg-gradient-to-br from-red-500 to-orange-400 text-white border-none">
-                <div className="flex items-center gap-2 mb-2">
-                    <Icons.Flame className="w-4 h-4 text-white/60" />
-                    <span className="text-[10px] font-bold uppercase text-white/60">Streak</span>
+                <div className="flex items-center gap-1 mb-1">
+                    <Icons.Flame className="w-3 h-3 text-white/60" />
+                    <span className="text-[9px] font-bold uppercase text-white/60">Streak</span>
                 </div>
-                <div className="text-3xl font-black">{animatedValues.streak || 0}</div>
-                <div className="text-xs text-white/60 mt-1">Days</div>
+                <div className="text-2xl font-black">{animatedValues.streak || 0}</div>
+                <div className="text-[10px] text-white/60 mt-0.5">Days</div>
             </Card>
         </div>
     );
 
-    // Activity Chart Section
+    // Activity Chart Section - Fixed
     const renderActivityChart = () => {
         const chartLabels = calculatedStats.historyData.map(d => {
             if (viewMode === 'daily') {
@@ -555,6 +830,8 @@ export default function StatsView() {
             }
         });
 
+        const hasData = calculatedStats.historyData.some(d => d.tasks > 0);
+
         return (
             <Card className="p-5 mb-6">
                 <div className="flex items-center justify-between mb-4">
@@ -562,63 +839,95 @@ export default function StatsView() {
                         <Icons.Activity className="w-5 h-5" />
                         Activity Trend
                     </h3>
-                    <span className="text-xs text-gray-400">Last 7 {viewMode === 'daily' ? 'days' : viewMode === 'weekly' ? 'weeks' : 'months'}</span>
+                    <span className="text-xs text-gray-400">
+                        Last 7 {viewMode === 'daily' ? 'days' : viewMode === 'weekly' ? 'weeks' : 'months'}
+                    </span>
                 </div>
-                <LineChart 
-                    data={calculatedStats.historyData.map(d => d.tasks)}
-                    color="#4F46E5"
-                    height={100}
-                    showPoints={true}
-                    showGradient={true}
-                    labels={chartLabels}
-                />
+                {hasData ? (
+                    <LineChart 
+                        data={calculatedStats.historyData.map(d => d.tasks)}
+                        color="#4F46E5"
+                        height={120}
+                        labels={chartLabels}
+                    />
+                ) : (
+                    <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+                        <Icons.Activity className="w-12 h-12 mb-2 opacity-30" />
+                        <p className="text-sm">No activity data yet</p>
+                        <p className="text-xs">Complete tasks to see your trend</p>
+                    </div>
+                )}
             </Card>
         );
     };
 
     // Task Breakdown Section
-    const renderTaskBreakdown = () => (
-        <Card className="p-5 mb-6">
-            <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-primary flex items-center gap-2">
-                    <Icons.PieChart className="w-5 h-5" />
-                    Task Breakdown
-                </h3>
-            </div>
-            <DonutChart 
-                data={[
-                    { value: calculatedStats.easyTasks, color: '#10B981', label: 'Easy' },
-                    { value: calculatedStats.mediumTasks, color: '#F59E0B', label: 'Medium' },
-                    { value: calculatedStats.hardTasks, color: '#EF4444', label: 'Hard' }
-                ]}
-                size={140}
-            />
-        </Card>
-    );
+    const renderTaskBreakdown = () => {
+        const hasData = calculatedStats.easyTasks > 0 || calculatedStats.mediumTasks > 0 || calculatedStats.hardTasks > 0;
+        
+        return (
+            <Card className="p-5 mb-6">
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-bold text-primary flex items-center gap-2">
+                        <Icons.PieChart className="w-5 h-5" />
+                        Task Breakdown
+                    </h3>
+                </div>
+                {hasData ? (
+                    <DonutChart 
+                        data={[
+                            { value: calculatedStats.easyTasks, color: '#10B981', label: 'Easy' },
+                            { value: calculatedStats.mediumTasks, color: '#F59E0B', label: 'Medium' },
+                            { value: calculatedStats.hardTasks, color: '#EF4444', label: 'Hard' }
+                        ]}
+                        size={140}
+                    />
+                ) : (
+                    <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+                        <Icons.PieChart className="w-12 h-12 mb-2 opacity-30" />
+                        <p className="text-sm">No completed tasks</p>
+                        <p className="text-xs">Complete tasks to see breakdown</p>
+                    </div>
+                )}
+            </Card>
+        );
+    };
 
-    // Credits/XP Comparison Bar Chart
-    const renderComparisonChart = () => (
-        <Card className="p-5 mb-6">
-            <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-primary flex items-center gap-2">
-                    <Icons.BarChart2 className="w-5 h-5" />
-                    Performance
-                </h3>
-            </div>
-            <BarChart 
-                data={calculatedStats.historyData.map((d, i) => ({
-                    label: viewMode === 'daily' 
-                        ? d.date.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 2)
-                        : viewMode === 'weekly'
-                        ? `W${i + 1}`
-                        : d.date.toLocaleDateString('en-US', { month: 'short' }).slice(0, 3),
-                    value: d.credits,
-                    color: i === calculatedStats.historyData.length - 1 ? '#4F46E5' : '#CBD5E1'
-                }))}
-                height={100}
-            />
-        </Card>
-    );
+    // Credits Bar Chart
+    const renderCreditsChart = () => {
+        const hasData = calculatedStats.historyData.some(d => d.credits > 0);
+        
+        return (
+            <Card className="p-5 mb-6">
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-bold text-primary flex items-center gap-2">
+                        <Icons.BarChart className="w-5 h-5" />
+                        Credits Earned
+                    </h3>
+                </div>
+                {hasData ? (
+                    <BarChart 
+                        data={calculatedStats.historyData.map((d, i) => ({
+                            label: viewMode === 'daily' 
+                                ? d.date.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 2)
+                                : viewMode === 'weekly'
+                                ? `W${i + 1}`
+                                : d.date.toLocaleDateString('en-US', { month: 'short' }).slice(0, 3),
+                            value: d.credits,
+                            color: i === calculatedStats.historyData.length - 1 ? '#4F46E5' : '#CBD5E1'
+                        }))}
+                        height={100}
+                    />
+                ) : (
+                    <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+                        <Icons.BarChart className="w-12 h-12 mb-2 opacity-30" />
+                        <p className="text-sm">No credits earned yet</p>
+                        <p className="text-xs">Complete tasks to earn credits</p>
+                    </div>
+                )}
+            </Card>
+        );
+    };
 
     // Goal Progress Section
     const renderGoalProgress = () => {
@@ -634,7 +943,7 @@ export default function StatsView() {
             <Card className="p-5 mb-6">
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="font-bold text-primary flex items-center gap-2">
-                        <Icons.Target className="w-5 h-5" />
+                        <Icons.Trophy className="w-5 h-5" />
                         Goal Progress
                     </h3>
                     <span className="text-xs text-gray-400">{daysElapsed}/{totalDays} days</span>
@@ -663,158 +972,316 @@ export default function StatsView() {
         );
     };
 
-    // Connected Apps Section
-    const renderConnectedApps = () => {
-        const relevantApps = (user.connectedApps || []).filter(app => app.isConnected);
+    // AI Insights Section - Only show if we have data
+    const renderInsights = () => {
+        // Don't render if no goal or still loading with no previous data
+        if (!user.goal && !insights) return null;
         
-        if (relevantApps.length === 0) return (
-            <Card className="p-6 text-center border border-dashed border-gray-200">
-                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <Icons.Link className="w-6 h-6 text-gray-400" />
-                </div>
-                <p className="text-gray-400 text-sm mb-4">No apps connected yet</p>
-                <Button onClick={() => setView(AppView.SETTINGS)} variant="outline" className="text-xs">
-                    Connect Apps
-                </Button>
-            </Card>
-        );
-
         return (
-            <div className="space-y-4">
-                {relevantApps.map(app => (
-                    <Card 
-                        key={app.id} 
-                        className={`p-5 cursor-pointer transition-all ${expandedCard === app.id ? 'ring-2 ring-primary' : ''}`}
-                        onClick={() => setExpandedCard(expandedCard === app.id ? null : app.id)}
-                    >
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-2 bg-primary/10 rounded-xl">
-                                <Icons.Activity className="w-5 h-5 text-primary"/>
+            <Card className="bg-primary text-white p-6 shadow-2xl shadow-primary/20 border-none mb-6">
+                <h3 className="text-white/60 text-xs font-bold uppercase tracking-wider mb-1">AI Insight</h3>
+                {isLoading && !insights ? (
+                    <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        <span className="text-white/60">Analyzing your data...</span>
+                    </div>
+                ) : insights ? (
+                    <>
+                        <p className="text-lg font-medium leading-relaxed mb-4">
+                            "{insights?.trend || "Keep up the great work! Your consistency is building momentum."}"
+                        </p>
+                        <div className="flex gap-3">
+                            <div className="bg-white/10 rounded-xl p-3 flex-1">
+                                <div className="text-[10px] text-white/60 uppercase mb-1">Prediction</div>
+                                <div className="font-bold text-sm">{insights?.prediction || "On track"}</div>
                             </div>
-                            <div className="flex-1">
-                                <h4 className="font-bold text-primary">{app.name}</h4>
-                                <span className="text-[10px] text-green-500 uppercase font-bold tracking-wider flex items-center gap-1">
-                                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
-                                    Connected
-                                </span>
+                            <div className="bg-white/10 rounded-xl p-3 flex-1">
+                                <div className="text-[10px] text-white/60 uppercase mb-1">Focus Area</div>
+                                <div className="font-bold text-sm">{insights?.focusArea || "Consistency"}</div>
                             </div>
-                            <Icons.ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${expandedCard === app.id ? 'rotate-180' : ''}`} />
                         </div>
-                        
-                        {expandedCard === app.id && (
-                            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100 animate-fade-in">
-                                {app.metrics.map(metric => (
-                                    <div key={metric.id} className="bg-gray-50 rounded-xl p-3">
-                                        <div className="text-xs text-gray-400 mb-1">{metric.name}</div>
-                                        <div className="flex items-end gap-2 mb-2">
-                                            <span className="text-xl font-black text-primary">{metric.value}</span>
-                                            <span className="text-xs text-gray-400 mb-1">{metric.unit}</span>
-                                        </div>
-                                        <LineChart 
-                                            data={metric.history || [0, 0, 0, 0, 0]} 
-                                            color={metric.status === 'good' ? '#10B981' : '#EF4444'} 
-                                            height={40}
-                                            showPoints={false}
-                                            showGradient={true}
-                                        />
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </Card>
-                ))}
-            </div>
+                    </>
+                ) : (
+                    <p className="text-white/80">Set a goal to receive personalized AI insights about your progress.</p>
+                )}
+            </Card>
         );
     };
 
-    // Deep Insights Section
-    const renderInsights = () => (
-        <Card className="bg-primary text-white p-6 shadow-2xl shadow-primary/20 border-none mb-6">
-            <h3 className="text-white/60 text-xs font-bold uppercase tracking-wider mb-1">AI Insight</h3>
-            {isLoading ? (
-                <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                    <span className="text-white/60">Analyzing your data...</span>
-                </div>
-            ) : (
-                <>
-                    <p className="text-lg font-medium leading-relaxed mb-4">
-                        "{insights?.trend || "Keep up the great work! Your consistency is building momentum."}"
-                    </p>
-                    <div className="flex gap-3">
-                        <div className="bg-white/10 rounded-xl p-3 flex-1">
-                            <div className="text-[10px] text-white/60 uppercase mb-1">Prediction</div>
-                            <div className="font-bold text-sm">{insights?.prediction || "On track for success"}</div>
-                        </div>
-                        <div className="bg-white/10 rounded-xl p-3 flex-1">
-                            <div className="text-[10px] text-white/60 uppercase mb-1">Focus Area</div>
-                            <div className="font-bold text-sm">{insights?.focusArea || "Consistency"}</div>
-                        </div>
+    // Upcoming Events Section
+    const renderUpcomingEvents = () => {
+        const upcomingEvents = allEvents
+            .filter(e => new Date(e.date) >= new Date())
+            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+            .slice(0, 5);
+        
+        if (upcomingEvents.length === 0) {
+            return (
+                <Card className="p-6 text-center border border-dashed border-gray-200 mb-6">
+                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <Icons.Clock className="w-6 h-6 text-gray-400" />
                     </div>
-                </>
-            )}
-        </Card>
-    );
-
-    // Future Milestones Section
-    const renderMilestones = () => {
-        const milestones = [
-            {
-                date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-                title: 'Weekly Review',
-                description: 'Evaluate your progress and adjust goals',
-                icon: Icons.Calendar
-            },
-            {
-                date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-                title: 'Streak Milestone',
-                description: `${(user.gameState?.streak || 0) + 14} day streak achievement`,
-                icon: Icons.Flame
-            },
-            {
-                date: user.goal?.createdAt 
-                    ? new Date(new Date(user.goal.createdAt).getTime() + (user.goal.durationDays || 30) * 24 * 60 * 60 * 1000)
-                    : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-                title: 'Goal Completion',
-                description: 'Target date for your current goal',
-                icon: Icons.Target
-            }
-        ];
-
+                    <p className="text-gray-400 text-sm mb-2">No upcoming events</p>
+                    <p className="text-gray-300 text-xs">Add events from the calendar above</p>
+                </Card>
+            );
+        }
+        
         return (
-            <div className="space-y-3">
-                {milestones.map((milestone, i) => {
-                    const Icon = milestone.icon;
-                    const daysUntil = Math.ceil((milestone.date.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+            <div className="space-y-3 mb-6">
+                {upcomingEvents.map((event) => {
+                    const eventDate = new Date(event.date);
+                    const daysUntil = Math.ceil((eventDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
                     
                     return (
                         <div 
-                            key={i} 
-                            className={`flex gap-4 items-start p-4 bg-gray-50 rounded-2xl border border-gray-100 transition-all hover:border-primary/30 ${daysUntil < 0 ? 'opacity-50' : ''}`}
+                            key={event.id} 
+                            className="flex gap-4 items-start p-4 bg-gray-50 rounded-2xl border border-gray-100 transition-all hover:border-primary/30"
                         >
                             <div className="w-12 text-center">
                                 <span className="block text-xs font-bold text-gray-400">
-                                    {milestone.date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}
+                                    {eventDate.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}
                                 </span>
                                 <span className="block text-xl font-black text-primary">
-                                    {milestone.date.getDate()}
+                                    {eventDate.getDate()}
                                 </span>
                             </div>
                             <div className="flex-1">
                                 <h4 className="font-bold text-primary flex items-center gap-2">
-                                    <Icon className="w-4 h-4" />
-                                    {milestone.title}
+                                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: event.color }}></span>
+                                    {event.title}
                                 </h4>
-                                <p className="text-xs text-gray-400">{milestone.description}</p>
+                                {event.description && (
+                                    <p className="text-xs text-gray-400">{event.description}</p>
+                                )}
                             </div>
-                            <div className="text-right">
+                            <div className="text-right flex flex-col items-end gap-1">
                                 <span className={`text-xs font-bold ${daysUntil <= 3 ? 'text-amber-500' : 'text-gray-400'}`}>
-                                    {daysUntil > 0 ? `${daysUntil}d` : 'Past'}
+                                    {daysUntil === 0 ? 'Today' : daysUntil === 1 ? 'Tomorrow' : `${daysUntil}d`}
                                 </span>
+                                {event.type === 'custom' && (
+                                    <button 
+                                        onClick={() => handleDeleteEvent(event.id)}
+                                        className="text-gray-300 hover:text-red-500 transition-colors"
+                                    >
+                                        <Icons.Trash className="w-4 h-4" />
+                                    </button>
+                                )}
                             </div>
                         </div>
                     );
                 })}
+            </div>
+        );
+    };
+
+    // Connected Apps Section
+    const renderConnectedApps = () => {
+        const relevantApps = (user.connectedApps || []).filter(app => app.isConnected);
+        
+        if (relevantApps.length === 0) return null;
+
+        return (
+            <div className="mb-6">
+                <h3 className="font-bold text-primary mb-4 flex items-center gap-2">
+                    <Icons.Cpu className="w-5 h-5"/> 
+                    Connected Integrations
+                </h3>
+                <div className="space-y-4">
+                    {relevantApps.map(app => (
+                        <Card 
+                            key={app.id} 
+                            className={`p-5 cursor-pointer transition-all ${expandedCard === app.id ? 'ring-2 ring-primary' : ''}`}
+                            onClick={() => setExpandedCard(expandedCard === app.id ? null : app.id)}
+                        >
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="p-2 bg-primary/10 rounded-xl">
+                                    <Icons.Activity className="w-5 h-5 text-primary"/>
+                                </div>
+                                <div className="flex-1">
+                                    <h4 className="font-bold text-primary">{app.name}</h4>
+                                    <span className="text-[10px] text-green-500 uppercase font-bold tracking-wider flex items-center gap-1">
+                                        <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+                                        Connected
+                                    </span>
+                                </div>
+                                <Icons.ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${expandedCard === app.id ? 'rotate-180' : ''}`} />
+                            </div>
+                            
+                            {expandedCard === app.id && (
+                                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100">
+                                    {app.metrics?.map(metric => (
+                                        <div key={metric.id} className="bg-gray-50 rounded-xl p-3">
+                                            <div className="text-xs text-gray-400 mb-1">{metric.name}</div>
+                                            <div className="flex items-end gap-2 mb-2">
+                                                <span className="text-xl font-black text-primary">{metric.value}</span>
+                                                <span className="text-xs text-gray-400 mb-1">{metric.unit}</span>
+                                            </div>
+                                            <LineChart 
+                                                data={metric.history || [0, 0, 0, 0, 0]} 
+                                                color={metric.status === 'good' ? '#10B981' : '#EF4444'} 
+                                                height={40}
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </Card>
+                    ))}
+                </div>
+            </div>
+        );
+    };
+
+    // Event Modal
+    const renderEventModal = () => {
+        if (!showEventModal) return null;
+        
+        return (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                <Card className="w-full max-w-md p-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-bold text-primary text-lg">Add Event</h3>
+                        <button 
+                            onClick={() => setShowEventModal(false)}
+                            className="p-2 hover:bg-gray-100 rounded-full"
+                        >
+                            <Icons.X className="w-5 h-5 text-gray-400" />
+                        </button>
+                    </div>
+                    
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                            <div className="px-4 py-3 bg-gray-50 rounded-xl text-gray-600">
+                                {selectedEventDate?.toLocaleDateString('en-US', { 
+                                    weekday: 'long', 
+                                    year: 'numeric', 
+                                    month: 'long', 
+                                    day: 'numeric' 
+                                })}
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+                            <input
+                                type="text"
+                                value={newEvent.title}
+                                onChange={(e) => setNewEvent(prev => ({ ...prev, title: e.target.value }))}
+                                placeholder="Event title"
+                                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                            />
+                        </div>
+                        
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                            <textarea
+                                value={newEvent.description}
+                                onChange={(e) => setNewEvent(prev => ({ ...prev, description: e.target.value }))}
+                                placeholder="Optional description"
+                                rows={3}
+                                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none"
+                            />
+                        </div>
+                        
+                        <div className="flex gap-3 pt-2">
+                            <button
+                                onClick={() => setShowEventModal(false)}
+                                className="flex-1 py-3 border border-gray-200 rounded-xl font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleAddEvent}
+                                disabled={!newEvent.title.trim()}
+                                className="flex-1 py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Add Event
+                            </button>
+                        </div>
+                    </div>
+                </Card>
+            </div>
+        );
+    };
+
+    // Day Events Modal
+    const renderDayEventsModal = () => {
+        if (!showDayEvents || !selectedEventDate) return null;
+        
+        const dayEvents = getEventsForDate(new Date(selectedDate));
+        
+        return (
+            <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50">
+                <Card className="w-full max-w-md rounded-t-3xl rounded-b-none p-6 max-h-[70vh] overflow-y-auto">
+                    <div className="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 className="font-bold text-primary text-lg">
+                                {new Date(selectedDate).toLocaleDateString('en-US', { 
+                                    weekday: 'long', 
+                                    month: 'long', 
+                                    day: 'numeric' 
+                                })}
+                            </h3>
+                            <p className="text-sm text-gray-400">{dayEvents.length} event(s)</p>
+                        </div>
+                        <button 
+                            onClick={() => setShowDayEvents(false)}
+                            className="p-2 hover:bg-gray-100 rounded-full"
+                        >
+                            <Icons.X className="w-5 h-5 text-gray-400" />
+                        </button>
+                    </div>
+                    
+                    {dayEvents.length === 0 ? (
+                        <div className="text-center py-8 text-gray-400">
+                            <Icons.Clock className="w-12 h-12 mx-auto mb-2 opacity-30" />
+                            <p>No events on this day</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {dayEvents.map(event => (
+                                <div 
+                                    key={event.id}
+                                    className="p-4 bg-gray-50 rounded-xl border-l-4"
+                                    style={{ borderLeftColor: event.color }}
+                                >
+                                    <div className="flex items-start justify-between">
+                                        <div>
+                                            <h4 className="font-bold text-primary">{event.title}</h4>
+                                            {event.description && (
+                                                <p className="text-xs text-gray-400 mt-1">{event.description}</p>
+                                            )}
+                                            <span className="text-[10px] uppercase font-bold text-gray-400 mt-2 inline-block">
+                                                {event.type}
+                                            </span>
+                                        </div>
+                                        {event.type === 'custom' && (
+                                            <button 
+                                                onClick={() => handleDeleteEvent(event.id)}
+                                                className="text-gray-300 hover:text-red-500 transition-colors"
+                                            >
+                                                <Icons.Trash className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    
+                    <button
+                        onClick={() => {
+                            setShowDayEvents(false);
+                            setShowEventModal(true);
+                        }}
+                        className="w-full mt-4 py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
+                    >
+                        <Icons.Plus className="w-4 h-4" />
+                        Add Event
+                    </button>
+                </Card>
             </div>
         );
     };
@@ -841,11 +1308,29 @@ export default function StatsView() {
                     {/* Stats Cards */}
                     {renderStatsCards()}
                     
-                    {/* AI Insights */}
+                    {/* AI Insights - Only shown if there's data */}
                     {renderInsights()}
                     
                     {/* Goal Progress */}
                     {renderGoalProgress()}
+                    
+                    {/* Full Calendar */}
+                    <div>
+                        <h3 className="font-bold text-primary mb-4 flex items-center gap-2">
+                            <Icons.Clock className="w-5 h-5"/> 
+                            Calendar
+                        </h3>
+                        {renderFullCalendar()}
+                    </div>
+                    
+                    {/* Upcoming Events */}
+                    <div>
+                        <h3 className="font-bold text-primary mb-4 flex items-center gap-2">
+                            <Icons.Bell className="w-5 h-5"/> 
+                            Upcoming Events
+                        </h3>
+                        {renderUpcomingEvents()}
+                    </div>
                     
                     {/* Activity Trend */}
                     {renderActivityChart()}
@@ -853,8 +1338,8 @@ export default function StatsView() {
                     {/* Task Breakdown */}
                     {renderTaskBreakdown()}
                     
-                    {/* Performance Bar Chart */}
-                    {renderComparisonChart()}
+                    {/* Credits Chart */}
+                    {renderCreditsChart()}
 
                     {/* Budget Allocation (Money Goals Only) */}
                     {user.goal?.category === 'Money & Career' && budgetData && (
@@ -876,24 +1361,13 @@ export default function StatsView() {
                     )}
 
                     {/* Connected Apps */}
-                    <div>
-                        <h3 className="font-bold text-primary mb-4 flex items-center gap-2">
-                            <Icons.Cpu className="w-5 h-5"/> 
-                            Connected Integrations
-                        </h3>
-                        {renderConnectedApps()}
-                    </div>
-
-                    {/* Future Milestones */}
-                    <div>
-                        <h3 className="font-bold text-primary mb-4 flex items-center gap-2">
-                            <Icons.Clock className="w-5 h-5"/> 
-                            Upcoming Milestones
-                        </h3>
-                        {renderMilestones()}
-                    </div>
+                    {renderConnectedApps()}
                 </div>
             </div>
+            
+            {/* Modals */}
+            {renderEventModal()}
+            {renderDayEventsModal()}
         </div>
     );
 }

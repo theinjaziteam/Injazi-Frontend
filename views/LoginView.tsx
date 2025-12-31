@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../App';
-import { Icons, Button } from '../UIComponents';
+import { Icons, Button } from '../components/UIComponents';
 import { AppView } from '../types';
 import emailjs from '@emailjs/browser';
 import * as api from '../api';

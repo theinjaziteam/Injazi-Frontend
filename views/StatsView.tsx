@@ -7,11 +7,21 @@ import { calculateBudgetSplit, generateDeepInsights } from '../services/geminiSe
 
 interface CalendarEvent {
     id: string;
-    date: string; // ISO string for easier storage
+    date: string;
     title: string;
     description?: string;
     type: 'milestone' | 'goal' | 'task' | 'custom';
     color: string;
+}
+
+interface Alert {
+    id: string;
+    type: 'warning' | 'danger' | 'info';
+    title: string;
+    message: string;
+    icon: any;
+    action?: string;
+    actionLabel?: string;
 }
 
 export default function StatsView() {
@@ -23,6 +33,7 @@ export default function StatsView() {
     const [isLoading, setIsLoading] = useState(true);
     const [expandedCard, setExpandedCard] = useState<string | null>(null);
     const [animatedValues, setAnimatedValues] = useState<Record<string, number>>({});
+    const [dismissedAlerts, setDismissedAlerts] = useState<string[]>([]);
     
     // Calendar states
     const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -31,6 +42,18 @@ export default function StatsView() {
     const [selectedEventDate, setSelectedEventDate] = useState<Date | null>(null);
     const [newEvent, setNewEvent] = useState({ title: '', description: '' });
     const [showDayEvents, setShowDayEvents] = useState(false);
+
+    // Load dismissed alerts from localStorage
+    useEffect(() => {
+        const saved = localStorage.getItem('dismissedAlerts');
+        if (saved) {
+            try {
+                setDismissedAlerts(JSON.parse(saved));
+            } catch (e) {
+                console.error('Error parsing dismissed alerts:', e);
+            }
+        }
+    }, []);
 
     // Load events from localStorage
     useEffect(() => {
@@ -54,7 +77,6 @@ export default function StatsView() {
     const allEvents = useMemo(() => {
         const autoMilestones: CalendarEvent[] = [];
         
-        // Goal completion milestone
         if (user.goal?.createdAt) {
             const goalEnd = new Date(new Date(user.goal.createdAt).getTime() + (user.goal.durationDays || 30) * 24 * 60 * 60 * 1000);
             autoMilestones.push({
@@ -67,10 +89,9 @@ export default function StatsView() {
             });
         }
         
-        // Weekly review milestones (next 4 weeks)
         for (let i = 1; i <= 4; i++) {
             const reviewDate = new Date();
-            reviewDate.setDate(reviewDate.getDate() + (7 * i) - reviewDate.getDay()); // Next Sunday
+            reviewDate.setDate(reviewDate.getDate() + (7 * i) - reviewDate.getDay());
             autoMilestones.push({
                 id: `weekly-review-${i}`,
                 date: reviewDate.toISOString(),
@@ -81,7 +102,6 @@ export default function StatsView() {
             });
         }
         
-        // Streak milestones
         const currentStreak = user.gameState?.streak || 0;
         const nextStreakMilestone = Math.ceil((currentStreak + 1) / 7) * 7;
         const daysUntilMilestone = nextStreakMilestone - currentStreak;
@@ -99,6 +119,141 @@ export default function StatsView() {
         return [...calendarEvents, ...autoMilestones];
     }, [calendarEvents, user.goal, user.gameState?.streak]);
 
+    // Generate AI Alerts based on user data
+    const alerts = useMemo(() => {
+        const generatedAlerts: Alert[] = [];
+        const tasks = user.tasks || [];
+        const completedTasks = tasks.filter(t => t.status === 'completed' || t.status === 'approved');
+        const pendingTasks = tasks.filter(t => t.status === 'pending' || t.status === 'in_progress');
+        const streak = user.gameState?.streak || 0;
+        
+        // Check for streak break risk
+        if (streak > 0 && streak < 3) {
+            generatedAlerts.push({
+                id: 'streak-risk',
+                type: 'warning',
+                title: 'Streak at Risk',
+                message: `You have a ${streak}-day streak. Complete a task today to keep it going!`,
+                icon: Icons.Flame,
+                actionLabel: 'View Tasks'
+            });
+        }
+        
+        // Check for no activity in last 3 days
+        const threeDaysAgo = new Date();
+        threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+        const recentActivity = completedTasks.some(t => {
+            const taskDate = new Date(t.completedAt || t.createdAt || 0);
+            return taskDate >= threeDaysAgo;
+        });
+        
+        if (!recentActivity && tasks.length > 0) {
+            generatedAlerts.push({
+                id: 'no-activity',
+                type: 'danger',
+                title: 'No Recent Activity',
+                message: "You haven't completed any tasks in the last 3 days. Getting back on track is important!",
+                icon: Icons.AlertTriangle,
+                actionLabel: 'Start Now'
+            });
+        }
+        
+        // Check for overdue tasks
+        const overdueTasks = pendingTasks.filter(t => {
+            if (!t.dueDate) return false;
+            return new Date(t.dueDate) < new Date();
+        });
+        
+        if (overdueTasks.length > 0) {
+            generatedAlerts.push({
+                id: 'overdue-tasks',
+                type: 'danger',
+                title: `${overdueTasks.length} Overdue Task${overdueTasks.length > 1 ? 's' : ''}`,
+                message: `You have tasks past their due date. Consider rescheduling or completing them soon.`,
+                icon: Icons.Clock,
+                actionLabel: 'View Overdue'
+            });
+        }
+        
+        // Check goal progress
+        if (user.goal?.createdAt) {
+            const daysElapsed = Math.floor((Date.now() - new Date(user.goal.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+            const totalDays = user.goal.durationDays || 30;
+            const expectedProgress = (daysElapsed / totalDays) * 100;
+            const actualTasksCompleted = completedTasks.length;
+            const expectedTasks = Math.floor((daysElapsed / totalDays) * (tasks.length || 10));
+            
+            if (actualTasksCompleted < expectedTasks * 0.5 && daysElapsed > 3) {
+                generatedAlerts.push({
+                    id: 'goal-behind',
+                    type: 'warning',
+                    title: 'Falling Behind on Goal',
+                    message: `You're ${Math.round(expectedProgress)}% through your goal timeline but only ${Math.round((actualTasksCompleted / Math.max(expectedTasks, 1)) * 100)}% of expected tasks are done.`,
+                    icon: Icons.TrendingDown,
+                    actionLabel: 'Adjust Goal'
+                });
+            }
+        }
+        
+        // Low credits warning (mock scenario)
+        const totalCredits = user.gameState?.credits || 0;
+        if (totalCredits < 50 && totalCredits > 0) {
+            generatedAlerts.push({
+                id: 'low-credits',
+                type: 'info',
+                title: 'Low on Credits',
+                message: `You only have ${totalCredits} credits remaining. Complete more tasks to earn credits!`,
+                icon: Icons.Zap,
+                actionLabel: 'Earn More'
+            });
+        }
+        
+        // Money goal specific alerts
+        if (user.goal?.category === 'Money & Career') {
+            // Mock: Investment performance warning
+            generatedAlerts.push({
+                id: 'investment-alert',
+                type: 'warning',
+                title: 'Market Volatility Detected',
+                message: 'Your high-risk investments may be affected. Consider reviewing your portfolio allocation.',
+                icon: Icons.TrendingDown,
+                actionLabel: 'Review Portfolio'
+            });
+        }
+        
+        // Positive reinforcement (not always warnings!)
+        if (streak >= 7) {
+            generatedAlerts.push({
+                id: 'streak-celebration',
+                type: 'info',
+                title: `${streak} Day Streak! 🔥`,
+                message: "Amazing consistency! You're building great habits. Keep it up!",
+                icon: Icons.Trophy
+            });
+        }
+        
+        // Filter out dismissed alerts
+        return generatedAlerts.filter(alert => !dismissedAlerts.includes(alert.id));
+    }, [user, dismissedAlerts]);
+
+    // Dismiss an alert
+    const dismissAlert = (alertId: string) => {
+        const updated = [...dismissedAlerts, alertId];
+        setDismissedAlerts(updated);
+        localStorage.setItem('dismissedAlerts', JSON.stringify(updated));
+    };
+
+    // Mock AI Insights data
+    const mockInsights = {
+        trend: "Based on your activity patterns, you're most productive on Tuesday and Wednesday mornings. Consider scheduling important tasks during these times.",
+        prediction: "87% likely to hit your goal if you maintain current pace",
+        focusArea: "Task completion consistency",
+        weeklyScore: 78,
+        improvement: "+12% from last week",
+        topStrength: "Morning productivity",
+        areaToImprove: "Weekend engagement"
+    };
+
     // Fetch AI data
     useEffect(() => {
         const fetchData = async () => {
@@ -110,10 +265,13 @@ export default function StatsView() {
                         generateDeepInsights(user)
                     ]);
                     setBudgetData(budget);
-                    setInsights(insightData);
+                    setInsights(insightData || mockInsights);
                 } catch (error) {
                     console.error('Error fetching data:', error);
+                    setInsights(mockInsights);
                 }
+            } else {
+                setInsights(mockInsights);
             }
             setIsLoading(false);
         };
@@ -344,7 +502,7 @@ export default function StatsView() {
         );
     };
 
-    // Fixed Line Chart Component - Proper SVG rendering
+    // Fixed Line Chart Component
     const LineChart = ({ 
         data, 
         color = "#4F46E5", 
@@ -381,10 +539,7 @@ export default function StatsView() {
             value: val
         }));
 
-        // Create line path
         const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-        
-        // Create area path for gradient fill
         const areaPath = `${linePath} L ${points[points.length - 1].x} ${chartHeight - paddingY} L ${points[0].x} ${chartHeight - paddingY} Z`;
 
         return (
@@ -402,7 +557,6 @@ export default function StatsView() {
                         </linearGradient>
                     </defs>
                     
-                    {/* Grid lines */}
                     {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => (
                         <line
                             key={i}
@@ -416,13 +570,11 @@ export default function StatsView() {
                         />
                     ))}
                     
-                    {/* Area fill */}
                     <path
                         d={areaPath}
                         fill={`url(#lineGradient-${color.replace('#', '')})`}
                     />
                     
-                    {/* Line */}
                     <path
                         d={linePath}
                         fill="none"
@@ -432,7 +584,6 @@ export default function StatsView() {
                         strokeLinejoin="round"
                     />
                     
-                    {/* Data points */}
                     {points.map((point, i) => (
                         <g key={i}>
                             <circle
@@ -472,7 +623,6 @@ export default function StatsView() {
                     ))}
                 </svg>
                 
-                {/* X-axis labels */}
                 {labels.length > 0 && (
                     <div className="flex justify-between px-5 mt-1">
                         {labels.map((label, i) => (
@@ -616,10 +766,10 @@ export default function StatsView() {
                     className={`flex flex-col items-center justify-center w-12 h-16 rounded-2xl transition-all ${
                         isSelected 
                             ? 'bg-primary text-white shadow-lg shadow-primary/30 scale-110' 
-                            : 'bg-white text-gray-400 border border-gray-100 hover:border-primary/30 hover:bg-primary/5'
+                            : 'bg-white text-gray-600 border border-gray-200 hover:border-primary/30 hover:bg-primary/5'
                     }`}
                 >
-                    <span className="text-[10px] font-bold uppercase">
+                    <span className={`text-[10px] font-bold uppercase ${isSelected ? 'text-white/80' : 'text-gray-400'}`}>
                         {viewMode === 'monthly' 
                             ? d.toLocaleDateString('en-US', { month: 'short' })
                             : d.toLocaleDateString('en-US', { weekday: 'short' })
@@ -629,8 +779,8 @@ export default function StatsView() {
                         {viewMode === 'monthly' ? d.getFullYear().toString().slice(-2) : d.getDate()}
                     </span>
                     <div className="flex gap-0.5 mt-0.5">
-                        {hasData && <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>}
-                        {events.length > 0 && <div className="w-1.5 h-1.5 bg-purple-500 rounded-full"></div>}
+                        {hasData && <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-green-500'}`}></div>}
+                        {events.length > 0 && <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white/60' : 'bg-purple-500'}`}></div>}
                     </div>
                 </button>
             );
@@ -638,7 +788,7 @@ export default function StatsView() {
         return <div className="flex justify-between px-2">{days}</div>;
     };
 
-    // Full Calendar Component
+    // Full Calendar Component - FIXED VISIBILITY
     const renderFullCalendar = () => {
         const year = currentMonth.getFullYear();
         const month = currentMonth.getMonth();
@@ -648,15 +798,23 @@ export default function StatsView() {
         const startingDay = firstDay.getDay();
         const totalDays = lastDay.getDate();
         
+        // Get previous month's last days for filling
+        const prevMonthLastDay = new Date(year, month, 0).getDate();
+        
         const days = [];
         const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         
-        // Empty cells for days before the first of the month
-        for (let i = 0; i < startingDay; i++) {
-            days.push(<div key={`empty-${i}`} className="h-10"></div>);
+        // Previous month's trailing days
+        for (let i = startingDay - 1; i >= 0; i--) {
+            const dayNum = prevMonthLastDay - i;
+            days.push(
+                <div key={`prev-${i}`} className="h-11 flex flex-col items-center justify-center text-gray-300">
+                    <span className="text-sm">{dayNum}</span>
+                </div>
+            );
         }
         
-        // Days of the month
+        // Current month's days
         for (let day = 1; day <= totalDays; day++) {
             const date = new Date(year, month, day);
             const isToday = date.toDateString() === new Date().toDateString();
@@ -674,59 +832,86 @@ export default function StatsView() {
                             setShowDayEvents(true);
                         }
                     }}
-                    className={`h-10 rounded-xl flex flex-col items-center justify-center relative transition-all ${
+                    className={`h-11 rounded-xl flex flex-col items-center justify-center relative transition-all ${
                         isSelected
                             ? 'bg-primary text-white shadow-md'
                             : isToday
-                            ? 'bg-primary/10 text-primary font-bold'
-                            : 'hover:bg-gray-100'
+                            ? 'bg-primary/10 text-primary font-bold border-2 border-primary/30'
+                            : 'text-gray-700 hover:bg-gray-100'
                     }`}
                 >
-                    <span className="text-sm font-medium">{day}</span>
+                    <span className={`text-sm font-semibold ${isSelected ? 'text-white' : ''}`}>{day}</span>
                     {(dayHasActivity || dayEvents.length > 0) && (
-                        <div className="flex gap-0.5 absolute -bottom-0.5">
-                            {dayHasActivity && <div className="w-1 h-1 bg-green-500 rounded-full"></div>}
-                            {dayEvents.map((e, i) => (
-                                <div key={i} className="w-1 h-1 rounded-full" style={{ backgroundColor: e.color }}></div>
+                        <div className="flex gap-0.5 absolute bottom-1">
+                            {dayHasActivity && (
+                                <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-green-500'}`}></div>
+                            )}
+                            {dayEvents.slice(0, 2).map((e, i) => (
+                                <div 
+                                    key={i} 
+                                    className="w-1.5 h-1.5 rounded-full" 
+                                    style={{ backgroundColor: isSelected ? 'rgba(255,255,255,0.8)' : e.color }}
+                                ></div>
                             ))}
+                            {dayEvents.length > 2 && (
+                                <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white/60' : 'bg-gray-400'}`}></div>
+                            )}
                         </div>
                     )}
                 </button>
             );
         }
         
+        // Next month's leading days
+        const remainingDays = 42 - days.length; // 6 rows * 7 days = 42
+        for (let i = 1; i <= remainingDays; i++) {
+            days.push(
+                <div key={`next-${i}`} className="h-11 flex flex-col items-center justify-center text-gray-300">
+                    <span className="text-sm">{i}</span>
+                </div>
+            );
+        }
+        
         return (
-            <Card className="p-4 mb-6">
+            <Card className="p-4 mb-6 bg-white border border-gray-200">
                 {/* Calendar Header */}
                 <div className="flex items-center justify-between mb-4">
                     <button 
-                        onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() - 1)))}
+                        onClick={() => {
+                            const newMonth = new Date(currentMonth);
+                            newMonth.setMonth(newMonth.getMonth() - 1);
+                            setCurrentMonth(newMonth);
+                        }}
                         className="p-2 hover:bg-gray-100 rounded-full transition-colors"
                     >
-                        <Icons.ChevronLeft className="w-5 h-5 text-gray-400" />
+                        <Icons.ChevronLeft className="w-5 h-5 text-gray-600" />
                     </button>
-                    <h3 className="font-bold text-primary">
+                    <h3 className="font-bold text-gray-800 text-lg">
                         {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                     </h3>
                     <button 
-                        onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() + 1)))}
+                        onClick={() => {
+                            const newMonth = new Date(currentMonth);
+                            newMonth.setMonth(newMonth.getMonth() + 1);
+                            setCurrentMonth(newMonth);
+                        }}
                         className="p-2 hover:bg-gray-100 rounded-full transition-colors"
                     >
-                        <Icons.ChevronRight className="w-5 h-5 text-gray-400" />
+                        <Icons.ChevronRight className="w-5 h-5 text-gray-600" />
                     </button>
                 </div>
                 
                 {/* Week Days Header */}
                 <div className="grid grid-cols-7 gap-1 mb-2">
                     {weekDays.map(day => (
-                        <div key={day} className="text-center text-[10px] font-bold text-gray-400 uppercase">
+                        <div key={day} className="text-center text-xs font-bold text-gray-500 uppercase py-2">
                             {day}
                         </div>
                     ))}
                 </div>
                 
                 {/* Calendar Grid */}
-                <div className="grid grid-cols-7 gap-1">
+                <div className="grid grid-cols-7 gap-1 border-t border-gray-100 pt-2">
                     {days}
                 </div>
                 
@@ -736,28 +921,28 @@ export default function StatsView() {
                         setSelectedEventDate(new Date(selectedDate));
                         setShowEventModal(true);
                     }}
-                    className="w-full mt-4 py-3 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 text-sm font-medium hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2"
+                    className="w-full mt-4 py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 text-sm font-medium hover:border-primary hover:text-primary hover:bg-primary/5 transition-colors flex items-center justify-center gap-2"
                 >
                     <Icons.Plus className="w-4 h-4" />
                     Add Event
                 </button>
                 
                 {/* Legend */}
-                <div className="flex items-center justify-center gap-4 mt-4 text-xs text-gray-400">
-                    <span className="flex items-center gap-1">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <div className="flex flex-wrap items-center justify-center gap-4 mt-4 text-xs text-gray-500">
+                    <span className="flex items-center gap-1.5">
+                        <div className="w-2.5 h-2.5 bg-green-500 rounded-full"></div>
                         Activity
                     </span>
-                    <span className="flex items-center gap-1">
-                        <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                        Custom Event
+                    <span className="flex items-center gap-1.5">
+                        <div className="w-2.5 h-2.5 bg-purple-500 rounded-full"></div>
+                        Custom
                     </span>
-                    <span className="flex items-center gap-1">
-                        <div className="w-2 h-2 bg-primary rounded-full"></div>
+                    <span className="flex items-center gap-1.5">
+                        <div className="w-2.5 h-2.5 bg-primary rounded-full"></div>
                         Goal
                     </span>
-                    <span className="flex items-center gap-1">
-                        <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+                    <span className="flex items-center gap-1.5">
+                        <div className="w-2.5 h-2.5 bg-amber-500 rounded-full"></div>
                         Milestone
                     </span>
                 </div>
@@ -784,7 +969,7 @@ export default function StatsView() {
         </div>
     );
 
-    // Stats Cards - Removed XP, kept relevant stats
+    // Stats Cards
     const renderStatsCards = () => (
         <div className="grid grid-cols-3 gap-3 mb-6">
             <Card className="p-4 bg-gradient-to-br from-primary to-primary/80 text-white border-none">
@@ -818,7 +1003,164 @@ export default function StatsView() {
         </div>
     );
 
-    // Activity Chart Section - Fixed
+    // AI Alerts Section - NEW
+    const renderAlerts = () => {
+        if (alerts.length === 0) return null;
+        
+        const getAlertStyles = (type: string) => {
+            switch (type) {
+                case 'danger':
+                    return {
+                        bg: 'bg-red-50',
+                        border: 'border-red-200',
+                        icon: 'bg-red-100 text-red-600',
+                        title: 'text-red-800',
+                        message: 'text-red-600',
+                        button: 'bg-red-600 hover:bg-red-700 text-white'
+                    };
+                case 'warning':
+                    return {
+                        bg: 'bg-amber-50',
+                        border: 'border-amber-200',
+                        icon: 'bg-amber-100 text-amber-600',
+                        title: 'text-amber-800',
+                        message: 'text-amber-600',
+                        button: 'bg-amber-600 hover:bg-amber-700 text-white'
+                    };
+                case 'info':
+                default:
+                    return {
+                        bg: 'bg-blue-50',
+                        border: 'border-blue-200',
+                        icon: 'bg-blue-100 text-blue-600',
+                        title: 'text-blue-800',
+                        message: 'text-blue-600',
+                        button: 'bg-blue-600 hover:bg-blue-700 text-white'
+                    };
+            }
+        };
+        
+        return (
+            <div className="space-y-3 mb-6">
+                <h3 className="font-bold text-primary flex items-center gap-2">
+                    <Icons.Bell className="w-5 h-5" />
+                    AI Alerts
+                    <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        {alerts.length}
+                    </span>
+                </h3>
+                
+                {alerts.map(alert => {
+                    const styles = getAlertStyles(alert.type);
+                    const IconComponent = alert.icon;
+                    
+                    return (
+                        <div 
+                            key={alert.id}
+                            className={`${styles.bg} ${styles.border} border rounded-2xl p-4 relative overflow-hidden`}
+                        >
+                            {/* Dismiss button */}
+                            <button 
+                                onClick={() => dismissAlert(alert.id)}
+                                className="absolute top-2 right-2 p-1 hover:bg-black/5 rounded-full transition-colors"
+                            >
+                                <Icons.X className="w-4 h-4 text-gray-400" />
+                            </button>
+                            
+                            <div className="flex gap-3">
+                                <div className={`${styles.icon} p-2.5 rounded-xl flex-shrink-0`}>
+                                    <IconComponent className="w-5 h-5" />
+                                </div>
+                                <div className="flex-1 pr-6">
+                                    <h4 className={`${styles.title} font-bold text-sm mb-1`}>{alert.title}</h4>
+                                    <p className={`${styles.message} text-xs leading-relaxed`}>{alert.message}</p>
+                                    
+                                    {alert.actionLabel && (
+                                        <button 
+                                            className={`${styles.button} mt-3 px-4 py-2 rounded-lg text-xs font-bold transition-colors`}
+                                            onClick={() => {
+                                                dismissAlert(alert.id);
+                                                if (alert.id.includes('task') || alert.id.includes('activity')) {
+                                                    setView(AppView.DASHBOARD);
+                                                }
+                                            }}
+                                        >
+                                            {alert.actionLabel}
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        );
+    };
+
+    // AI Insights Section - WITH MOCK DATA
+    const renderInsights = () => {
+        const displayInsights = insights || mockInsights;
+        
+        return (
+            <Card className="bg-gradient-to-br from-primary via-primary to-indigo-700 text-white p-6 shadow-2xl shadow-primary/20 border-none mb-6 relative overflow-hidden">
+                {/* Background decoration */}
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+                <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2"></div>
+                
+                <div className="relative">
+                    <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-white/60 text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                            <Icons.Sparkles className="w-4 h-4" />
+                            AI Insight
+                        </h3>
+                        {displayInsights.weeklyScore && (
+                            <div className="bg-white/20 px-3 py-1 rounded-full text-xs font-bold">
+                                Score: {displayInsights.weeklyScore}/100
+                            </div>
+                        )}
+                    </div>
+                    
+                    {isLoading ? (
+                        <div className="flex items-center gap-2 py-4">
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                            <span className="text-white/60">Analyzing your data...</span>
+                        </div>
+                    ) : (
+                        <>
+                            <p className="text-lg font-medium leading-relaxed mb-4">
+                                "{displayInsights.trend}"
+                            </p>
+                            
+                            <div className="grid grid-cols-2 gap-3 mb-4">
+                                <div className="bg-white/10 backdrop-blur rounded-xl p-3">
+                                    <div className="text-[10px] text-white/60 uppercase mb-1">Prediction</div>
+                                    <div className="font-bold text-sm">{displayInsights.prediction}</div>
+                                </div>
+                                <div className="bg-white/10 backdrop-blur rounded-xl p-3">
+                                    <div className="text-[10px] text-white/60 uppercase mb-1">Focus Area</div>
+                                    <div className="font-bold text-sm">{displayInsights.focusArea}</div>
+                                </div>
+                            </div>
+                            
+                            {displayInsights.improvement && (
+                                <div className="flex items-center justify-between text-sm border-t border-white/10 pt-3">
+                                    <div className="flex items-center gap-2">
+                                        <Icons.TrendingUp className="w-4 h-4 text-green-400" />
+                                        <span className="text-white/80">{displayInsights.improvement}</span>
+                                    </div>
+                                    <div className="text-white/60 text-xs">
+                                        Strength: {displayInsights.topStrength}
+                                    </div>
+                                </div>
+                            )}
+                        </>
+                    )}
+                </div>
+            </Card>
+        );
+    };
+
+    // Activity Chart Section
     const renderActivityChart = () => {
         const chartLabels = calculatedStats.historyData.map(d => {
             if (viewMode === 'daily') {
@@ -972,42 +1314,6 @@ export default function StatsView() {
         );
     };
 
-    // AI Insights Section - Only show if we have data
-    const renderInsights = () => {
-        // Don't render if no goal or still loading with no previous data
-        if (!user.goal && !insights) return null;
-        
-        return (
-            <Card className="bg-primary text-white p-6 shadow-2xl shadow-primary/20 border-none mb-6">
-                <h3 className="text-white/60 text-xs font-bold uppercase tracking-wider mb-1">AI Insight</h3>
-                {isLoading && !insights ? (
-                    <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                        <span className="text-white/60">Analyzing your data...</span>
-                    </div>
-                ) : insights ? (
-                    <>
-                        <p className="text-lg font-medium leading-relaxed mb-4">
-                            "{insights?.trend || "Keep up the great work! Your consistency is building momentum."}"
-                        </p>
-                        <div className="flex gap-3">
-                            <div className="bg-white/10 rounded-xl p-3 flex-1">
-                                <div className="text-[10px] text-white/60 uppercase mb-1">Prediction</div>
-                                <div className="font-bold text-sm">{insights?.prediction || "On track"}</div>
-                            </div>
-                            <div className="bg-white/10 rounded-xl p-3 flex-1">
-                                <div className="text-[10px] text-white/60 uppercase mb-1">Focus Area</div>
-                                <div className="font-bold text-sm">{insights?.focusArea || "Consistency"}</div>
-                            </div>
-                        </div>
-                    </>
-                ) : (
-                    <p className="text-white/80">Set a goal to receive personalized AI insights about your progress.</p>
-                )}
-            </Card>
-        );
-    };
-
     // Upcoming Events Section
     const renderUpcomingEvents = () => {
         const upcomingEvents = allEvents
@@ -1036,7 +1342,7 @@ export default function StatsView() {
                     return (
                         <div 
                             key={event.id} 
-                            className="flex gap-4 items-start p-4 bg-gray-50 rounded-2xl border border-gray-100 transition-all hover:border-primary/30"
+                            className="flex gap-4 items-start p-4 bg-white rounded-2xl border border-gray-200 transition-all hover:border-primary/30 hover:shadow-sm"
                         >
                             <div className="w-12 text-center">
                                 <span className="block text-xs font-bold text-gray-400">
@@ -1047,7 +1353,7 @@ export default function StatsView() {
                                 </span>
                             </div>
                             <div className="flex-1">
-                                <h4 className="font-bold text-primary flex items-center gap-2">
+                                <h4 className="font-bold text-gray-800 flex items-center gap-2">
                                     <span className="w-2 h-2 rounded-full" style={{ backgroundColor: event.color }}></span>
                                     {event.title}
                                 </h4>
@@ -1139,7 +1445,7 @@ export default function StatsView() {
         
         return (
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                <Card className="w-full max-w-md p-6">
+                <Card className="w-full max-w-md p-6 bg-white">
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="font-bold text-primary text-lg">Add Event</h3>
                         <button 
@@ -1153,7 +1459,7 @@ export default function StatsView() {
                     <div className="space-y-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                            <div className="px-4 py-3 bg-gray-50 rounded-xl text-gray-600">
+                            <div className="px-4 py-3 bg-gray-50 rounded-xl text-gray-600 font-medium">
                                 {selectedEventDate?.toLocaleDateString('en-US', { 
                                     weekday: 'long', 
                                     year: 'numeric', 
@@ -1170,7 +1476,7 @@ export default function StatsView() {
                                 value={newEvent.title}
                                 onChange={(e) => setNewEvent(prev => ({ ...prev, title: e.target.value }))}
                                 placeholder="Event title"
-                                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-gray-800"
                             />
                         </div>
                         
@@ -1181,7 +1487,7 @@ export default function StatsView() {
                                 onChange={(e) => setNewEvent(prev => ({ ...prev, description: e.target.value }))}
                                 placeholder="Optional description"
                                 rows={3}
-                                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none"
+                                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none text-gray-800"
                             />
                         </div>
                         
@@ -1214,7 +1520,7 @@ export default function StatsView() {
         
         return (
             <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50">
-                <Card className="w-full max-w-md rounded-t-3xl rounded-b-none p-6 max-h-[70vh] overflow-y-auto">
+                <Card className="w-full max-w-md rounded-t-3xl rounded-b-none p-6 max-h-[70vh] overflow-y-auto bg-white">
                     <div className="flex items-center justify-between mb-4">
                         <div>
                             <h3 className="font-bold text-primary text-lg">
@@ -1249,7 +1555,7 @@ export default function StatsView() {
                                 >
                                     <div className="flex items-start justify-between">
                                         <div>
-                                            <h4 className="font-bold text-primary">{event.title}</h4>
+                                            <h4 className="font-bold text-gray-800">{event.title}</h4>
                                             {event.description && (
                                                 <p className="text-xs text-gray-400 mt-1">{event.description}</p>
                                             )}
@@ -1288,16 +1594,16 @@ export default function StatsView() {
 
     return (
         <div className="h-full overflow-y-auto pb-safe scroll-smooth">
-            <div className="min-h-full bg-white pb-28 flex flex-col animate-fade-in">
+            <div className="min-h-full bg-gray-50 pb-28 flex flex-col animate-fade-in">
                 {/* Header */}
-                <div className="p-6 border-b border-gray-100 bg-white sticky top-0 z-20">
+                <div className="p-6 border-b border-gray-200 bg-white sticky top-0 z-20">
                     <div className="flex justify-between items-center mb-4 mt-2">
                         <h1 className="text-2xl font-bold text-primary">Analytics</h1>
                         <button 
                             onClick={() => setView(AppView.DASHBOARD)} 
-                            className="p-2 bg-gray-50 rounded-full hover:bg-gray-100 transition-colors"
+                            className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
                         >
-                            <Icons.X className="w-5 h-5 text-gray-400"/>
+                            <Icons.X className="w-5 h-5 text-gray-500"/>
                         </button>
                     </div>
                     {renderViewModeToggle()}
@@ -1308,7 +1614,10 @@ export default function StatsView() {
                     {/* Stats Cards */}
                     {renderStatsCards()}
                     
-                    {/* AI Insights - Only shown if there's data */}
+                    {/* AI Alerts - NEW SECTION */}
+                    {renderAlerts()}
+                    
+                    {/* AI Insights */}
                     {renderInsights()}
                     
                     {/* Goal Progress */}

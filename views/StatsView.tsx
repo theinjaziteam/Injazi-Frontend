@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { AppView } from '../types';
-import { Icons, Card, Button } from '../components/UIComponents';
+import { Icons, Card, CoinIcon } from '../components/UIComponents';
 import { calculateBudgetSplit, generateDeepInsights } from '../services/geminiService';
 
 interface CalendarEvent {
@@ -35,7 +35,7 @@ export default function StatsView() {
     const [expandedCard, setExpandedCard] = useState<string | null>(null);
     const [animatedValues, setAnimatedValues] = useState<Record<string, number>>({});
     const [dismissedAlerts, setDismissedAlerts] = useState<string[]>([]);
-    const [lastDataHash, setLastDataHash] = useState<string>('');
+    const [prevStats, setPrevStats] = useState<Record<string, number>>({});
     
     // Calendar states
     const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -45,29 +45,7 @@ export default function StatsView() {
     const [newEvent, setNewEvent] = useState({ title: '', description: '' });
     const [showDayEvents, setShowDayEvents] = useState(false);
 
-    // Create a hash of user data to detect changes
-    const userDataHash = useMemo(() => {
-        const tasks = user.tasks || [];
-        const gameState = user.gameState || {};
-        return JSON.stringify({
-            tasksCount: tasks.length,
-            completedCount: tasks.filter(t => t.status === 'completed' || t.status === 'approved').length,
-            credits: gameState.credits,
-            streak: gameState.streak,
-            level: gameState.level,
-            lastUpdate: Date.now()
-        });
-    }, [user.tasks, user.gameState]);
-
-    // Force recalculation when user data changes
-    useEffect(() => {
-        if (userDataHash !== lastDataHash) {
-            setLastDataHash(userDataHash);
-            setAnimatedValues({});
-        }
-    }, [userDataHash, lastDataHash]);
-
-    // Load dismissed alerts from localStorage
+    // Load dismissed alerts
     useEffect(() => {
         const saved = localStorage.getItem('dismissedAlerts');
         if (saved) {
@@ -80,25 +58,21 @@ export default function StatsView() {
                 } else {
                     setDismissedAlerts(parsed.alerts || []);
                 }
-            } catch (e) {
-                console.error('Error parsing dismissed alerts:', e);
-            }
+            } catch (e) {}
         }
     }, []);
 
-    // Load events from localStorage
+    // Load calendar events
     useEffect(() => {
         const savedEvents = localStorage.getItem('statsCalendarEvents');
         if (savedEvents) {
             try {
                 setCalendarEvents(JSON.parse(savedEvents));
-            } catch (e) {
-                console.error('Error parsing saved events:', e);
-            }
+            } catch (e) {}
         }
     }, []);
 
-    // Save events to localStorage
+    // Save calendar events
     useEffect(() => {
         const customEvents = calendarEvents.filter(e => e.type === 'custom');
         localStorage.setItem('statsCalendarEvents', JSON.stringify(customEvents));
@@ -133,31 +107,17 @@ export default function StatsView() {
             });
         }
         
-        const currentStreak = user.gameState?.streak || 0;
-        const nextStreakMilestone = Math.ceil((currentStreak + 1) / 7) * 7;
-        const daysUntilMilestone = nextStreakMilestone - currentStreak;
-        const streakDate = new Date();
-        streakDate.setDate(streakDate.getDate() + daysUntilMilestone);
-        autoMilestones.push({
-            id: 'streak-milestone',
-            date: streakDate.toISOString(),
-            title: `${nextStreakMilestone} Day Streak`,
-            description: `${daysUntilMilestone} days to go!`,
-            type: 'milestone',
-            color: '#F59E0B'
-        });
-        
         return [...calendarEvents, ...autoMilestones];
-    }, [calendarEvents, user.goal, user.gameState?.streak]);
+    }, [calendarEvents, user.goal]);
 
-    // REAL calculated stats from user data
+    // REAL calculated stats - directly from user object
     const calculatedStats = useMemo(() => {
         const now = new Date(selectedDate);
         const tasks = user.tasks || [];
         const allCompletedTasks = tasks.filter(t => t.status === 'completed' || t.status === 'approved');
         
         const filterByDate = (task: any) => {
-            const taskDate = new Date(task.completedAt || task.createdAt || Date.now());
+            const taskDate = new Date(task.completedAt || task.updatedAt || task.createdAt || Date.now());
             
             if (viewMode === 'daily') {
                 return taskDate.toDateString() === now.toDateString();
@@ -175,27 +135,49 @@ export default function StatsView() {
 
         const filteredTasks = allCompletedTasks.filter(filterByDate);
         
-        // Calculate REAL credits from completed tasks in this period
+        // Calculate credits from completed tasks in this period
         const periodCredits = filteredTasks.reduce((sum, t) => {
-            return sum + (t.creditsReward || t.credits || 0);
+            return sum + (t.creditsReward || t.credits || t.reward || 0);
         }, 0);
         
-        // Get total credits from gameState
-        const totalCredits = user.gameState?.credits || 0;
-        const streak = user.gameState?.streak || 0;
+        // Calculate total credits from ALL completed tasks
+        const totalCredits = allCompletedTasks.reduce((sum, t) => {
+            return sum + (t.creditsReward || t.credits || t.reward || 0);
+        }, 0);
+        
+        // Calculate streak (consecutive days with completed tasks)
+        let streak = 0;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        for (let i = 0; i < 365; i++) {
+            const checkDate = new Date(today);
+            checkDate.setDate(checkDate.getDate() - i);
+            
+            const hasTaskOnDay = allCompletedTasks.some(t => {
+                const taskDate = new Date(t.completedAt || t.updatedAt || t.createdAt || 0);
+                return taskDate.toDateString() === checkDate.toDateString();
+            });
+            
+            if (hasTaskOnDay) {
+                streak++;
+            } else if (i > 0) {
+                break;
+            }
+        }
         
         // Task breakdown by difficulty
         const easyTasks = filteredTasks.filter(t => 
-            t.difficulty === 'Easy' || t.difficulty === 'easy'
+            (t.difficulty || '').toLowerCase() === 'easy'
         ).length;
         const mediumTasks = filteredTasks.filter(t => 
-            t.difficulty === 'Medium' || t.difficulty === 'medium'
+            (t.difficulty || '').toLowerCase() === 'medium'
         ).length;
         const hardTasks = filteredTasks.filter(t => 
-            t.difficulty === 'Hard' || t.difficulty === 'hard'
+            (t.difficulty || '').toLowerCase() === 'hard'
         ).length;
 
-        // Generate REAL history data
+        // Generate history data
         const historyData = Array.from({ length: 7 }, (_, i) => {
             const date = new Date(now);
             if (viewMode === 'daily') {
@@ -207,7 +189,7 @@ export default function StatsView() {
             }
             
             const dayTasks = allCompletedTasks.filter(t => {
-                const taskDate = new Date(t.completedAt || t.createdAt || Date.now());
+                const taskDate = new Date(t.completedAt || t.updatedAt || t.createdAt || Date.now());
                 if (viewMode === 'daily') {
                     return taskDate.toDateString() === date.toDateString();
                 } else if (viewMode === 'weekly') {
@@ -225,7 +207,7 @@ export default function StatsView() {
             return {
                 date,
                 tasks: dayTasks.length,
-                credits: dayTasks.reduce((sum, t) => sum + (t.creditsReward || t.credits || 0), 0)
+                credits: dayTasks.reduce((sum, t) => sum + (t.creditsReward || t.credits || t.reward || 0), 0)
             };
         });
 
@@ -238,15 +220,14 @@ export default function StatsView() {
             mediumTasks,
             hardTasks,
             historyData,
-            level: user.gameState?.level || 1,
             totalTasks: tasks.length,
             allTimeCompleted: allCompletedTasks.length
         };
-    }, [user.tasks, user.gameState, selectedDate, viewMode]);
+    }, [user.tasks, selectedDate, viewMode]);
 
-    // Animate numbers on change
+    // Animate numbers when stats change
     useEffect(() => {
-        const targets = {
+        const newTargets = {
             tasksCompleted: calculatedStats.tasksCompleted,
             totalCredits: calculatedStats.totalCredits,
             periodCredits: calculatedStats.periodCredits,
@@ -254,18 +235,29 @@ export default function StatsView() {
             allTimeCompleted: calculatedStats.allTimeCompleted
         };
 
-        const duration = 800;
-        const steps = 25;
+        // Check if any values actually changed
+        const hasChanges = Object.entries(newTargets).some(
+            ([key, value]) => prevStats[key] !== value
+        );
+
+        if (!hasChanges && Object.keys(prevStats).length > 0) return;
+
+        setPrevStats(newTargets);
+
+        const duration = 600;
+        const steps = 20;
         const stepDuration = duration / steps;
 
-        Object.entries(targets).forEach(([key, target]) => {
-            const start = animatedValues[key] || 0;
+        Object.entries(newTargets).forEach(([key, target]) => {
+            const start = animatedValues[key] ?? 0;
             const diff = target - start;
             
-            if (diff === 0) return;
+            if (diff === 0) {
+                setAnimatedValues(prev => ({ ...prev, [key]: target }));
+                return;
+            }
             
             let step = 0;
-
             const animate = () => {
                 step++;
                 const progress = step / steps;
@@ -275,141 +267,94 @@ export default function StatsView() {
                 setAnimatedValues(prev => ({ ...prev, [key]: current }));
                 
                 if (step < steps) {
-                    setTimeout(animate, stepDuration);
+                    requestAnimationFrame(() => setTimeout(animate, stepDuration));
+                } else {
+                    setAnimatedValues(prev => ({ ...prev, [key]: target }));
                 }
             };
             animate();
         });
-    }, [calculatedStats.tasksCompleted, calculatedStats.totalCredits, calculatedStats.periodCredits, calculatedStats.streak, calculatedStats.allTimeCompleted]);
+    }, [calculatedStats]);
 
-    // Generate AI Alerts based on REAL user data
+    // Generate alerts based on real data
     const alerts = useMemo(() => {
         const generatedAlerts: Alert[] = [];
         const tasks = user.tasks || [];
         const completedTasks = tasks.filter(t => t.status === 'completed' || t.status === 'approved');
         const pendingTasks = tasks.filter(t => t.status === 'pending' || t.status === 'in_progress');
-        const streak = user.gameState?.streak || 0;
-        const credits = user.gameState?.credits || 0;
+        const credits = calculatedStats.totalCredits;
+        const streak = calculatedStats.streak;
         
         const guideConversations = user.conversations || [];
-        const lastGuideMessage = guideConversations.length > 0 
-            ? guideConversations[guideConversations.length - 1] 
-            : null;
-        
+        const lastGuideMessage = guideConversations.length > 0 ? guideConversations[guideConversations.length - 1] : null;
         const masterAgentTasks = user.masterAgentTasks || [];
         const failedAgentTasks = masterAgentTasks.filter((t: any) => t.status === 'failed');
         const pendingAgentTasks = masterAgentTasks.filter((t: any) => t.status === 'pending' || t.status === 'in_progress');
         
-        // Guide-based alerts
-        const lastConversationDate = lastGuideMessage?.timestamp 
-            ? new Date(lastGuideMessage.timestamp) 
-            : null;
-        const daysSinceLastConversation = lastConversationDate 
-            ? Math.floor((Date.now() - lastConversationDate.getTime()) / (1000 * 60 * 60 * 24))
-            : 999;
+        // Guide alerts
+        const lastConversationDate = lastGuideMessage?.timestamp ? new Date(lastGuideMessage.timestamp) : null;
+        const daysSinceLastConversation = lastConversationDate ? Math.floor((Date.now() - lastConversationDate.getTime()) / (1000 * 60 * 60 * 24)) : 999;
         
         if (daysSinceLastConversation > 2 && guideConversations.length > 0) {
             generatedAlerts.push({
-                id: 'guide-inactive',
-                type: 'info',
-                title: 'Check in with The Guide',
+                id: 'guide-inactive', type: 'info', title: 'Check in with The Guide',
                 message: `It's been ${daysSinceLastConversation} days since your last conversation.`,
-                icon: Icons.MessageCircle,
-                source: 'guide',
-                actionLabel: 'Open Guide',
-                actionView: AppView.CHAT
+                icon: Icons.MessageCircle, source: 'guide', actionLabel: 'Open Guide', actionView: AppView.CHAT
             });
         }
         
         if (!user.goal) {
             generatedAlerts.push({
-                id: 'no-goal',
-                type: 'warning',
-                title: 'Set Your First Goal',
+                id: 'no-goal', type: 'warning', title: 'Set Your First Goal',
                 message: 'The Guide recommends setting a goal to start your journey.',
-                icon: Icons.Trophy,
-                source: 'guide',
-                actionLabel: 'Talk to Guide',
-                actionView: AppView.CHAT
+                icon: Icons.Trophy, source: 'guide', actionLabel: 'Talk to Guide', actionView: AppView.CHAT
             });
         }
         
-        // Master Agent alerts
+        // Agent alerts
         if (failedAgentTasks.length > 0) {
             generatedAlerts.push({
-                id: 'agent-failed-tasks',
-                type: 'danger',
-                title: `${failedAgentTasks.length} Automation${failedAgentTasks.length > 1 ? 's' : ''} Failed`,
+                id: 'agent-failed', type: 'danger', title: `${failedAgentTasks.length} Automation Failed`,
                 message: 'Some Master Agent tasks encountered errors.',
-                icon: Icons.AlertTriangle,
-                source: 'agent',
-                actionLabel: 'View Details',
-                actionView: AppView.DASHBOARD
+                icon: Icons.AlertTriangle, source: 'agent', actionLabel: 'View Details', actionView: AppView.DASHBOARD
             });
         }
         
         if (pendingAgentTasks.length > 3) {
             generatedAlerts.push({
-                id: 'agent-pending-queue',
-                type: 'warning',
-                title: 'Agent Queue Building Up',
+                id: 'agent-queue', type: 'warning', title: 'Agent Queue Building Up',
                 message: `You have ${pendingAgentTasks.length} tasks waiting.`,
-                icon: Icons.Clock,
-                source: 'agent',
-                actionLabel: 'Manage Queue',
-                actionView: AppView.DASHBOARD
+                icon: Icons.Clock, source: 'agent', actionLabel: 'Manage Queue', actionView: AppView.DASHBOARD
             });
         }
         
         // System alerts
         if (streak > 0 && streak < 3) {
             generatedAlerts.push({
-                id: 'streak-risk',
-                type: 'warning',
-                title: 'Streak at Risk',
+                id: 'streak-risk', type: 'warning', title: 'Streak at Risk',
                 message: `Your ${streak}-day streak needs attention!`,
-                icon: Icons.Flame,
-                source: 'system',
-                actionLabel: 'View Tasks',
-                actionView: AppView.DASHBOARD
+                icon: Icons.Flame, source: 'system', actionLabel: 'View Tasks', actionView: AppView.DASHBOARD
             });
         }
         
         const threeDaysAgo = new Date();
         threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-        const recentActivity = completedTasks.some(t => {
-            const taskDate = new Date(t.completedAt || t.createdAt || 0);
-            return taskDate >= threeDaysAgo;
-        });
+        const recentActivity = completedTasks.some(t => new Date(t.completedAt || t.updatedAt || t.createdAt || 0) >= threeDaysAgo);
         
         if (!recentActivity && tasks.length > 0) {
             generatedAlerts.push({
-                id: 'no-activity',
-                type: 'danger',
-                title: 'No Recent Activity',
+                id: 'no-activity', type: 'danger', title: 'No Recent Activity',
                 message: "You haven't completed any tasks in 3+ days.",
-                icon: Icons.AlertTriangle,
-                source: 'system',
-                actionLabel: 'Start Now',
-                actionView: AppView.DASHBOARD
+                icon: Icons.AlertTriangle, source: 'system', actionLabel: 'Start Now', actionView: AppView.DASHBOARD
             });
         }
         
-        const overdueTasks = pendingTasks.filter(t => {
-            if (!t.dueDate) return false;
-            return new Date(t.dueDate) < new Date();
-        });
-        
+        const overdueTasks = pendingTasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date());
         if (overdueTasks.length > 0) {
             generatedAlerts.push({
-                id: 'overdue-tasks',
-                type: 'danger',
-                title: `${overdueTasks.length} Overdue Task${overdueTasks.length > 1 ? 's' : ''}`,
+                id: 'overdue', type: 'danger', title: `${overdueTasks.length} Overdue Task${overdueTasks.length > 1 ? 's' : ''}`,
                 message: 'Tasks past their due date need attention.',
-                icon: Icons.Clock,
-                source: 'system',
-                actionLabel: 'View Overdue',
-                actionView: AppView.DASHBOARD
+                icon: Icons.Clock, source: 'system', actionLabel: 'View Overdue', actionView: AppView.DASHBOARD
             });
         }
         
@@ -421,91 +366,51 @@ export default function StatsView() {
             
             if (completedTasks.length < expectedTasks * 0.5 && daysElapsed > 3) {
                 generatedAlerts.push({
-                    id: 'goal-behind',
-                    type: 'warning',
-                    title: 'Falling Behind on Goal',
-                    message: `You're ${Math.round(expectedProgress)}% through your timeline but behind.`,
-                    icon: Icons.TrendingDown,
-                    source: 'guide',
-                    actionLabel: 'Get Advice',
-                    actionView: AppView.CHAT
+                    id: 'goal-behind', type: 'warning', title: 'Falling Behind on Goal',
+                    message: `You're ${Math.round(expectedProgress)}% through but behind on tasks.`,
+                    icon: Icons.TrendingDown, source: 'guide', actionLabel: 'Get Advice', actionView: AppView.CHAT
                 });
             }
         }
         
         if (credits > 0 && credits < 50) {
             generatedAlerts.push({
-                id: 'low-credits',
-                type: 'info',
-                title: 'Low on Credits',
+                id: 'low-credits', type: 'info', title: 'Low on Credits',
                 message: `Only ${credits} credits remaining.`,
-                icon: Icons.Coins,
-                source: 'system',
-                actionLabel: 'Earn More',
-                actionView: AppView.DASHBOARD
+                icon: Icons.Coins, source: 'system', actionLabel: 'Earn More', actionView: AppView.DASHBOARD
             });
-        }
-        
-        if (user.goal?.category === 'Money & Career') {
-            const financialApps = (user.connectedApps || []).filter(app => 
-                app.category === 'finance' || app.name?.toLowerCase().includes('bank')
-            );
-            
-            if (financialApps.length === 0) {
-                generatedAlerts.push({
-                    id: 'no-financial-apps',
-                    type: 'info',
-                    title: 'Connect Financial Apps',
-                    message: 'Link accounts for personalized insights.',
-                    icon: Icons.CreditCard,
-                    source: 'agent',
-                    actionLabel: 'Connect Apps',
-                    actionView: AppView.SETTINGS
-                });
-            }
         }
         
         // Positive alerts
         if (streak >= 7) {
             generatedAlerts.push({
-                id: 'streak-celebration',
-                type: 'success',
-                title: `${streak} Day Streak! 🔥`,
-                message: "Amazing consistency! Keep it up!",
-                icon: Icons.Trophy,
-                source: 'guide'
+                id: 'streak-celebrate', type: 'success', title: `${streak} Day Streak! 🔥`,
+                message: "Amazing consistency!", icon: Icons.Trophy, source: 'guide'
             });
         }
         
         if (credits >= 100 && credits < 150) {
             generatedAlerts.push({
-                id: 'credits-milestone-100',
-                type: 'success',
-                title: '100 Credits Milestone! 🎉',
-                message: "Great progress on your journey!",
-                icon: Icons.Coins,
-                source: 'system'
+                id: 'credits-100', type: 'success', title: '100 Credits! 🎉',
+                message: "Great progress!", icon: Icons.Coins, source: 'system'
             });
         }
         
         return generatedAlerts.filter(alert => !dismissedAlerts.includes(alert.id));
-    }, [user, dismissedAlerts]);
+    }, [user, calculatedStats, dismissedAlerts]);
 
     const dismissAlert = (alertId: string) => {
         const updated = [...dismissedAlerts, alertId];
         setDismissedAlerts(updated);
-        localStorage.setItem('dismissedAlerts', JSON.stringify({ 
-            date: new Date().toDateString(), 
-            alerts: updated 
-        }));
+        localStorage.setItem('dismissedAlerts', JSON.stringify({ date: new Date().toDateString(), alerts: updated }));
     };
 
-    // Mock AI Insights based on real data
+    // Mock insights based on real data
     const mockInsights = useMemo(() => {
         const tasks = user.tasks || [];
         const completedTasks = tasks.filter(t => t.status === 'completed' || t.status === 'approved');
-        const streak = user.gameState?.streak || 0;
-        const credits = user.gameState?.credits || 0;
+        const streak = calculatedStats.streak;
+        const credits = calculatedStats.totalCredits;
         
         const tasksByDay: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
         completedTasks.forEach(t => {
@@ -523,16 +428,13 @@ export default function StatsView() {
             trend: completedTasks.length > 0 
                 ? `You're most productive on ${productiveDayName}s with ${mostProductiveDay[1]} tasks completed.`
                 : "Start completing tasks to see your productivity patterns.",
-            prediction: streak > 3 
-                ? `${Math.min(95, 60 + streak * 5)}% likely to maintain your streak`
-                : "Build a streak to improve prediction",
+            prediction: streak > 3 ? `${Math.min(95, 60 + streak * 5)}% likely to maintain your streak` : "Build a streak to improve prediction",
             focusArea: completedTasks.length < 5 ? "Getting started" : streak < 3 ? "Building consistency" : "Maintaining momentum",
             weeklyScore,
             improvement: completedTasks.length > 0 ? `+${Math.min(25, completedTasks.length * 3)}% from last week` : "No data yet",
-            topStrength: streak > 5 ? "Consistency" : completedTasks.length > 10 ? "Task completion" : "Getting started",
-            areaToImprove: streak < 3 ? "Daily engagement" : "Task variety"
+            topStrength: streak > 5 ? "Consistency" : completedTasks.length > 10 ? "Task completion" : "Getting started"
         };
-    }, [user.tasks, user.gameState]);
+    }, [user.tasks, calculatedStats]);
 
     // Fetch AI data
     useEffect(() => {
@@ -560,7 +462,7 @@ export default function StatsView() {
     const hasActivity = useCallback((date: Date) => {
         const tasks = user.tasks || [];
         return tasks.some(t => {
-            const taskDate = new Date(t.completedAt || t.createdAt || Date.now());
+            const taskDate = new Date(t.completedAt || t.updatedAt || t.createdAt || Date.now());
             return taskDate.toDateString() === date.toDateString() && (t.status === 'completed' || t.status === 'approved');
         });
     }, [user.tasks]);
@@ -571,7 +473,6 @@ export default function StatsView() {
 
     const handleAddEvent = () => {
         if (!newEvent.title.trim() || !selectedEventDate) return;
-        
         const event: CalendarEvent = {
             id: `custom-${Date.now()}`,
             date: selectedEventDate.toISOString(),
@@ -580,7 +481,6 @@ export default function StatsView() {
             type: 'custom',
             color: '#8B5CF6'
         };
-        
         setCalendarEvents(prev => [...prev, event]);
         setNewEvent({ title: '', description: '' });
         setShowEventModal(false);
@@ -590,41 +490,26 @@ export default function StatsView() {
         setCalendarEvents(prev => prev.filter(e => e.id !== eventId));
     };
 
-    // Donut Chart
-    const DonutChart = ({ data, size = 160, showLegend = true }: { 
-        data: { value: number; color: string; label: string }[], 
-        size?: number,
-        showLegend?: boolean 
-    }) => {
+    // Chart Components
+    const DonutChart = ({ data, size = 160, showLegend = true }: { data: { value: number; color: string; label: string }[], size?: number, showLegend?: boolean }) => {
         const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
         let cumulativePercent = 0;
         const total = data.reduce((acc, curr) => acc + curr.value, 0);
         
-        if (total === 0) {
-            return (
-                <div className="flex items-center justify-center p-8 text-gray-500 text-sm">
-                    No data available
-                </div>
-            );
-        }
+        if (total === 0) return <div className="flex items-center justify-center p-8 text-gray-500 text-sm">No data available</div>;
         
         return (
             <div className="flex items-center gap-6">
                 <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
                     <svg viewBox="0 0 100 100" className="-rotate-90 w-full h-full">
                         {data.map((slice, i) => {
-                            const percent = total > 0 ? slice.value / total : 0;
+                            const percent = slice.value / total;
                             const dashArray = percent * 251.2;
                             const offset = cumulativePercent * 251.2;
                             cumulativePercent += percent;
-                            const isHovered = hoveredIndex === i;
                             return (
-                                <circle
-                                    key={i}
-                                    cx="50" cy="50" r="40"
-                                    fill="none"
-                                    stroke={slice.color}
-                                    strokeWidth={isHovered ? 24 : 20}
+                                <circle key={i} cx="50" cy="50" r="40" fill="none" stroke={slice.color}
+                                    strokeWidth={hoveredIndex === i ? 24 : 20}
                                     strokeDasharray={`${dashArray} 251.2`}
                                     strokeDashoffset={-offset}
                                     className="transition-all duration-300 cursor-pointer"
@@ -635,23 +520,15 @@ export default function StatsView() {
                         })}
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className="text-xs font-bold text-gray-500">
-                            {hoveredIndex !== null ? data[hoveredIndex].label : 'Total'}
-                        </span>
-                        <span className="text-xl font-black text-gray-800">
-                            {hoveredIndex !== null ? data[hoveredIndex].value : total}
-                        </span>
+                        <span className="text-xs font-bold text-gray-500">{hoveredIndex !== null ? data[hoveredIndex].label : 'Total'}</span>
+                        <span className="text-xl font-black text-gray-800">{hoveredIndex !== null ? data[hoveredIndex].value : total}</span>
                     </div>
                 </div>
                 {showLegend && (
                     <div className="space-y-2 flex-1">
                         {data.map((item, i) => (
-                            <div 
-                                key={i} 
-                                className={`flex items-center justify-between text-xs p-2 rounded-lg cursor-pointer ${hoveredIndex === i ? 'bg-gray-100' : ''}`}
-                                onMouseEnter={() => setHoveredIndex(i)}
-                                onMouseLeave={() => setHoveredIndex(null)}
-                            >
+                            <div key={i} className={`flex items-center justify-between text-xs p-2 rounded-lg cursor-pointer ${hoveredIndex === i ? 'bg-gray-100' : ''}`}
+                                onMouseEnter={() => setHoveredIndex(i)} onMouseLeave={() => setHoveredIndex(null)}>
                                 <span className="flex items-center gap-2 text-gray-700">
                                     <span className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></span>
                                     {item.label}
@@ -665,21 +542,12 @@ export default function StatsView() {
         );
     };
 
-    // Line Chart
-    const LineChart = ({ data, color = "#4F46E5", height = 100, labels = [] }: { 
-        data: number[], color?: string, height?: number, labels?: string[]
-    }) => {
+    const LineChart = ({ data, color = "#4F46E5", height = 100, labels = [] }: { data: number[], color?: string, height?: number, labels?: string[] }) => {
         const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
-        
-        if (!data || data.length === 0) {
-            return <div className="flex items-center justify-center text-gray-400 text-sm" style={{ height }}>No data</div>;
-        }
+        if (!data || data.length === 0) return <div className="flex items-center justify-center text-gray-400 text-sm" style={{ height }}>No data</div>;
         
         const max = Math.max(...data, 1);
-        const width = 300;
-        const chartHeight = 80;
-        const paddingX = 20;
-        const paddingY = 10;
+        const width = 300, chartHeight = 80, paddingX = 20, paddingY = 10;
         
         const points = data.map((val, i) => ({
             x: paddingX + (data.length > 1 ? (i / (data.length - 1)) * (width - paddingX * 2) : (width - paddingX * 2) / 2),
@@ -699,23 +567,15 @@ export default function StatsView() {
                             <stop offset="100%" stopColor={color} stopOpacity="0.05" />
                         </linearGradient>
                     </defs>
-                    
                     {[0, 0.5, 1].map((ratio, i) => (
                         <line key={i} x1={paddingX} y1={paddingY + (chartHeight - paddingY * 2) * ratio} x2={width - paddingX} y2={paddingY + (chartHeight - paddingY * 2) * ratio} stroke="#E5E7EB" strokeWidth="1" strokeDasharray="4 4" />
                     ))}
-                    
                     <path d={areaPath} fill={`url(#gradient-${color.replace('#', '')})`} />
                     <path d={linePath} fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                    
                     {points.map((point, i) => (
                         <g key={i}>
-                            <circle
-                                cx={point.x} cy={point.y} r={hoveredPoint === i ? 8 : 5}
-                                fill="white" stroke={color} strokeWidth="3"
-                                className="transition-all cursor-pointer"
-                                onMouseEnter={() => setHoveredPoint(i)}
-                                onMouseLeave={() => setHoveredPoint(null)}
-                            />
+                            <circle cx={point.x} cy={point.y} r={hoveredPoint === i ? 8 : 5} fill="white" stroke={color} strokeWidth="3"
+                                className="transition-all cursor-pointer" onMouseEnter={() => setHoveredPoint(i)} onMouseLeave={() => setHoveredPoint(null)} />
                             {hoveredPoint === i && (
                                 <g>
                                     <rect x={point.x - 20} y={point.y - 30} width="40" height="20" rx="4" fill={color} />
@@ -725,16 +585,11 @@ export default function StatsView() {
                         </g>
                     ))}
                 </svg>
-                {labels.length > 0 && (
-                    <div className="flex justify-between px-5 mt-1">
-                        {labels.map((label, i) => <span key={i} className="text-[10px] text-gray-500">{label}</span>)}
-                    </div>
-                )}
+                {labels.length > 0 && <div className="flex justify-between px-5 mt-1">{labels.map((label, i) => <span key={i} className="text-[10px] text-gray-500">{label}</span>)}</div>}
             </div>
         );
     };
 
-    // Bar Chart
     const BarChart = ({ data, height = 120 }: { data: { label: string; value: number; color?: string }[], height?: number }) => {
         const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
         const max = Math.max(...data.map(d => d.value), 1);
@@ -743,12 +598,12 @@ export default function StatsView() {
             <div className="flex items-end justify-between gap-2" style={{ height }}>
                 {data.map((item, i) => {
                     const barHeight = (item.value / max) * 100;
-                    const isHovered = hoveredIndex === i;
                     return (
                         <div key={i} className="flex-1 flex flex-col items-center gap-2" onMouseEnter={() => setHoveredIndex(i)} onMouseLeave={() => setHoveredIndex(null)}>
                             <div className="relative w-full flex justify-center">
-                                {isHovered && <div className="absolute -top-8 bg-primary text-white text-xs px-2 py-1 rounded-lg z-10">{item.value}</div>}
-                                <div className="w-full max-w-[40px] rounded-t-lg transition-all cursor-pointer" style={{ height: `${barHeight}%`, minHeight: 4, backgroundColor: item.color || '#4F46E5', opacity: isHovered ? 1 : 0.8 }} />
+                                {hoveredIndex === i && <div className="absolute -top-8 bg-primary text-white text-xs px-2 py-1 rounded-lg z-10">{item.value}</div>}
+                                <div className="w-full max-w-[40px] rounded-t-lg transition-all cursor-pointer"
+                                    style={{ height: `${barHeight}%`, minHeight: 4, backgroundColor: item.color || '#4F46E5', opacity: hoveredIndex === i ? 1 : 0.8 }} />
                             </div>
                             <span className="text-[10px] text-gray-500">{item.label}</span>
                         </div>
@@ -758,10 +613,7 @@ export default function StatsView() {
         );
     };
 
-    // Progress Ring
-    const ProgressRing = ({ progress, size = 80, strokeWidth = 8, color = "#4F46E5", label, value }: { 
-        progress: number, size?: number, strokeWidth?: number, color?: string, label?: string, value?: string | number
-    }) => {
+    const ProgressRing = ({ progress, size = 80, strokeWidth = 8, color = "#4F46E5", label, value }: { progress: number, size?: number, strokeWidth?: number, color?: string, label?: string, value?: string | number }) => {
         const radius = (size - strokeWidth) / 2;
         const circumference = radius * 2 * Math.PI;
         const offset = circumference - (progress / 100) * circumference;
@@ -770,7 +622,8 @@ export default function StatsView() {
             <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
                 <svg className="transform -rotate-90" width={size} height={size}>
                     <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#E5E7EB" strokeWidth={strokeWidth} />
-                    <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={color} strokeWidth={strokeWidth} strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round" className="transition-all duration-1000" />
+                    <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={color} strokeWidth={strokeWidth}
+                        strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round" className="transition-all duration-1000" />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
                     {value !== undefined && <span className="text-lg font-black text-gray-800">{value}</span>}
@@ -780,12 +633,10 @@ export default function StatsView() {
         );
     };
 
-    // Calendar Strip
+    // Render Functions
     const renderCalendarStrip = () => {
         const days = [];
-        const range = 3;
-        
-        for (let i = -range; i <= range; i++) {
+        for (let i = -3; i <= 3; i++) {
             const d = new Date(selectedDate);
             if (viewMode === 'monthly') d.setMonth(d.getMonth() + i);
             else if (viewMode === 'weekly') d.setDate(d.getDate() + i * 7);
@@ -796,11 +647,8 @@ export default function StatsView() {
             const events = getEventsForDate(d);
             
             days.push(
-                <button 
-                    key={i} 
-                    onClick={() => { setSelectedDate(d.getTime()); setCurrentMonth(d); }} 
-                    className={`flex flex-col items-center justify-center w-12 h-16 rounded-2xl transition-all ${isSelected ? 'bg-primary text-white shadow-lg scale-110' : 'bg-white text-gray-600 border border-gray-200 hover:border-primary/30'}`}
-                >
+                <button key={i} onClick={() => { setSelectedDate(d.getTime()); setCurrentMonth(d); }}
+                    className={`flex flex-col items-center justify-center w-12 h-16 rounded-2xl transition-all ${isSelected ? 'bg-primary text-white shadow-lg scale-110' : 'bg-white text-gray-600 border border-gray-200 hover:border-primary/30'}`}>
                     <span className={`text-[10px] font-bold uppercase ${isSelected ? 'text-white/80' : 'text-gray-400'}`}>
                         {viewMode === 'monthly' ? d.toLocaleDateString('en-US', { month: 'short' }) : d.toLocaleDateString('en-US', { weekday: 'short' })}
                     </span>
@@ -815,7 +663,6 @@ export default function StatsView() {
         return <div className="flex justify-between px-2">{days}</div>;
     };
 
-    // Full Calendar
     const renderFullCalendar = () => {
         const year = currentMonth.getFullYear();
         const month = currentMonth.getMonth();
@@ -828,9 +675,7 @@ export default function StatsView() {
         const days = [];
         const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         
-        for (let i = startingDay - 1; i >= 0; i--) {
-            days.push(<div key={`prev-${i}`} className="h-11 flex items-center justify-center text-gray-300 text-sm">{prevMonthLastDay - i}</div>);
-        }
+        for (let i = startingDay - 1; i >= 0; i--) days.push(<div key={`prev-${i}`} className="h-11 flex items-center justify-center text-gray-300 text-sm">{prevMonthLastDay - i}</div>);
         
         for (let day = 1; day <= totalDays; day++) {
             const date = new Date(year, month, day);
@@ -840,11 +685,8 @@ export default function StatsView() {
             const dayEvents = getEventsForDate(date);
             
             days.push(
-                <button
-                    key={day}
-                    onClick={() => { setSelectedDate(date.getTime()); setSelectedEventDate(date); if (dayEvents.length > 0) setShowDayEvents(true); }}
-                    className={`h-11 rounded-xl flex flex-col items-center justify-center relative transition-all ${isSelected ? 'bg-primary text-white shadow-md' : isToday ? 'bg-primary/10 text-primary font-bold border-2 border-primary/30' : 'text-gray-700 hover:bg-gray-100'}`}
-                >
+                <button key={day} onClick={() => { setSelectedDate(date.getTime()); setSelectedEventDate(date); if (dayEvents.length > 0) setShowDayEvents(true); }}
+                    className={`h-11 rounded-xl flex flex-col items-center justify-center relative transition-all ${isSelected ? 'bg-primary text-white shadow-md' : isToday ? 'bg-primary/10 text-primary font-bold border-2 border-primary/30' : 'text-gray-700 hover:bg-gray-100'}`}>
                     <span className="text-sm font-semibold">{day}</span>
                     {(dayHasActivity || dayEvents.length > 0) && (
                         <div className="flex gap-0.5 absolute bottom-1">
@@ -857,9 +699,7 @@ export default function StatsView() {
         }
         
         const remainingDays = 42 - days.length;
-        for (let i = 1; i <= remainingDays; i++) {
-            days.push(<div key={`next-${i}`} className="h-11 flex items-center justify-center text-gray-300 text-sm">{i}</div>);
-        }
+        for (let i = 1; i <= remainingDays; i++) days.push(<div key={`next-${i}`} className="h-11 flex items-center justify-center text-gray-300 text-sm">{i}</div>);
         
         return (
             <Card className="p-4 bg-white border border-gray-200">
@@ -872,9 +712,7 @@ export default function StatsView() {
                         <Icons.ChevronRight className="w-5 h-5 text-gray-600" />
                     </button>
                 </div>
-                <div className="grid grid-cols-7 gap-1 mb-2">
-                    {weekDays.map(day => <div key={day} className="text-center text-xs font-bold text-gray-500 uppercase py-2">{day}</div>)}
-                </div>
+                <div className="grid grid-cols-7 gap-1 mb-2">{weekDays.map(day => <div key={day} className="text-center text-xs font-bold text-gray-500 uppercase py-2">{day}</div>)}</div>
                 <div className="grid grid-cols-7 gap-1 border-t border-gray-100 pt-2">{days}</div>
                 <button onClick={() => { setSelectedEventDate(new Date(selectedDate)); setShowEventModal(true); }} className="w-full mt-4 py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 text-sm font-medium hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2">
                     <Icons.Plus className="w-4 h-4" /> Add Event
@@ -889,18 +727,18 @@ export default function StatsView() {
         );
     };
 
-    // View Mode Toggle
     const renderViewModeToggle = () => (
         <div className="flex bg-gray-100 rounded-full p-1 mb-4">
             {(['daily', 'weekly', 'monthly'] as const).map(mode => (
-                <button key={mode} onClick={() => setViewMode(mode)} className={`flex-1 py-2 px-4 rounded-full text-xs font-bold transition-all ${viewMode === mode ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
+                <button key={mode} onClick={() => setViewMode(mode)}
+                    className={`flex-1 py-2 px-4 rounded-full text-xs font-bold transition-all ${viewMode === mode ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
                     {mode.charAt(0).toUpperCase() + mode.slice(1)}
                 </button>
             ))}
         </div>
     );
 
-    // Stats Cards with Icons.Coins
+    // Stats Cards - NO LEVEL/XP, using CoinIcon
     const renderStatsCards = () => (
         <div className="grid grid-cols-3 gap-3 mb-6">
             <Card className="p-4 bg-gradient-to-br from-primary to-primary/80 text-white border-none">
@@ -916,7 +754,7 @@ export default function StatsView() {
             
             <Card className="p-4 bg-gradient-to-br from-amber-500 to-amber-400 text-white border-none">
                 <div className="flex items-center gap-1 mb-1">
-                    <Icons.Coins className="w-3 h-3 text-white/60" />
+                    <CoinIcon className="w-3 h-3 opacity-60" />
                     <span className="text-[9px] font-bold uppercase text-white/60">Credits</span>
                 </div>
                 <div className="text-2xl font-black">{animatedValues.totalCredits ?? calculatedStats.totalCredits}</div>
@@ -936,16 +774,12 @@ export default function StatsView() {
         </div>
     );
 
-    // Summary Stats Row
+    // Summary Stats - NO LEVEL, using CoinIcon
     const renderSummaryStats = () => (
-        <div className="grid grid-cols-4 gap-2 mb-6">
+        <div className="grid grid-cols-3 gap-2 mb-6">
             <div className="bg-white border border-gray-200 rounded-xl p-3 text-center">
                 <div className="text-lg font-black text-gray-800">{animatedValues.allTimeCompleted ?? calculatedStats.allTimeCompleted}</div>
-                <div className="text-[10px] text-gray-500">All Time</div>
-            </div>
-            <div className="bg-white border border-gray-200 rounded-xl p-3 text-center">
-                <div className="text-lg font-black text-gray-800">{calculatedStats.level}</div>
-                <div className="text-[10px] text-gray-500">Level</div>
+                <div className="text-[10px] text-gray-500">All Time Tasks</div>
             </div>
             <div className="bg-white border border-gray-200 rounded-xl p-3 text-center">
                 <div className="text-lg font-black text-gray-800">{calculatedStats.totalTasks}</div>
@@ -953,7 +787,7 @@ export default function StatsView() {
             </div>
             <div className="bg-white border border-gray-200 rounded-xl p-3 text-center">
                 <div className="text-lg font-black text-amber-600 flex items-center justify-center gap-1">
-                    <Icons.Coins className="w-4 h-4" />
+                    <CoinIcon className="w-4 h-4" />
                     {animatedValues.totalCredits ?? calculatedStats.totalCredits}
                 </div>
                 <div className="text-[10px] text-gray-500">Total Credits</div>
@@ -961,7 +795,6 @@ export default function StatsView() {
         </div>
     );
 
-    // Alerts Section
     const renderAlerts = () => {
         if (alerts.length === 0) return null;
         
@@ -985,27 +818,18 @@ export default function StatsView() {
         return (
             <div className="space-y-3 mb-6">
                 <div className="flex items-center justify-between">
-                    <h3 className="font-bold text-gray-800 flex items-center gap-2">
-                        <Icons.Bell className="w-5 h-5 text-primary" />
-                        Alerts & Recommendations
-                    </h3>
+                    <h3 className="font-bold text-gray-800 flex items-center gap-2"><Icons.Bell className="w-5 h-5 text-primary" />Alerts</h3>
                     <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{alerts.length}</span>
                 </div>
-                
                 {alerts.map(alert => {
                     const styles = getAlertStyles(alert.type);
                     const sourceInfo = getSourceLabel(alert.source);
                     const IconComponent = alert.icon;
-                    
                     return (
                         <div key={alert.id} className={`${styles.bg} ${styles.border} border rounded-2xl p-4 relative`}>
-                            <button onClick={() => dismissAlert(alert.id)} className="absolute top-2 right-2 p-1 hover:bg-black/5 rounded-full">
-                                <Icons.X className="w-4 h-4 text-gray-400" />
-                            </button>
+                            <button onClick={() => dismissAlert(alert.id)} className="absolute top-2 right-2 p-1 hover:bg-black/5 rounded-full"><Icons.X className="w-4 h-4 text-gray-400" /></button>
                             <div className="flex gap-3">
-                                <div className={`${styles.icon} p-2.5 rounded-xl flex-shrink-0`}>
-                                    <IconComponent className="w-5 h-5" />
-                                </div>
+                                <div className={`${styles.icon} p-2.5 rounded-xl flex-shrink-0`}><IconComponent className="w-5 h-5" /></div>
                                 <div className="flex-1 pr-6">
                                     <div className="flex items-center gap-2 mb-1">
                                         <h4 className={`${styles.title} font-bold text-sm`}>{alert.title}</h4>
@@ -1026,10 +850,8 @@ export default function StatsView() {
         );
     };
 
-    // Goal Progress
     const renderGoalProgress = () => {
         if (!user.goal) return null;
-        
         const daysElapsed = user.goal.createdAt ? Math.floor((Date.now() - new Date(user.goal.createdAt).getTime()) / (1000 * 60 * 60 * 24)) : 0;
         const totalDays = user.goal.durationDays || 30;
         const progress = Math.min((daysElapsed / totalDays) * 100, 100);
@@ -1054,7 +876,6 @@ export default function StatsView() {
         );
     };
 
-    // Activity Chart
     const renderActivityChart = () => {
         const chartLabels = calculatedStats.historyData.map(d => {
             if (viewMode === 'daily') return d.date.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 2);
@@ -1069,9 +890,7 @@ export default function StatsView() {
                     <h3 className="font-bold text-gray-800 flex items-center gap-2"><Icons.Activity className="w-5 h-5 text-primary" />Activity Trend</h3>
                     <span className="text-xs text-gray-500">Last 7 {viewMode === 'daily' ? 'days' : viewMode === 'weekly' ? 'weeks' : 'months'}</span>
                 </div>
-                {hasData ? (
-                    <LineChart data={calculatedStats.historyData.map(d => d.tasks)} color="#4F46E5" height={120} labels={chartLabels} />
-                ) : (
+                {hasData ? <LineChart data={calculatedStats.historyData.map(d => d.tasks)} color="#4F46E5" height={120} labels={chartLabels} /> : (
                     <div className="flex flex-col items-center justify-center py-8 text-gray-400">
                         <Icons.Activity className="w-12 h-12 mb-2 opacity-30" />
                         <p className="text-sm text-gray-500">No activity data yet</p>
@@ -1081,20 +900,16 @@ export default function StatsView() {
         );
     };
 
-    // Task Breakdown
     const renderTaskBreakdown = () => {
         const hasData = calculatedStats.easyTasks > 0 || calculatedStats.mediumTasks > 0 || calculatedStats.hardTasks > 0;
-        
         return (
             <Card className="p-5 mb-6 bg-white border border-gray-200">
                 <h3 className="font-bold text-gray-800 flex items-center gap-2 mb-4"><Icons.PieChart className="w-5 h-5 text-primary" />Task Breakdown</h3>
-                {hasData ? (
-                    <DonutChart data={[
-                        { value: calculatedStats.easyTasks, color: '#10B981', label: 'Easy' },
-                        { value: calculatedStats.mediumTasks, color: '#F59E0B', label: 'Medium' },
-                        { value: calculatedStats.hardTasks, color: '#EF4444', label: 'Hard' }
-                    ]} size={140} />
-                ) : (
+                {hasData ? <DonutChart data={[
+                    { value: calculatedStats.easyTasks, color: '#10B981', label: 'Easy' },
+                    { value: calculatedStats.mediumTasks, color: '#F59E0B', label: 'Medium' },
+                    { value: calculatedStats.hardTasks, color: '#EF4444', label: 'Hard' }
+                ]} size={140} /> : (
                     <div className="flex flex-col items-center justify-center py-8 text-gray-400">
                         <Icons.PieChart className="w-12 h-12 mb-2 opacity-30" />
                         <p className="text-sm text-gray-500">No completed tasks</p>
@@ -1104,25 +919,22 @@ export default function StatsView() {
         );
     };
 
-    // Credits Chart with Icons.Coins
+    // Credits Chart with CoinIcon
     const renderCreditsChart = () => {
         const hasData = calculatedStats.historyData.some(d => d.credits > 0);
-        
         return (
             <Card className="p-5 mb-6 bg-white border border-gray-200">
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-bold text-gray-800 flex items-center gap-2"><Icons.Coins className="w-5 h-5 text-amber-500" />Credits Earned</h3>
-                    <span className="text-xs text-gray-500 flex items-center gap-1">Total: <Icons.Coins className="w-3 h-3 text-amber-500" /> {calculatedStats.totalCredits}</span>
+                    <h3 className="font-bold text-gray-800 flex items-center gap-2"><CoinIcon className="w-5 h-5" />Credits Earned</h3>
+                    <span className="text-xs text-gray-500 flex items-center gap-1">Total: <CoinIcon className="w-3 h-3" /> {calculatedStats.totalCredits}</span>
                 </div>
-                {hasData ? (
-                    <BarChart data={calculatedStats.historyData.map((d, i) => ({
-                        label: viewMode === 'daily' ? d.date.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 2) : viewMode === 'weekly' ? `W${i + 1}` : d.date.toLocaleDateString('en-US', { month: 'short' }).slice(0, 3),
-                        value: d.credits,
-                        color: i === calculatedStats.historyData.length - 1 ? '#F59E0B' : '#FCD34D'
-                    }))} height={100} />
-                ) : (
+                {hasData ? <BarChart data={calculatedStats.historyData.map((d, i) => ({
+                    label: viewMode === 'daily' ? d.date.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 2) : viewMode === 'weekly' ? `W${i + 1}` : d.date.toLocaleDateString('en-US', { month: 'short' }).slice(0, 3),
+                    value: d.credits,
+                    color: i === calculatedStats.historyData.length - 1 ? '#F59E0B' : '#FCD34D'
+                }))} height={100} /> : (
                     <div className="flex flex-col items-center justify-center py-8 text-gray-400">
-                        <Icons.Coins className="w-12 h-12 mb-2 opacity-30" />
+                        <CoinIcon className="w-12 h-12 mb-2 opacity-30" />
                         <p className="text-sm text-gray-500">No credits earned yet</p>
                     </div>
                 )}
@@ -1130,10 +942,8 @@ export default function StatsView() {
         );
     };
 
-    // Portfolio Allocation
     const renderPortfolioAllocation = () => {
         if (user.goal?.category !== 'Money & Career' || !budgetData) return null;
-        
         return (
             <Card className="p-5 mb-6 bg-white border border-gray-200">
                 <h3 className="font-bold text-gray-800 flex items-center gap-2 mb-4"><Icons.PieChart className="w-5 h-5 text-primary" />Portfolio Allocation</h3>
@@ -1160,7 +970,6 @@ export default function StatsView() {
         );
     };
 
-    // Connected Apps
     const renderConnectedApps = () => {
         const relevantApps = (user.connectedApps || []).filter(app => app.isConnected);
         if (relevantApps.length === 0) return null;
@@ -1200,7 +1009,6 @@ export default function StatsView() {
         );
     };
 
-    // Upcoming Milestones (only 3)
     const renderUpcomingMilestones = () => {
         const upcomingEvents = allEvents.filter(e => new Date(e.date) >= new Date()).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(0, 3);
         if (upcomingEvents.length === 0) return null;
@@ -1232,10 +1040,8 @@ export default function StatsView() {
         );
     };
 
-    // AI Insights
     const renderInsights = () => {
         const displayInsights = insights || mockInsights;
-        
         return (
             <Card className="bg-gradient-to-br from-primary via-primary to-indigo-700 text-white p-6 shadow-2xl border-none relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2"></div>
@@ -1272,7 +1078,7 @@ export default function StatsView() {
         );
     };
 
-    // Event Modal
+    // Modals
     const renderEventModal = () => {
         if (!showEventModal) return null;
         return (
@@ -1305,7 +1111,6 @@ export default function StatsView() {
         );
     };
 
-    // Day Events Modal
     const renderDayEventsModal = () => {
         if (!showDayEvents) return null;
         const dayEvents = getEventsForDate(new Date(selectedDate));

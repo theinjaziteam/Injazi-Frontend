@@ -1,16 +1,96 @@
-import React, { useState, useRef, useCallback } from 'react';
+// views/SocialView.tsx
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { AppView, SocialSection, GoalCategory, Lesson, Course, Product, QuizQuestion, Chapter, Friend, TaskStatus } from '../types';
 import { Icons, Button, Badge, Card } from '../components/UIComponents';
 import { api } from '../services/api';
 import { generateLessonContent, generateLessonTasks } from '../services/geminiService';
 
+// Mock data for challenges
+interface Challenge {
+    id: string;
+    title: string;
+    description: string;
+    type: 'tasks' | 'credits' | 'streak';
+    duration: string;
+    participants: Friend[];
+    creatorId: string;
+    creatorName: string;
+    startDate: string;
+    endDate: string;
+    status: 'active' | 'pending' | 'completed';
+    myScore?: number;
+    leaderboard: { odlUserId: string; name: string; avatar: string; score: number }[];
+}
+
+interface FriendActivity {
+    id: string;
+    odlUserId: string;
+    userName: string;
+    userAvatar: string;
+    type: 'course' | 'product' | 'video' | 'goal_complete' | 'streak';
+    title: string;
+    description?: string;
+    thumbnail?: string;
+    timestamp: string;
+    itemId?: string;
+}
+
 const MOCK_GLOBAL_USERS: Friend[] = [
-    { id: 'g1', name: 'Alex Builder', streak: 45, avatar: 'https://picsum.photos/seed/alex/200', lastActive: '5m ago', goalTitle: 'Launch Startup', progress: 60 },
-    { id: 'g2', name: 'Jordan Fit', streak: 120, avatar: 'https://picsum.photos/seed/jordan/200', lastActive: '1h ago', goalTitle: 'Ironman Training', progress: 85 },
-    { id: 'g3', name: 'Casey Code', streak: 8, avatar: 'https://picsum.photos/seed/casey/200', lastActive: '2d ago', goalTitle: 'Master React', progress: 15 },
-    { id: 'g4', name: 'Dana Design', streak: 33, avatar: 'https://picsum.photos/seed/dana/200', lastActive: '10m ago', goalTitle: 'UX Portfolio', progress: 40 },
-    { id: 'g5', name: 'Sam Sales', streak: 19, avatar: 'https://picsum.photos/seed/sam/200', lastActive: '4h ago', goalTitle: '1M Revenue', progress: 30 },
+    { id: 'g1', name: 'Alex Builder', streak: 45, avatar: 'https://picsum.photos/seed/alex/200', lastActive: '5m ago', goalTitle: 'Launch Startup', progress: 60, credits: 12500, tasksCompleted: 89 },
+    { id: 'g2', name: 'Jordan Fit', streak: 120, avatar: 'https://picsum.photos/seed/jordan/200', lastActive: '1h ago', goalTitle: 'Ironman Training', progress: 85, credits: 34200, tasksCompleted: 156 },
+    { id: 'g3', name: 'Casey Code', streak: 8, avatar: 'https://picsum.photos/seed/casey/200', lastActive: '2d ago', goalTitle: 'Master React', progress: 15, credits: 4300, tasksCompleted: 23 },
+    { id: 'g4', name: 'Dana Design', streak: 33, avatar: 'https://picsum.photos/seed/dana/200', lastActive: '10m ago', goalTitle: 'UX Portfolio', progress: 40, credits: 8900, tasksCompleted: 67 },
+    { id: 'g5', name: 'Sam Sales', streak: 19, avatar: 'https://picsum.photos/seed/sam/200', lastActive: '4h ago', goalTitle: '1M Revenue', progress: 30, credits: 15600, tasksCompleted: 45 },
+];
+
+const MOCK_CHALLENGES: Challenge[] = [
+    {
+        id: 'ch1',
+        title: 'Weekly Task Champion',
+        description: 'Complete the most tasks this week',
+        type: 'tasks',
+        duration: '7 days',
+        participants: [MOCK_GLOBAL_USERS[0], MOCK_GLOBAL_USERS[1]],
+        creatorId: 'g1',
+        creatorName: 'Alex Builder',
+        startDate: new Date().toISOString(),
+        endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        status: 'active',
+        myScore: 12,
+        leaderboard: [
+            { odlUserId: 'me', name: 'You', avatar: 'https://picsum.photos/seed/me/200', score: 12 },
+            { odlUserId: 'g1', name: 'Alex Builder', avatar: 'https://picsum.photos/seed/alex/200', score: 15 },
+            { odlUserId: 'g2', name: 'Jordan Fit', avatar: 'https://picsum.photos/seed/jordan/200', score: 8 },
+        ]
+    },
+    {
+        id: 'ch2',
+        title: 'Credit Earners',
+        description: 'Who can earn the most credits?',
+        type: 'credits',
+        duration: '30 days',
+        participants: [MOCK_GLOBAL_USERS[2], MOCK_GLOBAL_USERS[3]],
+        creatorId: 'g3',
+        creatorName: 'Casey Code',
+        startDate: new Date().toISOString(),
+        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        status: 'active',
+        myScore: 2450,
+        leaderboard: [
+            { odlUserId: 'g3', name: 'Casey Code', avatar: 'https://picsum.photos/seed/casey/200', score: 3200 },
+            { odlUserId: 'me', name: 'You', avatar: 'https://picsum.photos/seed/me/200', score: 2450 },
+            { odlUserId: 'g4', name: 'Dana Design', avatar: 'https://picsum.photos/seed/dana/200', score: 1800 },
+        ]
+    }
+];
+
+const MOCK_FRIEND_ACTIVITIES: FriendActivity[] = [
+    { id: 'fa1', odlUserId: 'g1', userName: 'Alex Builder', userAvatar: 'https://picsum.photos/seed/alex/200', type: 'course', title: 'Published a new course', description: 'Startup Fundamentals 101', thumbnail: 'https://picsum.photos/seed/course1/400/300', timestamp: '2h ago' },
+    { id: 'fa2', odlUserId: 'g2', userName: 'Jordan Fit', userAvatar: 'https://picsum.photos/seed/jordan/200', type: 'video', title: 'Posted a new video', description: 'My morning workout routine', thumbnail: 'https://picsum.photos/seed/video1/400/300', timestamp: '4h ago' },
+    { id: 'fa3', odlUserId: 'g4', userName: 'Dana Design', userAvatar: 'https://picsum.photos/seed/dana/200', type: 'product', title: 'Listed a new product', description: 'UX Design Template Pack', thumbnail: 'https://picsum.photos/seed/product1/400/300', timestamp: '1d ago' },
+    { id: 'fa4', odlUserId: 'g3', userName: 'Casey Code', userAvatar: 'https://picsum.photos/seed/casey/200', type: 'goal_complete', title: 'Completed a goal!', description: 'Learn TypeScript Basics', timestamp: '2d ago' },
+    { id: 'fa5', odlUserId: 'g5', userName: 'Sam Sales', userAvatar: 'https://picsum.photos/seed/sam/200', type: 'streak', title: 'Hit a 20-day streak!', description: 'Consistency pays off', timestamp: '3d ago' },
 ];
 
 export default function SocialView() {
@@ -37,15 +117,45 @@ export default function SocialView() {
     const [quizFinished, setQuizFinished] = useState(false);
     
     const [searchQuery, setSearchQuery] = useState('');
+    const [productSearchQuery, setProductSearchQuery] = useState('');
+    const [courseSearchQuery, setCourseSearchQuery] = useState('');
     const [isAddingItem, setIsAddingItem] = useState(false);
     const [newItemTitle, setNewItemTitle] = useState('');
     const [newItemDesc, setNewItemDesc] = useState('');
     const [newItemPriceUsd, setNewItemPriceUsd] = useState<string>('');
 
+    // Community tab state
+    const [communityTab, setCommunityTab] = useState<'friends' | 'challenges' | 'activity'>('friends');
+    const [challenges, setChallenges] = useState<Challenge[]>(MOCK_CHALLENGES);
+    const [friendActivities] = useState<FriendActivity[]>(MOCK_FRIEND_ACTIVITIES);
+    const [showCreateChallenge, setShowCreateChallenge] = useState(false);
+    const [newChallenge, setNewChallenge] = useState({ title: '', type: 'tasks' as 'tasks' | 'credits' | 'streak', duration: '7' });
+    const [viewingChallenge, setViewingChallenge] = useState<Challenge | null>(null);
+
     // TikTok-style header visibility for Feed only
     const [isFeedHeaderVisible, setIsFeedHeaderVisible] = useState(true);
     const lastScrollY = useRef(0);
     const scrollTimeout = useRef<NodeJS.Timeout | null>(null);
+
+    // Filter products by search
+    const filteredProducts = useMemo(() => {
+        if (!productSearchQuery.trim()) return adsFeed;
+        return adsFeed.filter(p => 
+            p.title.toLowerCase().includes(productSearchQuery.toLowerCase()) ||
+            (p.description && p.description.toLowerCase().includes(productSearchQuery.toLowerCase())) ||
+            (p.creatorName && p.creatorName.toLowerCase().includes(productSearchQuery.toLowerCase()))
+        );
+    }, [adsFeed, productSearchQuery]);
+
+    // Filter courses by search
+    const filteredCourses = useMemo(() => {
+        if (!courseSearchQuery.trim()) return courses;
+        return courses.filter(c => 
+            c.title.toLowerCase().includes(courseSearchQuery.toLowerCase()) ||
+            (c.description && c.description.toLowerCase().includes(courseSearchQuery.toLowerCase())) ||
+            (c.creator && c.creator.toLowerCase().includes(courseSearchQuery.toLowerCase()))
+        );
+    }, [courses, courseSearchQuery]);
 
     const getCommunityList = () => {
         if (!searchQuery) return friends;
@@ -64,21 +174,17 @@ export default function SocialView() {
         const currentScrollY = e.currentTarget.scrollTop;
         const scrollDiff = currentScrollY - lastScrollY.current;
         
-        // Clear existing timeout
         if (scrollTimeout.current) {
             clearTimeout(scrollTimeout.current);
         }
         
-        // Scrolling down - hide header
         if (scrollDiff > 8 && currentScrollY > 60) {
             setIsFeedHeaderVisible(false);
         }
-        // Scrolling up - show header
         else if (scrollDiff < -8) {
             setIsFeedHeaderVisible(true);
         }
         
-        // Show header after scroll stops
         scrollTimeout.current = setTimeout(() => {
             setIsFeedHeaderVisible(true);
         }, 2000);
@@ -86,26 +192,25 @@ export default function SocialView() {
         lastScrollY.current = currentScrollY;
     }, []);
 
+    // Navigate to user profile in community
+    const handleProfileClick = (profile: Friend) => {
+        setViewingProfile(profile);
+        setActiveSocialSection(SocialSection.FRIENDS);
+    };
+
     // Check lesson status
     const getLessonStatus = (lessonId: string): 'not_started' | 'in_progress' | 'completed' => {
         const lessonTasks = dailyTasks.filter(t => t.sourceLessonId === lessonId && t.isLessonTask);
         
-        if (lessonTasks.length === 0) {
-            return 'not_started';
-        }
+        if (lessonTasks.length === 0) return 'not_started';
         
         const allCompleted = lessonTasks.every(t => 
             t.status === TaskStatus.APPROVED || t.status === TaskStatus.COMPLETED
         );
         
-        if (allCompleted) {
-            return 'completed';
-        }
-        
-        return 'in_progress';
+        return allCompleted ? 'completed' : 'in_progress';
     };
 
-    // Get pending task count for a lesson
     const getPendingTaskCount = (lessonId: string): number => {
         return dailyTasks.filter(t => 
             t.sourceLessonId === lessonId && 
@@ -115,7 +220,6 @@ export default function SocialView() {
         ).length;
     };
 
-    // Handle lesson click - generates content on demand
     const handleLessonClick = async (lesson: Lesson, chapter: Chapter) => {
         if (lesson.isLocked) return;
         
@@ -131,12 +235,7 @@ export default function SocialView() {
         
         try {
             const content = await generateLessonContent(
-                { 
-                    id: lesson.id, 
-                    title: lesson.title, 
-                    description: lesson.description || '', 
-                    duration: lesson.duration 
-                },
+                { id: lesson.id, title: lesson.title, description: lesson.description || '', duration: lesson.duration },
                 user.goal!,
                 chapter.title
             );
@@ -147,12 +246,7 @@ export default function SocialView() {
                 
                 const updatedLessons = lessons.map(ch => {
                     if (ch.id === chapter.id) {
-                        return {
-                            ...ch,
-                            lessons: ch.lessons.map(l => 
-                                l.id === lesson.id ? { ...l, content } : l
-                            )
-                        };
+                        return { ...ch, lessons: ch.lessons.map(l => l.id === lesson.id ? { ...l, content } : l) };
                     }
                     return ch;
                 });
@@ -162,15 +256,8 @@ export default function SocialView() {
                 if (user.goal) {
                     setUser(prev => ({
                         ...prev,
-                        goal: {
-                            ...prev.goal!,
-                            savedCurriculum: updatedLessons
-                        },
-                        allGoals: prev.allGoals.map(g =>
-                            g.id === prev.goal?.id 
-                                ? { ...g, savedCurriculum: updatedLessons }
-                                : g
-                        )
+                        goal: { ...prev.goal!, savedCurriculum: updatedLessons },
+                        allGoals: prev.allGoals.map(g => g.id === prev.goal?.id ? { ...g, savedCurriculum: updatedLessons } : g)
                     }));
                 }
             }
@@ -188,23 +275,14 @@ export default function SocialView() {
         
         try {
             const lessonTasks = await generateLessonTasks(
-                {
-                    id: viewingLesson.id,
-                    title: viewingLesson.title,
-                    description: viewingLesson.description || ''
-                },
+                { id: viewingLesson.id, title: viewingLesson.title, description: viewingLesson.description || '' },
                 user.goal,
                 viewingLesson.content
             );
             
-            setUser(prev => ({
-                ...prev,
-                dailyTasks: [...(prev.dailyTasks || []), ...lessonTasks]
-            }));
-            
+            setUser(prev => ({ ...prev, dailyTasks: [...(prev.dailyTasks || []), ...lessonTasks] }));
             closeLessonModal();
             setView(AppView.DASHBOARD);
-            
         } catch (error) {
             console.error('Failed to start lesson:', error);
             alert('Failed to generate lesson tasks. Please try again.');
@@ -341,6 +419,49 @@ export default function SocialView() {
         }
     };
 
+    const handleCreateChallenge = () => {
+        if (!newChallenge.title.trim()) {
+            alert('Please enter a challenge title');
+            return;
+        }
+
+        const challenge: Challenge = {
+            id: `ch-${Date.now()}`,
+            title: newChallenge.title,
+            description: newChallenge.type === 'tasks' ? 'Complete the most tasks' : 
+                         newChallenge.type === 'credits' ? 'Earn the most credits' : 'Maintain the longest streak',
+            type: newChallenge.type,
+            duration: `${newChallenge.duration} days`,
+            participants: [],
+            creatorId: 'me',
+            creatorName: user.name,
+            startDate: new Date().toISOString(),
+            endDate: new Date(Date.now() + parseInt(newChallenge.duration) * 24 * 60 * 60 * 1000).toISOString(),
+            status: 'pending',
+            myScore: 0,
+            leaderboard: [{ odlUserId: 'me', name: 'You', avatar: 'https://picsum.photos/seed/me/200', score: 0 }]
+        };
+
+        setChallenges(prev => [challenge, ...prev]);
+        setShowCreateChallenge(false);
+        setNewChallenge({ title: '', type: 'tasks', duration: '7' });
+        alert('Challenge created! Invite friends to join.');
+    };
+
+    const handleJoinChallenge = (challenge: Challenge) => {
+        setChallenges(prev => prev.map(c => {
+            if (c.id === challenge.id) {
+                return {
+                    ...c,
+                    status: 'active' as const,
+                    leaderboard: [...c.leaderboard, { odlUserId: 'me', name: 'You', avatar: 'https://picsum.photos/seed/me/200', score: 0 }]
+                };
+            }
+            return c;
+        }));
+        alert('You joined the challenge!');
+    };
+
     const closeLessonModal = () => {
         setViewingLesson(null);
         setIsLoadingLessonContent(false);
@@ -350,35 +471,6 @@ export default function SocialView() {
 
     // ==================== RENDER FUNCTIONS ====================
 
-    // Standard header for non-Feed sections
-    const renderHeader = () => (
-        <div className="sticky top-0 z-40 bg-white border-b border-gray-100 pt-safe">
-            <div className="flex overflow-x-auto no-scrollbar p-4 gap-3">
-                {[
-                  { id: SocialSection.LESSONS, label: 'Curriculum' },
-                  { id: SocialSection.FOR_YOU, label: 'Feed' },
-                  { id: SocialSection.RECOMMENDED, label: 'Resources' },
-                  { id: SocialSection.FRIENDS, label: 'Community' },
-                  { id: SocialSection.PRODUCTS, label: 'Products' },
-                  { id: SocialSection.COURSES, label: 'Courses' }
-                ].map(section => (
-                    <button 
-                        key={section.id}
-                        onClick={() => setActiveSocialSection(section.id)}
-                        className={`whitespace-nowrap px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all 
-                            ${activeSocialSection === section.id 
-                                ? 'bg-primary text-white shadow-lg shadow-primary/20' 
-                                : 'bg-gray-100 text-gray-400 hover:text-primary'
-                            }`}
-                    >
-                        {section.label}
-                    </button>
-                ))}
-            </div>
-        </div>
-    );
-
-    // TikTok-style header for Feed section (transparent, slides away)
     const renderFeedHeader = () => (
         <div 
             className={`absolute top-0 left-0 right-0 z-50 bg-gradient-to-b from-black/70 via-black/40 to-transparent pt-safe transition-all duration-300 ease-out ${
@@ -400,7 +492,7 @@ export default function SocialView() {
                             setActiveSocialSection(section.id);
                             setIsFeedHeaderVisible(true);
                         }}
-                        className={`whitespace-nowrap px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all backdrop-blur-sm
+                        className={`whitespace-nowrap px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all backdrop-blur-sm flex-shrink-0
                             ${activeSocialSection === section.id 
                                 ? 'bg-white text-primary shadow-lg' 
                                 : 'bg-white/20 text-white hover:bg-white/30'
@@ -553,7 +645,7 @@ export default function SocialView() {
         );
     };
 
-    // Feed with TikTok-style scroll behavior
+    // Feed with clickable profile
     const renderForYou = () => (
         <div 
             onScroll={handleFeedScroll}
@@ -564,15 +656,33 @@ export default function SocialView() {
                     <img src={item.thumbnailUrl} className="absolute inset-0 w-full h-full object-cover opacity-70" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40 pointer-events-none" />
                     
-                    {/* Content */}
+                    {/* Content with clickable profile */}
                     <div className="absolute left-4 bottom-28 right-20 text-white animate-fade-in">
-                        <div className="flex items-center gap-3 mb-3">
-                            <img src={item.creatorAvatar} className="w-10 h-10 rounded-full border-2 border-white/30" />
-                            <div>
-                                <h3 className="font-bold text-base">@{item.creatorName}</h3>
-                                <p className="text-[10px] text-white/60">Creator</p>
+                        <button 
+                            onClick={() => handleProfileClick({
+                                id: item.creatorId || `creator-${index}`,
+                                name: item.creatorName,
+                                avatar: item.creatorAvatar,
+                                streak: Math.floor(Math.random() * 100) + 1,
+                                lastActive: 'Just now',
+                                goalTitle: 'Content Creator',
+                                progress: Math.floor(Math.random() * 100),
+                                credits: Math.floor(Math.random() * 50000),
+                                tasksCompleted: Math.floor(Math.random() * 200)
+                            })}
+                            className="flex items-center gap-3 mb-3 group"
+                        >
+                            <div className="relative">
+                                <img src={item.creatorAvatar} className="w-12 h-12 rounded-full border-2 border-white/30 group-hover:border-white transition-colors" />
+                                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-primary rounded-full flex items-center justify-center border-2 border-black">
+                                    <Icons.Plus className="w-3 h-3 text-white" />
+                                </div>
                             </div>
-                        </div>
+                            <div className="text-left">
+                                <h3 className="font-bold text-base group-hover:text-secondary transition-colors">@{item.creatorName}</h3>
+                                <p className="text-[10px] text-white/60">Tap to view profile</p>
+                            </div>
+                        </button>
                         <p className="text-sm font-bold leading-tight mb-2">{item.title}</p>
                         {item.description && (
                             <p className="text-[11px] text-white/70 leading-relaxed max-w-[90%] line-clamp-2">{item.description}</p>
@@ -581,6 +691,29 @@ export default function SocialView() {
 
                     {/* Action buttons */}
                     <div className="absolute right-4 bottom-32 flex flex-col gap-5 items-center">
+                        {/* Profile button */}
+                        <button 
+                            onClick={() => handleProfileClick({
+                                id: item.creatorId || `creator-${index}`,
+                                name: item.creatorName,
+                                avatar: item.creatorAvatar,
+                                streak: Math.floor(Math.random() * 100) + 1,
+                                lastActive: 'Just now',
+                                goalTitle: 'Content Creator',
+                                progress: Math.floor(Math.random() * 100),
+                                credits: Math.floor(Math.random() * 50000),
+                                tasksCompleted: Math.floor(Math.random() * 200)
+                            })}
+                            className="flex flex-col items-center group cursor-pointer"
+                        >
+                            <div className="relative">
+                                <img src={item.creatorAvatar} className="w-12 h-12 rounded-full border-2 border-white/50 group-active:scale-90 transition-transform" />
+                                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center border-2 border-black">
+                                    <Icons.Plus className="w-3 h-3 text-white" />
+                                </div>
+                            </div>
+                        </button>
+                        
                         <div className="flex flex-col items-center group cursor-pointer">
                             <div className="p-3 bg-white/10 rounded-full backdrop-blur-md group-active:scale-90 transition-transform">
                                 <Icons.Heart className={`w-7 h-7 ${item.isLiked ? 'text-red-500 fill-red-500' : 'text-white'}`}/>
@@ -601,7 +734,6 @@ export default function SocialView() {
                         </div>
                     </div>
 
-                    {/* Scroll hint on first item */}
                     {index === 0 && (
                         <div className="absolute bottom-20 left-1/2 -translate-x-1/2 flex flex-col items-center animate-bounce">
                             <Icons.ChevronDown className="w-6 h-6 text-white/50" />
@@ -621,104 +753,318 @@ export default function SocialView() {
         </div>
     );
 
+    // Marketplace with search
     const renderMarketplace = (type: 'products' | 'courses') => {
-    const items = type === 'courses' ? courses : adsFeed;
-    
-    return (
-        <div className="p-4 space-y-3">
-            {items.length > 0 ? items.map(item => (
-                <div 
-                    key={item.id} 
-                    className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex gap-3 p-3 active:scale-[0.98] transition-transform"
-                >
-                    {/* Thumbnail - Square, compact */}
-                    <div className="w-24 h-24 rounded-xl bg-gray-100 overflow-hidden flex-shrink-0">
-                        <img 
-                            src={(item as any).thumbnail || (item as any).mediaUrls?.[0]} 
-                            className="w-full h-full object-cover" 
-                            alt={item.title}
-                        />
-                    </div>
-                    
-                    {/* Content */}
-                    <div className="flex-1 flex flex-col justify-between min-w-0 py-0.5">
-                        <div>
-                            <div className="flex items-center gap-2 mb-1">
-                                <span className="text-[8px] font-bold uppercase px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                                    {type === 'courses' ? 'Course' : 'Product'}
-                                </span>
-                            </div>
-                            <h4 className="font-bold text-primary text-sm leading-tight line-clamp-1">
-                                {item.title}
-                            </h4>
-                            <p className="text-[10px] text-gray-400 mt-0.5 line-clamp-1">
-                                By {(item as any).creator || (item as any).creatorName}
-                            </p>
+        const items = type === 'courses' ? filteredCourses : filteredProducts;
+        const searchValue = type === 'courses' ? courseSearchQuery : productSearchQuery;
+        const setSearchValue = type === 'courses' ? setCourseSearchQuery : setProductSearchQuery;
+        
+        return (
+            <div className="p-4 space-y-3">
+                {/* Search Bar */}
+                <div className="relative mb-4">
+                    <Icons.Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300"/>
+                    <input 
+                        type="text" 
+                        placeholder={`Search ${type}...`}
+                        className="w-full pl-12 pr-4 py-3.5 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-primary/20 transition-all outline-none text-sm font-medium" 
+                        value={searchValue}
+                        onChange={(e) => setSearchValue(e.target.value)}
+                    />
+                    {searchValue && (
+                        <button 
+                            onClick={() => setSearchValue('')}
+                            className="absolute right-4 top-1/2 -translate-y-1/2 p-1 bg-gray-200 rounded-full"
+                        >
+                            <Icons.X className="w-3 h-3 text-gray-500" />
+                        </button>
+                    )}
+                </div>
+
+                {/* Results count */}
+                {searchValue && (
+                    <p className="text-xs text-gray-400 mb-2">
+                        {items.length} result{items.length !== 1 ? 's' : ''} for "{searchValue}"
+                    </p>
+                )}
+
+                {items.length > 0 ? items.map(item => (
+                    <div 
+                        key={item.id} 
+                        className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex gap-3 p-3 active:scale-[0.98] transition-transform"
+                    >
+                        <div className="w-24 h-24 rounded-xl bg-gray-100 overflow-hidden flex-shrink-0">
+                            <img 
+                                src={(item as any).thumbnail || (item as any).mediaUrls?.[0]} 
+                                className="w-full h-full object-cover" 
+                                alt={item.title}
+                            />
                         </div>
                         
-                        <div className="flex items-center justify-between mt-2">
-                            <div className="text-base font-black text-primary">
-                                {((item as any).priceCredits || Math.round(((item as any).priceUsd || 10) * 4000)).toLocaleString()} 
-                                <span className="text-[10px] font-bold text-gray-400 ml-0.5">CR</span>
+                        <div className="flex-1 flex flex-col justify-between min-w-0 py-0.5">
+                            <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-[8px] font-bold uppercase px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                                        {type === 'courses' ? 'Course' : 'Product'}
+                                    </span>
+                                </div>
+                                <h4 className="font-bold text-primary text-sm leading-tight line-clamp-1">
+                                    {item.title}
+                                </h4>
+                                <p className="text-[10px] text-gray-400 mt-0.5 line-clamp-1">
+                                    By {(item as any).creator || (item as any).creatorName}
+                                </p>
                             </div>
-                            <button 
-                                onClick={(e) => { e.stopPropagation(); handleBuyItem(item); }}
-                                className="bg-primary text-white text-[9px] font-bold uppercase tracking-wider px-4 py-2 rounded-xl active:scale-95 transition-transform"
-                            >
-                                Get
-                            </button>
+                            
+                            <div className="flex items-center justify-between mt-2">
+                                <div className="text-base font-black text-primary">
+                                    {((item as any).priceCredits || Math.round(((item as any).priceUsd || 10) * 4000)).toLocaleString()} 
+                                    <span className="text-[10px] font-bold text-gray-400 ml-0.5">CR</span>
+                                </div>
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); handleBuyItem(item); }}
+                                    className="bg-primary text-white text-[9px] font-bold uppercase tracking-wider px-4 py-2 rounded-xl active:scale-95 transition-transform"
+                                >
+                                    Get
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )) : (
-                <div className="flex flex-col items-center justify-center py-16">
-                    <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
-                        <Icons.ShoppingBag className="w-7 h-7 text-gray-300" />
-                    </div>
-                    <h3 className="text-gray-400 font-bold text-sm">No Items Yet</h3>
-                    <p className="text-[11px] text-gray-300 mt-1">Check back soon!</p>
-                </div>
-            )}
-        </div>
-    );
-};
-
-    const renderFriends = () => (
-        <div className="p-5 pb-4 space-y-5">
-            <div className="relative mb-6">
-                <Icons.Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300"/>
-                <input 
-                    type="text" 
-                    placeholder="Search community..." 
-                    className="w-full pl-12 p-4 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-primary/20 transition-all outline-none text-sm font-medium" 
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-                {communityList.length > 0 ? communityList.map(f => {
-                    const isFriend = friends.some(existing => existing.id === f.id);
-                    return (
-                        <Card 
-                            key={f.id} 
-                            onClick={() => setViewingProfile(f)}
-                            className={`p-5 text-center group cursor-pointer transition-all border-2
-                                ${!isFriend ? 'bg-gray-50 border-dashed border-gray-200' : 'bg-white border-gray-100 hover:border-primary/20'}`}
-                        >
-                            <div className="w-16 h-16 rounded-full mx-auto bg-gray-200 border-4 border-white shadow-lg mb-3 overflow-hidden group-hover:scale-105 transition-transform">
-                                <img src={f.avatar} className="w-full h-full object-cover" />
-                            </div>
-                            <h4 className="font-bold text-sm text-primary truncate mb-1">{f.name}</h4>
-                            <span className="text-[10px] font-bold text-gray-400">{f.streak} day streak</span>
-                            {!isFriend && (
-                                <span className="block mt-2 text-[9px] bg-gray-200 text-gray-500 px-2 py-1 rounded-full font-bold">Suggested</span>
+                )) : (
+                    <div className="flex flex-col items-center justify-center py-16">
+                        <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
+                            {searchValue ? (
+                                <Icons.Search className="w-7 h-7 text-gray-300" />
+                            ) : (
+                                <Icons.ShoppingBag className="w-7 h-7 text-gray-300" />
                             )}
-                        </Card>
-                    );
-                }) : (
-                    <div className="col-span-2 text-center py-10 text-gray-400 font-medium">No users found</div>
+                        </div>
+                        <h3 className="text-gray-400 font-bold text-sm">
+                            {searchValue ? 'No Results Found' : 'No Items Yet'}
+                        </h3>
+                        <p className="text-[11px] text-gray-300 mt-1">
+                            {searchValue ? 'Try a different search term' : 'Check back soon!'}
+                        </p>
+                    </div>
                 )}
             </div>
+        );
+    };
+
+    // Enhanced Community with tabs
+    const renderFriends = () => (
+        <div className="p-5 pb-4 space-y-5">
+            {/* Community Tabs */}
+            <div className="flex gap-2 mb-4">
+                {[
+                    { id: 'friends', label: 'Friends', icon: Icons.Users },
+                    { id: 'challenges', label: 'Challenges', icon: Icons.Trophy },
+                    { id: 'activity', label: 'Activity', icon: Icons.Activity }
+                ].map(tab => (
+                    <button
+                        key={tab.id}
+                        onClick={() => setCommunityTab(tab.id as any)}
+                        className={`flex-1 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
+                            communityTab === tab.id
+                                ? 'bg-primary text-white shadow-lg shadow-primary/20'
+                                : 'bg-gray-100 text-gray-400'
+                        }`}
+                    >
+                        <tab.icon className="w-4 h-4" />
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
+
+            {/* Friends Tab */}
+            {communityTab === 'friends' && (
+                <>
+                    <div className="relative mb-4">
+                        <Icons.Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300"/>
+                        <input 
+                            type="text" 
+                            placeholder="Search friends..." 
+                            className="w-full pl-12 p-4 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-primary/20 transition-all outline-none text-sm font-medium" 
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        {communityList.length > 0 ? communityList.map(f => {
+                            const isFriend = friends.some(existing => existing.id === f.id);
+                            return (
+                                <Card 
+                                    key={f.id} 
+                                    onClick={() => setViewingProfile(f)}
+                                    className={`p-5 text-center group cursor-pointer transition-all border-2
+                                        ${!isFriend ? 'bg-gray-50 border-dashed border-gray-200' : 'bg-white border-gray-100 hover:border-primary/20'}`}
+                                >
+                                    <div className="w-16 h-16 rounded-full mx-auto bg-gray-200 border-4 border-white shadow-lg mb-3 overflow-hidden group-hover:scale-105 transition-transform">
+                                        <img src={f.avatar} className="w-full h-full object-cover" />
+                                    </div>
+                                    <h4 className="font-bold text-sm text-primary truncate mb-1">{f.name}</h4>
+                                    <span className="text-[10px] font-bold text-gray-400">{f.streak} day streak</span>
+                                    {!isFriend && (
+                                        <span className="block mt-2 text-[9px] bg-gray-200 text-gray-500 px-2 py-1 rounded-full font-bold">Suggested</span>
+                                    )}
+                                </Card>
+                            );
+                        }) : (
+                            <div className="col-span-2 text-center py-10 text-gray-400 font-medium">No users found</div>
+                        )}
+                    </div>
+                </>
+            )}
+
+            {/* Challenges Tab */}
+            {communityTab === 'challenges' && (
+                <div className="space-y-4">
+                    {/* Create Challenge Button */}
+                    <button
+                        onClick={() => setShowCreateChallenge(true)}
+                        className="w-full p-4 border-2 border-dashed border-primary/30 rounded-2xl flex items-center justify-center gap-3 text-primary hover:bg-primary/5 transition-colors"
+                    >
+                        <Icons.Plus className="w-5 h-5" />
+                        <span className="font-bold text-sm">Create New Challenge</span>
+                    </button>
+
+                    {/* Active Challenges */}
+                    <h3 className="font-black text-primary text-sm uppercase tracking-wider mt-6">Active Challenges</h3>
+                    {challenges.filter(c => c.status === 'active').map(challenge => (
+                        <div 
+                            key={challenge.id}
+                            onClick={() => setViewingChallenge(challenge)}
+                            className="bg-gradient-to-br from-primary to-secondary p-5 rounded-2xl text-white cursor-pointer active:scale-[0.98] transition-transform"
+                        >
+                            <div className="flex items-start justify-between mb-3">
+                                <div>
+                                    <h4 className="font-bold text-base">{challenge.title}</h4>
+                                    <p className="text-[10px] text-white/60 mt-1">{challenge.description}</p>
+                                </div>
+                                <div className="px-3 py-1 bg-white/20 rounded-full text-[9px] font-bold uppercase">
+                                    {challenge.type}
+                                </div>
+                            </div>
+                            
+                            {/* Mini Leaderboard */}
+                            <div className="bg-white/10 rounded-xl p-3 mt-3">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-[9px] font-bold uppercase text-white/60">Leaderboard</span>
+                                    <span className="text-[9px] font-bold text-white/60">{challenge.duration} left</span>
+                                </div>
+                                <div className="space-y-2">
+                                    {challenge.leaderboard.slice(0, 3).map((entry, idx) => (
+                                        <div key={entry.odlUserId} className="flex items-center gap-2">
+                                            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black ${
+                                                idx === 0 ? 'bg-yellow-400 text-yellow-900' :
+                                                idx === 1 ? 'bg-gray-300 text-gray-700' :
+                                                'bg-amber-600 text-amber-100'
+                                            }`}>
+                                                {idx + 1}
+                                            </span>
+                                            <img src={entry.avatar} className="w-6 h-6 rounded-full" />
+                                            <span className="flex-1 text-xs font-bold truncate">{entry.name}</span>
+                                            <span className="text-xs font-black">{entry.score.toLocaleString()}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+
+                    {/* Pending Challenges */}
+                    {challenges.filter(c => c.status === 'pending').length > 0 && (
+                        <>
+                            <h3 className="font-black text-primary text-sm uppercase tracking-wider mt-6">Pending Invites</h3>
+                            {challenges.filter(c => c.status === 'pending').map(challenge => (
+                                <div 
+                                    key={challenge.id}
+                                    className="bg-white border-2 border-gray-100 p-4 rounded-2xl"
+                                >
+                                    <div className="flex items-start justify-between">
+                                        <div>
+                                            <h4 className="font-bold text-primary">{challenge.title}</h4>
+                                            <p className="text-[10px] text-gray-400 mt-1">by {challenge.creatorName}</p>
+                                        </div>
+                                        <button
+                                            onClick={() => handleJoinChallenge(challenge)}
+                                            className="px-4 py-2 bg-primary text-white rounded-xl text-[10px] font-bold uppercase"
+                                        >
+                                            Join
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </>
+                    )}
+
+                    {challenges.length === 0 && (
+                        <div className="text-center py-10">
+                            <Icons.Trophy className="w-12 h-12 text-gray-200 mx-auto mb-4" />
+                            <p className="text-gray-400 font-medium">No challenges yet</p>
+                            <p className="text-xs text-gray-300 mt-1">Create one to compete with friends!</p>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Activity Tab */}
+            {communityTab === 'activity' && (
+                <div className="space-y-4">
+                    <h3 className="font-black text-primary text-sm uppercase tracking-wider">Friends' Activity</h3>
+                    
+                    {friendActivities.map(activity => (
+                        <div 
+                            key={activity.id}
+                            className="bg-white border border-gray-100 rounded-2xl p-4 flex gap-4"
+                        >
+                            <button 
+                                onClick={() => {
+                                    const friend = MOCK_GLOBAL_USERS.find(u => u.id === activity.odlUserId);
+                                    if (friend) setViewingProfile(friend);
+                                }}
+                                className="flex-shrink-0"
+                            >
+                                <img src={activity.userAvatar} className="w-12 h-12 rounded-full" />
+                            </button>
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="font-bold text-primary text-sm">{activity.userName}</span>
+                                    <span className="text-[9px] text-gray-400">{activity.timestamp}</span>
+                                </div>
+                                <p className="text-xs text-gray-600 mb-2">{activity.title}</p>
+                                {activity.description && (
+                                    <p className="text-[11px] text-gray-400 line-clamp-1">{activity.description}</p>
+                                )}
+                                {activity.thumbnail && (
+                                    <div className="mt-2 rounded-xl overflow-hidden h-24">
+                                        <img src={activity.thumbnail} className="w-full h-full object-cover" />
+                                    </div>
+                                )}
+                                <div className="flex items-center gap-2 mt-2">
+                                    <span className={`text-[9px] font-bold uppercase px-2 py-1 rounded-full ${
+                                        activity.type === 'course' ? 'bg-blue-100 text-blue-600' :
+                                        activity.type === 'product' ? 'bg-purple-100 text-purple-600' :
+                                        activity.type === 'video' ? 'bg-red-100 text-red-600' :
+                                        activity.type === 'goal_complete' ? 'bg-green-100 text-green-600' :
+                                        'bg-orange-100 text-orange-600'
+                                    }`}>
+                                        {activity.type.replace('_', ' ')}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+
+                    {friendActivities.length === 0 && (
+                        <div className="text-center py-10">
+                            <Icons.Activity className="w-12 h-12 text-gray-200 mx-auto mb-4" />
+                            <p className="text-gray-400 font-medium">No activity yet</p>
+                            <p className="text-xs text-gray-300 mt-1">Add friends to see their activity</p>
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 
@@ -749,87 +1095,86 @@ export default function SocialView() {
         </div>
     );
 
-   // ==================== MAIN RENDER ====================
+    // ==================== MAIN RENDER ====================
 
-return (
-    <div className="h-full flex flex-col bg-white overflow-hidden relative">
-        {/* Fixed Header - use flex-shrink-0 */}
-        {activeSocialSection !== SocialSection.FOR_YOU && (
-            <div className="flex-shrink-0 bg-white border-b border-gray-100 pt-safe">
-                <div className="flex overflow-x-auto no-scrollbar p-4 gap-3">
-                    {[
-                      { id: SocialSection.LESSONS, label: 'Curriculum' },
-                      { id: SocialSection.FOR_YOU, label: 'Feed' },
-                      { id: SocialSection.RECOMMENDED, label: 'Resources' },
-                      { id: SocialSection.FRIENDS, label: 'Community' },
-                      { id: SocialSection.PRODUCTS, label: 'Products' },
-                      { id: SocialSection.COURSES, label: 'Courses' }
-                    ].map(section => (
-                        <button 
-                            key={section.id}
-                            onClick={() => setActiveSocialSection(section.id)}
-                            className={`whitespace-nowrap px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all flex-shrink-0
-                                ${activeSocialSection === section.id 
-                                    ? 'bg-primary text-white shadow-lg shadow-primary/20' 
-                                    : 'bg-gray-100 text-gray-400 hover:text-primary'
-                                }`}
-                        >
-                            {section.label}
-                        </button>
-                    ))}
+    return (
+        <div className="h-full flex flex-col bg-white overflow-hidden relative">
+            {/* Fixed Header */}
+            {activeSocialSection !== SocialSection.FOR_YOU && (
+                <div className="flex-shrink-0 bg-white border-b border-gray-100 pt-safe">
+                    <div className="flex overflow-x-auto no-scrollbar p-4 gap-3">
+                        {[
+                          { id: SocialSection.LESSONS, label: 'Curriculum' },
+                          { id: SocialSection.FOR_YOU, label: 'Feed' },
+                          { id: SocialSection.RECOMMENDED, label: 'Resources' },
+                          { id: SocialSection.FRIENDS, label: 'Community' },
+                          { id: SocialSection.PRODUCTS, label: 'Products' },
+                          { id: SocialSection.COURSES, label: 'Courses' }
+                        ].map(section => (
+                            <button 
+                                key={section.id}
+                                onClick={() => setActiveSocialSection(section.id)}
+                                className={`whitespace-nowrap px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all flex-shrink-0
+                                    ${activeSocialSection === section.id 
+                                        ? 'bg-primary text-white shadow-lg shadow-primary/20' 
+                                        : 'bg-gray-100 text-gray-400 hover:text-primary'
+                                    }`}
+                            >
+                                {section.label}
+                            </button>
+                        ))}
+                    </div>
                 </div>
+            )}
+            
+            {activeSocialSection === SocialSection.FOR_YOU && renderFeedHeader()}
+            
+            {/* Scrollable Content Area */}
+            <div className="flex-1 overflow-hidden">
+                {activeSocialSection === SocialSection.LESSONS && (
+                    <div className="h-full overflow-y-auto overscroll-contain">
+                        {renderLessons()}
+                    </div>
+                )}
+                {activeSocialSection === SocialSection.FOR_YOU && renderForYou()}
+                {activeSocialSection === SocialSection.RECOMMENDED && (
+                    <div className="h-full overflow-y-auto overscroll-contain">
+                        {renderRecommended()}
+                    </div>
+                )}
+                {activeSocialSection === SocialSection.FRIENDS && (
+                    <div className="h-full overflow-y-auto overscroll-contain">
+                        {renderFriends()}
+                    </div>
+                )}
+                {activeSocialSection === SocialSection.PRODUCTS && (
+                    <div className="h-full overflow-y-auto overscroll-contain">
+                        {renderMarketplace('products')}
+                    </div>
+                )}
+                {activeSocialSection === SocialSection.COURSES && (
+                    <div className="h-full overflow-y-auto overscroll-contain">
+                        {renderMarketplace('courses')}
+                    </div>
+                )}
             </div>
-        )}
-        
-        {/* Feed Header - Absolute positioned for TikTok style */}
-        {activeSocialSection === SocialSection.FOR_YOU && renderFeedHeader()}
-        
-        {/* Scrollable Content Area */}
-        <div className="flex-1 overflow-hidden">
-            {activeSocialSection === SocialSection.LESSONS && (
-                <div className="h-full overflow-y-auto overscroll-contain">
-                    {renderLessons()}
-                </div>
-            )}
-            {activeSocialSection === SocialSection.FOR_YOU && renderForYou()}
-            {activeSocialSection === SocialSection.RECOMMENDED && (
-                <div className="h-full overflow-y-auto overscroll-contain">
-                    {renderRecommended()}
-                </div>
-            )}
-            {activeSocialSection === SocialSection.FRIENDS && (
-                <div className="h-full overflow-y-auto overscroll-contain">
-                    {renderFriends()}
-                </div>
-            )}
-            {activeSocialSection === SocialSection.PRODUCTS && (
-                <div className="h-full overflow-y-auto overscroll-contain">
-                    {renderMarketplace('products')}
-                </div>
-            )}
-            {activeSocialSection === SocialSection.COURSES && (
-                <div className="h-full overflow-y-auto overscroll-contain">
-                    {renderMarketplace('courses')}
-                </div>
-            )}
-        </div>
 
-        {/* Floating Add Button */}
-        {(activeSocialSection === SocialSection.PRODUCTS || activeSocialSection === SocialSection.COURSES) && (
-            <button 
-                onClick={handleAddItem} 
-                className="absolute bottom-6 right-5 w-14 h-14 bg-primary text-white rounded-full shadow-2xl flex items-center justify-center z-40 active:scale-90 transition-transform"
-            >
-                <Icons.Plus className="w-7 h-7" />
-            </button>
-        )}
+            {/* Floating Add Button */}
+            {(activeSocialSection === SocialSection.PRODUCTS || activeSocialSection === SocialSection.COURSES) && (
+                <button 
+                    onClick={handleAddItem} 
+                    className="absolute bottom-6 right-5 w-14 h-14 bg-primary text-white rounded-full shadow-2xl flex items-center justify-center z-40 active:scale-90 transition-transform"
+                >
+                    <Icons.Plus className="w-7 h-7" />
+                </button>
+            )}
 
             {/* ==================== MODALS ==================== */}
 
-            {/* Profile Modal */}
+            {/* Enhanced Profile Modal */}
             {viewingProfile && (
                 <div className="fixed inset-0 z-[100] bg-primary/80 backdrop-blur-md flex items-center justify-center p-6 animate-fade-in">
-                    <Card className="p-8 w-full max-w-sm bg-white border-none shadow-2xl rounded-[2rem] relative flex flex-col items-center text-center overflow-visible">
+                    <Card className="p-8 w-full max-w-sm bg-white border-none shadow-2xl rounded-[2rem] relative flex flex-col items-center text-center overflow-visible max-h-[85vh] overflow-y-auto">
                         <button onClick={() => setViewingProfile(null)} className="absolute top-5 right-5 p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
                             <Icons.X className="w-4 h-4"/>
                         </button>
@@ -839,26 +1184,204 @@ return (
                         </div>
                         
                         <h2 className="text-xl font-black text-primary uppercase tracking-tight mb-1">{viewingProfile.name}</h2>
-                        <p className="text-xs text-gray-400 font-medium mb-6">{viewingProfile.lastActive}</p>
+                        <p className="text-xs text-gray-400 font-medium mb-4">{viewingProfile.lastActive}</p>
 
-                        <div className="grid grid-cols-2 gap-4 w-full mb-6">
-                            <div className="bg-gray-50 p-4 rounded-xl">
-                                <span className="block text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">Streak</span>
-                                <span className="block text-2xl font-black text-primary">{viewingProfile.streak}</span>
+                        {/* Stats Grid */}
+                        <div className="grid grid-cols-3 gap-3 w-full mb-4">
+                            <div className="bg-orange-50 p-3 rounded-xl">
+                                <Icons.Flame className="w-5 h-5 text-orange-500 mx-auto mb-1" />
+                                <span className="block text-lg font-black text-orange-600">{viewingProfile.streak}</span>
+                                <span className="text-[8px] text-orange-400 uppercase font-bold">Streak</span>
                             </div>
-                            <div className="bg-gray-50 p-4 rounded-xl">
-                                <span className="block text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">Goal</span>
-                                <span className="block text-sm font-bold text-primary leading-tight truncate">{viewingProfile.goalTitle}</span>
+                            <div className="bg-yellow-50 p-3 rounded-xl">
+                                <Icons.Coins className="w-5 h-5 text-yellow-500 mx-auto mb-1" />
+                                <span className="block text-lg font-black text-yellow-600">{((viewingProfile as any).credits || 0).toLocaleString()}</span>
+                                <span className="text-[8px] text-yellow-400 uppercase font-bold">Credits</span>
+                            </div>
+                            <div className="bg-green-50 p-3 rounded-xl">
+                                <Icons.CheckCircle className="w-5 h-5 text-green-500 mx-auto mb-1" />
+                                <span className="block text-lg font-black text-green-600">{(viewingProfile as any).tasksCompleted || 0}</span>
+                                <span className="text-[8px] text-green-400 uppercase font-bold">Tasks</span>
                             </div>
                         </div>
 
-                        <Button 
-                            onClick={() => handleToggleFriendship(viewingProfile)} 
-                            variant={friends.some(f => f.id === viewingProfile.id) ? 'outline' : 'primary'}
-                            className="w-full py-4 text-xs font-black uppercase tracking-widest rounded-xl"
-                        >
-                            {friends.some(f => f.id === viewingProfile.id) ? 'Remove Friend' : 'Add Friend'}
-                        </Button>
+                        {/* Current Goal */}
+                        <div className="bg-gray-50 p-4 rounded-xl w-full mb-4">
+                            <span className="block text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">Current Goal</span>
+                            <span className="block text-sm font-bold text-primary leading-tight">{viewingProfile.goalTitle}</span>
+                            <div className="mt-2 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                <div 
+                                    className="h-full bg-gradient-to-r from-primary to-secondary rounded-full"
+                                    style={{ width: `${viewingProfile.progress}%` }}
+                                />
+                            </div>
+                            <span className="text-[10px] text-gray-400 mt-1 block">{viewingProfile.progress}% complete</span>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex gap-3 w-full">
+                            <Button 
+                                onClick={() => handleToggleFriendship(viewingProfile)} 
+                                variant={friends.some(f => f.id === viewingProfile.id) ? 'outline' : 'primary'}
+                                className="flex-1 py-4 text-xs font-black uppercase tracking-widest rounded-xl"
+                            >
+                                {friends.some(f => f.id === viewingProfile.id) ? 'Remove' : 'Add Friend'}
+                            </Button>
+                            {friends.some(f => f.id === viewingProfile.id) && (
+                                <Button 
+                                    onClick={() => {
+                                        setViewingProfile(null);
+                                        setShowCreateChallenge(true);
+                                    }} 
+                                    variant="outline"
+                                    className="py-4 px-4 text-xs font-black uppercase tracking-widest rounded-xl"
+                                >
+                                    <Icons.Trophy className="w-4 h-4" />
+                                </Button>
+                            )}
+                        </div>
+                    </Card>
+                </div>
+            )}
+
+            {/* Create Challenge Modal */}
+            {showCreateChallenge && (
+                <div className="fixed inset-0 z-[100] bg-primary/80 backdrop-blur-md flex items-center justify-center p-6 animate-fade-in">
+                    <Card className="p-8 w-full max-w-sm bg-white border-none shadow-2xl rounded-[2rem] relative">
+                        <button onClick={() => setShowCreateChallenge(false)} className="absolute top-5 right-5 p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
+                            <Icons.X className="w-4 h-4"/>
+                        </button>
+                        
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="p-3 bg-primary/10 rounded-xl">
+                                <Icons.Trophy className="w-6 h-6 text-primary" />
+                            </div>
+                            <h3 className="text-xl font-black text-primary uppercase tracking-tight">New Challenge</h3>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-2">Challenge Title</label>
+                                <input 
+                                    value={newChallenge.title}
+                                    onChange={(e) => setNewChallenge(prev => ({ ...prev, title: e.target.value }))}
+                                    className="w-full p-4 bg-gray-50 rounded-xl border-2 border-transparent focus:border-primary/20 outline-none font-bold text-sm" 
+                                    placeholder="e.g., Weekly Task Champion"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-2">Challenge Type</label>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {[
+                                        { id: 'tasks', label: 'Tasks', icon: Icons.CheckCircle },
+                                        { id: 'credits', label: 'Credits', icon: Icons.Coins },
+                                        { id: 'streak', label: 'Streak', icon: Icons.Flame }
+                                    ].map(type => (
+                                        <button
+                                            key={type.id}
+                                            onClick={() => setNewChallenge(prev => ({ ...prev, type: type.id as any }))}
+                                            className={`p-3 rounded-xl flex flex-col items-center gap-1 transition-all ${
+                                                newChallenge.type === type.id
+                                                    ? 'bg-primary text-white'
+                                                    : 'bg-gray-100 text-gray-400'
+                                            }`}
+                                        >
+                                            <type.icon className="w-5 h-5" />
+                                            <span className="text-[9px] font-bold uppercase">{type.label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-2">Duration (Days)</label>
+                                <div className="flex gap-2">
+                                    {['7', '14', '30'].map(days => (
+                                        <button
+                                            key={days}
+                                            onClick={() => setNewChallenge(prev => ({ ...prev, duration: days }))}
+                                            className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${
+                                                newChallenge.duration === days
+                                                    ? 'bg-primary text-white'
+                                                    : 'bg-gray-100 text-gray-400'
+                                            }`}
+                                        >
+                                            {days}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <Button onClick={handleCreateChallenge} className="w-full py-4 text-xs font-black uppercase tracking-widest mt-4">
+                                Create Challenge
+                            </Button>
+                        </div>
+                    </Card>
+                </div>
+            )}
+
+            {/* Challenge Detail Modal */}
+            {viewingChallenge && (
+                <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-6 animate-fade-in">
+                    <Card className="p-6 w-full max-w-sm bg-white border-none shadow-2xl rounded-[2rem] relative max-h-[85vh] overflow-y-auto">
+                        <button onClick={() => setViewingChallenge(null)} className="absolute top-5 right-5 p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
+                            <Icons.X className="w-4 h-4"/>
+                        </button>
+                        
+                        <div className="text-center mb-6">
+                            <div className="w-16 h-16 bg-gradient-to-br from-primary to-secondary rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                <Icons.Trophy className="w-8 h-8 text-white" />
+                            </div>
+                            <h2 className="text-xl font-black text-primary">{viewingChallenge.title}</h2>
+                            <p className="text-xs text-gray-400 mt-1">{viewingChallenge.description}</p>
+                        </div>
+
+                        <div className="flex justify-between items-center bg-gray-50 rounded-xl p-4 mb-6">
+                            <div className="text-center">
+                                <span className="block text-lg font-black text-primary">{viewingChallenge.myScore?.toLocaleString() || 0}</span>
+                                <span className="text-[9px] text-gray-400 uppercase font-bold">Your Score</span>
+                            </div>
+                            <div className="h-10 w-px bg-gray-200" />
+                            <div className="text-center">
+                                <span className="block text-lg font-black text-primary">{viewingChallenge.duration}</span>
+                                <span className="text-[9px] text-gray-400 uppercase font-bold">Remaining</span>
+                            </div>
+                            <div className="h-10 w-px bg-gray-200" />
+                            <div className="text-center">
+                                <span className="block text-lg font-black text-primary">{viewingChallenge.leaderboard.length}</span>
+                                <span className="text-[9px] text-gray-400 uppercase font-bold">Players</span>
+                            </div>
+                        </div>
+
+                        <h3 className="font-black text-primary text-sm uppercase tracking-wider mb-4">Leaderboard</h3>
+                        <div className="space-y-3">
+                            {viewingChallenge.leaderboard.sort((a, b) => b.score - a.score).map((entry, idx) => (
+                                <div 
+                                    key={entry.odlUserId}
+                                    className={`flex items-center gap-3 p-3 rounded-xl ${
+                                        entry.odlUserId === 'me' ? 'bg-primary/10 border-2 border-primary/20' : 'bg-gray-50'
+                                    }`}
+                                >
+                                    <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-black ${
+                                        idx === 0 ? 'bg-yellow-400 text-yellow-900' :
+                                        idx === 1 ? 'bg-gray-300 text-gray-700' :
+                                        idx === 2 ? 'bg-amber-600 text-amber-100' :
+                                        'bg-gray-200 text-gray-500'
+                                    }`}>
+                                        {idx + 1}
+                                    </span>
+                                    <img src={entry.avatar} className="w-10 h-10 rounded-full" />
+                                    <div className="flex-1">
+                                        <span className="font-bold text-primary text-sm">{entry.name}</span>
+                                        {entry.odlUserId === 'me' && (
+                                            <span className="text-[9px] text-primary/60 ml-2">(You)</span>
+                                        )}
+                                    </div>
+                                    <span className="text-lg font-black text-primary">{entry.score.toLocaleString()}</span>
+                                </div>
+                            ))}
+                        </div>
                     </Card>
                 </div>
             )}

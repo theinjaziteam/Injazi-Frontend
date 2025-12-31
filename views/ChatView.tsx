@@ -827,63 +827,67 @@ const MasterAgentButton = () => (
 );
 
 
-    // ========== E-COMMERCE AGENT QUICK ACTION CARD (for Chat Mode) ==========
-    const EcommerceQuickActionCard = () => (
-        <button
-            onClick={() => setView(AppView.ECOMMERCE_AGENT)}
-            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-            style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '16px',
-                padding: '16px',
-                marginBottom: '16px',
-                borderRadius: '16px',
-                background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%)',
-                border: '1px solid rgba(139, 92, 246, 0.3)',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                textAlign: 'left'
-            }}
-        >
-            <div style={{
-                width: 48,
-                height: 48,
-                borderRadius: '14px',
-                background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0
-            }}>
-                <Icons.ShoppingBag style={{ width: 24, height: 24, color: '#fff' }} />
+    // ========== MASTER AGENT QUICK ACTION CARD (for Chat Mode) ==========
+const MasterAgentQuickActionCard = () => (
+    <button
+        onClick={() => setView(AppView.ECOMMERCE_AGENT)}
+        onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+        onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+        style={{
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '16px',
+            padding: '16px',
+            marginBottom: '16px',
+            borderRadius: '16px',
+            background: 'rgba(255, 255, 255, 0.03)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            textAlign: 'left'
+        }}
+    >
+        <div style={{
+            width: 44,
+            height: 44,
+            borderRadius: '12px',
+            background: 'rgba(255, 255, 255, 0.06)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0
+        }}>
+            <Icons.Zap style={{ width: 22, height: 22, color: 'rgba(255, 255, 255, 0.7)' }} />
+        </div>
+        <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                <h3 style={{ color: 'rgba(255, 255, 255, 0.9)', fontWeight: 600, fontSize: '15px', margin: 0 }}>
+                    Master Agent
+                </h3>
+                <span style={{
+                    padding: '2px 8px',
+                    borderRadius: '12px',
+                    background: 'rgba(255, 255, 255, 0.06)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    color: 'rgba(255, 255, 255, 0.5)',
+                    fontSize: '10px',
+                    fontWeight: 600,
+                    textTransform: 'uppercase'
+                }}>
+                    NEW
+                </span>
             </div>
-            <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                    <h3 style={{ color: '#fff', fontWeight: 600, fontSize: '15px', margin: 0 }}>
-                        E-commerce Growth Agent
-                    </h3>
-                    <span style={{
-                        padding: '2px 8px',
-                        borderRadius: '12px',
-                        backgroundColor: 'rgba(139, 92, 246, 0.3)',
-                        color: '#A855F7',
-                        fontSize: '10px',
-                        fontWeight: 600,
-                        textTransform: 'uppercase'
-                    }}>
-                        NEW
-                    </span>
-                </div>
-                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px', margin: 0 }}>
-                    Create & manage your Shopify store with AI assistance
-                </p>
-            </div>
-            <Icons.ChevronRight style={{ width: 20, height: 20, color: 'rgba(255,255,255,0.4)' }} />
-        </button>
-    );
+            <p style={{ color: 'rgba(255, 255, 255, 0.4)', fontSize: '12px', margin: 0 }}>
+                AI-powered automation for your business
+            </p>
+        </div>
+        <Icons.ChevronRight style={{ width: 20, height: 20, color: 'rgba(255, 255, 255, 0.3)' }} />
+    </button>
+);
 
     // ========== JOURNEYS LIST VIEW ==========
     if (showJourneysList) {
@@ -1251,8 +1255,9 @@ const MasterAgentButton = () => (
                 </button>
             </div>
 
-            {/* E-commerce Floating Button - Only show when journey is NOT active */}
-            {!isJourneyActive && !isChatLoading && <EcommerceFloatingButton />}
+            {/* Master Agent Floating Button - Only show when journey is NOT active */}
+{!isJourneyActive && !isChatLoading && <MasterAgentButton />}
+
 
             {/* Welcome Panel or Journey Steps */}
             <div style={{ position: 'relative', zIndex: 10, padding: '0 16px', pointerEvents: 'none' }}>

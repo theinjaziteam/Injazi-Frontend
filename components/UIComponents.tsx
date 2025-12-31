@@ -273,6 +273,23 @@ ArrowLeft: (props: any) => (
 };
 // Add these new components to UIComponents.tsx
 
+export const CoinIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none">
+        <ellipse cx="12" cy="14" rx="9" ry="4" fill="#D97706"/>
+        <ellipse cx="12" cy="12" rx="9" ry="4" fill="url(#coinGradient)"/>
+        <ellipse cx="12" cy="12" rx="6.5" ry="2.8" fill="none" stroke="#D97706" strokeWidth="0.8"/>
+        <circle cx="12" cy="12" r="2" fill="#D97706"/>
+        <ellipse cx="9" cy="11" rx="1.5" ry="0.8" fill="white" fillOpacity="0.4"/>
+        <defs>
+            <linearGradient id="coinGradient" x1="3" y1="8" x2="21" y2="16">
+                <stop offset="0%" stopColor="#FCD34D"/>
+                <stop offset="50%" stopColor="#FBBF24"/>
+                <stop offset="100%" stopColor="#F59E0B"/>
+            </linearGradient>
+        </defs>
+    </svg>
+);
+
 // ============================================
 // E-COMMERCE AGENT ICONS
 // ============================================

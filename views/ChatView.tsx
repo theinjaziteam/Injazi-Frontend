@@ -782,81 +782,46 @@ const EcommerceFloatingButton = () => (
         onClick={() => setView(AppView.ECOMMERCE_AGENT)}
         style={{
             position: 'absolute',
-            bottom: 190, // Positioned just above the input area (which has paddingBottom: 100px + input height)
+            bottom: 190,
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 10,
             display: 'flex',
             alignItems: 'center',
-            gap: '12px',
-            padding: '14px 20px',
-            borderRadius: '50px',
-            // Glassmorphism with dark/starry aesthetic
-            background: 'rgba(0, 0, 0, 0.4)',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-            border: '1px solid rgba(255, 255, 255, 0.12)',
-            boxShadow: `
-                0 4px 24px rgba(0, 0, 0, 0.4),
-                0 0 40px rgba(255, 255, 255, 0.03),
-                inset 0 1px 0 rgba(255, 255, 255, 0.1)
-            `,
+            gap: '10px',
+            padding: '10px 24px',
+            borderRadius: '40px',
+            // Transparent glass
+            background: 'rgba(255, 255, 255, 0.03)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.05)',
             cursor: 'pointer',
-            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            transition: 'all 0.3s ease',
             pointerEvents: 'auto'
         }}
         onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
-            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)';
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
+            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
             e.currentTarget.style.transform = 'translateX(-50%) translateY(-2px)';
-            e.currentTarget.style.boxShadow = `
-                0 8px 32px rgba(0, 0, 0, 0.5),
-                0 0 60px rgba(255, 255, 255, 0.05),
-                inset 0 1px 0 rgba(255, 255, 255, 0.15)
-            `;
         }}
         onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'rgba(0, 0, 0, 0.4)';
-            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.12)';
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
             e.currentTarget.style.transform = 'translateX(-50%) translateY(0)';
-            e.currentTarget.style.boxShadow = `
-                0 4px 24px rgba(0, 0, 0, 0.4),
-                0 0 40px rgba(255, 255, 255, 0.03),
-                inset 0 1px 0 rgba(255, 255, 255, 0.1)
-            `;
         }}
     >
-        <div style={{
-            width: 36,
-            height: 36,
-            borderRadius: '50%',
-            background: 'rgba(255, 255, 255, 0.08)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
+        <Icons.ShoppingBag style={{ width: 16, height: 16, color: 'rgba(255, 255, 255, 0.6)' }} />
+        <span style={{ 
+            color: 'rgba(255, 255, 255, 0.7)', 
+            fontWeight: 500, 
+            fontSize: '13px',
+            letterSpacing: '0.2px'
         }}>
-            <Icons.ShoppingBag style={{ width: 18, height: 18, color: 'rgba(255, 255, 255, 0.9)' }} />
-        </div>
-        <div style={{ textAlign: 'left' }}>
-            <p style={{ 
-                color: 'rgba(255, 255, 255, 0.95)', 
-                fontWeight: 600, 
-                fontSize: '13px', 
-                margin: 0, 
-                letterSpacing: '0.3px' 
-            }}>
-                E-commerce Agent
-            </p>
-            <p style={{ 
-                color: 'rgba(255, 255, 255, 0.4)', 
-                fontSize: '11px', 
-                margin: 0 
-            }}>
-                Grow your Shopify store
-            </p>
-        </div>
-        <Icons.ChevronRight style={{ width: 16, height: 16, color: 'rgba(255, 255, 255, 0.3)' }} />
+            E-commerce Agent
+        </span>
+        <Icons.ChevronRight style={{ width: 14, height: 14, color: 'rgba(255, 255, 255, 0.3)' }} />
     </button>
 );
 

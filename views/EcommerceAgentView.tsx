@@ -26,6 +26,7 @@ export default function EcommerceAgentView() {
     const [chatInput, setChatInput] = useState('');
     const [chatHistory, setChatHistory] = useState<{ role: 'user' | 'assistant'; content: string; suggestions?: any[] }[]>([]);
     const chatEndRef = useRef<HTMLDivElement>(null);
+    const chatInputRef = useRef<HTMLInputElement>(null);
     
     // Products state
     const [productUrls, setProductUrls] = useState('');
@@ -199,14 +200,14 @@ export default function EcommerceAgentView() {
                 <div className="mx-4 mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                            <Icons.AlertCircle className="w-5 h-5 text-yellow-500" />
+                            <Icons.AlertCircle className="w-5 h-5 text-yellow-500" aria-hidden="true" />
                             <span className="text-sm font-medium text-yellow-800">
                                 {pendingActions.length} action{pendingActions.length > 1 ? 's' : ''} pending approval
                             </span>
                         </div>
                         <button 
                             onClick={() => setActiveTab('settings')}
-                            className="text-xs font-medium text-yellow-700 underline"
+                            className="text-xs font-medium text-yellow-700 underline hover:text-yellow-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500 focus-visible:ring-offset-2 rounded"
                         >
                             Review
                         </button>
@@ -219,7 +220,7 @@ export default function EcommerceAgentView() {
                 {chatHistory.length === 0 && (
                     <div className="text-center py-12">
                         <div className="w-20 h-20 mx-auto mb-4 bg-primary/10 rounded-full flex items-center justify-center">
-                            <EcommerceIcons.Robot className="w-10 h-10 text-primary" />
+                            <EcommerceIcons.Robot className="w-10 h-10 text-primary" aria-hidden="true" />
                         </div>
                         <h2 className="text-xl font-bold text-gray-900 mb-2">E-commerce Growth Assistant</h2>
                         <p className="text-gray-500 mb-6">I can help you set up and grow your Shopify store</p>
@@ -229,9 +230,9 @@ export default function EcommerceAgentView() {
                                     key={i}
                                     onClick={() => {
                                         setChatInput(prompt);
-                                        handleSendMessage();
+                                        setTimeout(() => handleSendMessage(), 100);
                                     }}
-                                    className="p-3 text-sm text-left bg-gray-50 rounded-xl hover:bg-gray-100"
+                                    className="p-3 text-sm text-left bg-gray-50 rounded-xl hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 transition-colors"
                                 >
                                     {prompt}
                                 </button>
@@ -247,7 +248,7 @@ export default function EcommerceAgentView() {
                                 ? 'bg-primary text-white rounded-2xl rounded-br-sm' 
                                 : 'bg-gray-100 text-gray-900 rounded-2xl rounded-bl-sm'
                         } p-4`}>
-                            <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                            <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
                             {msg.suggestions && msg.suggestions.length > 0 && (
                                 <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
                                     <p className="text-xs font-medium text-gray-500">Suggested Actions:</p>
@@ -255,7 +256,7 @@ export default function EcommerceAgentView() {
                                         <button
                                             key={j}
                                             onClick={() => setChatInput(suggestion.title)}
-                                            className="block w-full text-left p-2 bg-white rounded-lg text-xs hover:bg-gray-50"
+                                            className="block w-full text-left p-2 bg-white rounded-lg text-xs hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-colors"
                                         >
                                             <span className="font-medium">{suggestion.title}</span>
                                             <span className={`ml-2 px-1.5 py-0.5 rounded text-[10px] ${
@@ -276,7 +277,7 @@ export default function EcommerceAgentView() {
                 {isLoading && (
                     <div className="flex justify-start">
                         <div className="bg-gray-100 rounded-2xl rounded-bl-sm p-4">
-                            <div className="flex gap-1">
+                            <div className="flex gap-1" aria-label="Loading response">
                                 <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                                 <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
                                 <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
@@ -287,23 +288,26 @@ export default function EcommerceAgentView() {
                 <div ref={chatEndRef} />
             </div>
             
-            {/* Input */}
+            {/* FIX #36: Chat Input with proper focus ring */}
             <div className="p-4 border-t border-gray-100">
                 <div className="flex gap-2">
                     <input
+                        ref={chatInputRef}
                         type="text"
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
                         placeholder="Ask me anything about your store..."
-                        className="flex-1 px-4 py-3 bg-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        aria-label="Chat message input"
+                        className="flex-1 px-4 py-3 bg-gray-100 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 focus:bg-white"
                     />
                     <button
                         onClick={handleSendMessage}
                         disabled={isLoading || !chatInput.trim()}
-                        className="px-4 py-3 bg-primary text-white rounded-xl disabled:opacity-50"
+                        className="px-4 py-3 bg-primary text-white rounded-xl disabled:opacity-50 hover:bg-primary/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                        aria-label="Send message"
                     >
-                        <Icons.Send className="w-5 h-5" />
+                        <Icons.Send className="w-5 h-5" aria-hidden="true" />
                     </button>
                 </div>
             </div>
@@ -320,36 +324,38 @@ export default function EcommerceAgentView() {
                     onChange={(e) => setProductUrls(e.target.value)}
                     placeholder="Paste product URLs (one per line)&#10;Supports: AliExpress, Amazon, Alibaba"
                     rows={4}
-                    className="w-full px-4 py-3 bg-gray-50 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm"
+                    aria-label="Product URLs to scrape"
+                    className="w-full px-4 py-3 bg-gray-50 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 focus:bg-white text-sm"
                 />
                 <button
                     onClick={handleScrapeProducts}
                     disabled={isLoading || !productUrls.trim()}
-                    className="mt-3 w-full py-3 bg-primary text-white rounded-xl font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="mt-3 w-full py-3 bg-primary text-white rounded-xl font-medium disabled:opacity-50 flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                 >
                     {isLoading ? (
                         <>
-                            <Icons.RefreshCw className="w-4 h-4 animate-spin" />
+                            <Icons.RefreshCw className="w-4 h-4 animate-spin" aria-hidden="true" />
                             Scraping...
                         </>
                     ) : (
                         <>
-                            <EcommerceIcons.Link className="w-4 h-4" />
+                            <EcommerceIcons.Link className="w-4 h-4" aria-hidden="true" />
                             Scrape & Optimize Products
                         </>
                     )}
                 </button>
             </div>
 
-            {/* Product Drafts */}
+            {/* FIX #37: Product Drafts with consistent spacing */}
             <div>
                 <h3 className="font-semibold text-gray-900 mb-3">Product Drafts ({productDrafts.length})</h3>
                 {productDrafts.length === 0 ? (
                     <div className="text-center py-8 bg-gray-50 rounded-2xl">
-                        <EcommerceIcons.Package className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                        <EcommerceIcons.Package className="w-12 h-12 text-gray-300 mx-auto mb-3" aria-hidden="true" />
                         <p className="text-gray-500">No products yet. Add some URLs above!</p>
                     </div>
                 ) : (
+                    /* FIX #37: Unified gap spacing for product grid */
                     <div className="grid grid-cols-2 gap-4">
                         {productDrafts.map((draft) => (
                             <ProductDraftCard
@@ -372,15 +378,17 @@ export default function EcommerceAgentView() {
     const renderAnalyticsTab = () => (
         <div className="p-4 space-y-6 overflow-y-auto">
             {/* Period Selector */}
-            <div className="flex gap-2">
+            <div className="flex gap-2" role="tablist" aria-label="Analytics period">
                 {(['daily', 'weekly', 'monthly'] as const).map((period) => (
                     <button
                         key={period}
                         onClick={() => setAnalyticsPeriod(period)}
-                        className={`px-4 py-2 rounded-xl text-sm font-medium capitalize ${
+                        role="tab"
+                        aria-selected={analyticsPeriod === period}
+                        className={`px-4 py-2 rounded-xl text-sm font-medium capitalize transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
                             analyticsPeriod === period 
-                                ? 'bg-primary text-white' 
-                                : 'bg-gray-100 text-gray-600'
+                                ? 'bg-primary text-white shadow-md' 
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                         }`}
                     >
                         {period}
@@ -390,7 +398,7 @@ export default function EcommerceAgentView() {
 
             {isLoading ? (
                 <div className="text-center py-12">
-                    <Icons.RefreshCw className="w-8 h-8 text-primary animate-spin mx-auto mb-3" />
+                    <Icons.RefreshCw className="w-8 h-8 text-primary animate-spin mx-auto mb-3" aria-hidden="true" />
                     <p className="text-gray-500">Loading analytics...</p>
                 </div>
             ) : analytics ? (
@@ -469,7 +477,7 @@ export default function EcommerceAgentView() {
                 </>
             ) : (
                 <div className="text-center py-12">
-                    <EcommerceIcons.LineChart className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                    <EcommerceIcons.LineChart className="w-12 h-12 text-gray-300 mx-auto mb-3" aria-hidden="true" />
                     <p className="text-gray-500">Connect your store to see analytics</p>
                 </div>
             )}
@@ -492,9 +500,10 @@ export default function EcommerceAgentView() {
                             key={type}
                             onClick={() => handleGenerateEmail(type)}
                             disabled={isLoading}
-                            className="p-4 bg-white rounded-xl border border-gray-100 hover:border-primary/50 flex flex-col items-center gap-2"
+                            className="p-4 bg-white rounded-xl border border-gray-100 hover:border-primary/50 flex flex-col items-center gap-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                            aria-label={`Create ${label} email campaign`}
                         >
-                            <Icon className="w-6 h-6 text-primary" />
+                            <Icon className="w-6 h-6 text-primary" aria-hidden="true" />
                             <span className="text-sm font-medium text-gray-700">{label}</span>
                         </button>
                     ))}
@@ -506,7 +515,7 @@ export default function EcommerceAgentView() {
                 <h3 className="font-semibold text-gray-900 mb-3">Email Drafts ({emailDrafts.length})</h3>
                 {emailDrafts.length === 0 ? (
                     <div className="text-center py-8 bg-gray-50 rounded-2xl">
-                        <EcommerceIcons.Mail className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                        <EcommerceIcons.Mail className="w-12 h-12 text-gray-300 mx-auto mb-3" aria-hidden="true" />
                         <p className="text-gray-500">No email drafts yet</p>
                     </div>
                 ) : (
@@ -540,7 +549,8 @@ export default function EcommerceAgentView() {
                             key={platform}
                             onClick={() => handleGenerateSocial(platform, type)}
                             disabled={isLoading}
-                            className="p-4 bg-white rounded-xl border border-gray-100 hover:border-primary/50"
+                            className="p-4 bg-white rounded-xl border border-gray-100 hover:border-primary/50 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                            aria-label={`Create ${label} content`}
                         >
                             <span className="text-sm font-medium text-gray-700">{label}</span>
                         </button>
@@ -553,7 +563,7 @@ export default function EcommerceAgentView() {
                 <h3 className="font-semibold text-gray-900 mb-3">Content Drafts ({socialDrafts.length})</h3>
                 {socialDrafts.length === 0 ? (
                     <div className="text-center py-8 bg-gray-50 rounded-2xl">
-                        <EcommerceIcons.Share2 className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                        <EcommerceIcons.Share2 className="w-12 h-12 text-gray-300 mx-auto mb-3" aria-hidden="true" />
                         <p className="text-gray-500">No content drafts yet</p>
                     </div>
                 ) : (
@@ -621,14 +631,24 @@ export default function EcommerceAgentView() {
                             <p className="font-medium text-gray-900">Auto-approve analytics reads</p>
                             <p className="text-xs text-gray-500">Allow agent to pull data without approval</p>
                         </div>
-                        <input type="checkbox" className="w-5 h-5 accent-primary" defaultChecked />
+                        <input 
+                            type="checkbox" 
+                            className="w-5 h-5 accent-primary cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded" 
+                            defaultChecked 
+                            aria-label="Auto-approve analytics reads"
+                        />
                     </div>
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="font-medium text-gray-900">Daily summary notifications</p>
                             <p className="text-xs text-gray-500">Get a daily digest of store performance</p>
                         </div>
-                        <input type="checkbox" className="w-5 h-5 accent-primary" defaultChecked />
+                        <input 
+                            type="checkbox" 
+                            className="w-5 h-5 accent-primary cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded" 
+                            defaultChecked 
+                            aria-label="Daily summary notifications"
+                        />
                     </div>
                 </div>
             </div>
@@ -642,18 +662,26 @@ export default function EcommerceAgentView() {
                 <div className="flex items-center justify-between mb-4">
                     <button 
                         onClick={() => setView(AppView.CHAT)}
-                        className="p-2"
+                        className="p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-lg hover:bg-gray-100 transition-colors"
+                        aria-label="Back to chat"
                     >
                         <Icons.ArrowLeft className="w-5 h-5 text-gray-600" />
                     </button>
                     <h1 className="font-bold text-lg text-gray-900">Growth Assistant</h1>
-                    <button className="p-2">
+                    <button 
+                        className="p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-lg hover:bg-gray-100 transition-colors"
+                        aria-label="Notifications"
+                    >
                         <Icons.Bell className="w-5 h-5 text-gray-600" />
                     </button>
                 </div>
                 
-                {/* Tabs */}
-                <div className="flex gap-1 overflow-x-auto pb-1 -mx-4 px-4">
+                {/* FIX #35: Enhanced tab navigation with stronger active state */}
+                <div 
+                    className="flex gap-1.5 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide"
+                    role="tablist"
+                    aria-label="E-commerce sections"
+                >
                     {[
                         { id: 'chat', label: 'Chat', icon: Icons.MessageCircle },
                         { id: 'products', label: 'Products', icon: EcommerceIcons.Package },
@@ -665,13 +693,17 @@ export default function EcommerceAgentView() {
                         <button
                             key={id}
                             onClick={() => setActiveTab(id as TabType)}
-                            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium whitespace-nowrap ${
+                            role="tab"
+                            aria-selected={activeTab === id}
+                            aria-controls={`${id}-panel`}
+                            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 ${
                                 activeTab === id 
-                                    ? 'bg-primary text-white' 
-                                    : 'bg-gray-100 text-gray-600'
+                                    /* FIX #35: Stronger active state with shadow and ring */
+                                    ? 'bg-primary text-white shadow-md ring-2 ring-primary/30' 
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                             }`}
                         >
-                            <Icon className="w-4 h-4" />
+                            <Icon className="w-4 h-4" aria-hidden="true" />
                             {label}
                         </button>
                     ))}
@@ -679,7 +711,12 @@ export default function EcommerceAgentView() {
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-hidden">
+            <div 
+                className="flex-1 overflow-hidden"
+                role="tabpanel"
+                id={`${activeTab}-panel`}
+                aria-labelledby={activeTab}
+            >
                 {activeTab === 'chat' && renderChatTab()}
                 {activeTab === 'products' && renderProductsTab()}
                 {activeTab === 'analytics' && renderAnalyticsTab()}

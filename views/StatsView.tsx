@@ -25,7 +25,7 @@ interface Alert {
     actionView?: AppView;
 }
 
-// SVG Icons for Connected Apps - Clean versions
+// SVG Icons for Connected Apps
 const AppIcons = {
     Shopify: (props: any) => (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -81,11 +81,16 @@ export default function StatsView() {
     const [newEvent, setNewEvent] = useState({ title: '', description: '' });
     const [showDayEvents, setShowDayEvents] = useState(false);
     
-    // Scrollable calendar ref
+    // FIX #19: Improved scrollable calendar refs
     const calendarStripRef = useRef<HTMLDivElement>(null);
     const [calendarDays, setCalendarDays] = useState<Date[]>([]);
     const isScrollingRef = useRef(false);
     const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const isUserScrollingRef = useRef(false);
+
+    // FIX #20: Track hovered/touched point for charts
+    const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
+    const touchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Generate calendar days centered on selected date
     useEffect(() => {
@@ -108,11 +113,10 @@ export default function StatsView() {
 
     // Scroll to selected date when it changes (from click)
     useEffect(() => {
-        if (calendarStripRef.current && !isScrollingRef.current) {
+        if (calendarStripRef.current && !isScrollingRef.current && !isUserScrollingRef.current) {
             const container = calendarStripRef.current;
-            const itemWidth = 48; // width + gap
+            const itemWidth = 52; // width + gap
             
-            // Find index of selected date
             const selectedIndex = calendarDays.findIndex(d => 
                 d.toDateString() === new Date(selectedDate).toDateString()
             );
@@ -128,8 +132,8 @@ export default function StatsView() {
     useEffect(() => {
         if (calendarStripRef.current && calendarDays.length > 0) {
             const container = calendarStripRef.current;
-            const itemWidth = 48;
-            const centerIndex = 30; // Today is at index 30
+            const itemWidth = 52;
+            const centerIndex = 30;
             const scrollPosition = centerIndex * itemWidth - container.clientWidth / 2 + itemWidth / 2;
             
             setTimeout(() => {
@@ -138,44 +142,58 @@ export default function StatsView() {
         }
     }, [calendarDays.length]);
 
-    // Handle scroll end to snap to nearest date
+    // FIX #19: Improved scroll handler with debouncing
     const handleCalendarScroll = useCallback(() => {
         if (!calendarStripRef.current) return;
         
         isScrollingRef.current = true;
+        isUserScrollingRef.current = true;
         
-        // Clear existing timeout
         if (scrollTimeoutRef.current) {
             clearTimeout(scrollTimeoutRef.current);
         }
         
-        // Set new timeout to detect scroll end
+        // FIX #19: Increased debounce timeout for smoother experience
         scrollTimeoutRef.current = setTimeout(() => {
             if (!calendarStripRef.current) return;
             
             const container = calendarStripRef.current;
-            const itemWidth = 48;
+            const itemWidth = 52;
             const centerOffset = container.scrollLeft + container.clientWidth / 2;
             const nearestIndex = Math.round(centerOffset / itemWidth - 0.5);
             
             if (calendarDays[nearestIndex]) {
                 const newDate = calendarDays[nearestIndex];
-                setSelectedDate(newDate.getTime());
-                setCurrentMonth(newDate);
+                
+                // Use requestAnimationFrame for smoother updates
+                requestAnimationFrame(() => {
+                    setSelectedDate(newDate.getTime());
+                    setCurrentMonth(newDate);
+                    
+                    // Smooth snap to center
+                    const snapPosition = nearestIndex * itemWidth - container.clientWidth / 2 + itemWidth / 2;
+                    container.scrollTo({ left: snapPosition, behavior: 'smooth' });
+                });
             }
             
             isScrollingRef.current = false;
-        }, 150);
+            
+            // Reset user scrolling flag after a delay
+            setTimeout(() => {
+                isUserScrollingRef.current = false;
+            }, 300);
+        }, 200);
     }, [calendarDays]);
 
-    // Click on date - scroll to it
+    // Click on date
     const handleDateClick = useCallback((date: Date, index: number) => {
+        isUserScrollingRef.current = false;
         setSelectedDate(date.getTime());
         setCurrentMonth(date);
         
         if (calendarStripRef.current) {
             const container = calendarStripRef.current;
-            const itemWidth = 48;
+            const itemWidth = 52;
             const scrollPosition = index * itemWidth - container.clientWidth / 2 + itemWidth / 2;
             container.scrollTo({ left: scrollPosition, behavior: 'smooth' });
         }
@@ -246,7 +264,7 @@ export default function StatsView() {
         return [...calendarEvents, ...autoMilestones];
     }, [calendarEvents, user.goal]);
 
-    // REAL-TIME calculated stats
+    // Calculated stats
     const calculatedStats = useMemo(() => {
         const now = new Date(selectedDate);
         const dailyTasks = user.dailyTasks || [];
@@ -450,7 +468,7 @@ export default function StatsView() {
         localStorage.setItem('dismissedAlerts', JSON.stringify({ date: new Date().toDateString(), alerts: updated }));
     };
 
-    // Mock insights - FIXED to always include all fields
+    // Mock insights
     const mockInsights = useMemo(() => {
         const dailyTasks = user.dailyTasks || [];
         const completedTasks = dailyTasks.filter(t => t.status === 'completed' || t.status === 'approved');
@@ -468,31 +486,18 @@ export default function StatsView() {
         const productiveDayName = dayNames[parseInt(mostProductiveDay[0])];
         const weeklyScore = Math.min(100, Math.round((completedTasks.length * 10) + (streak * 5) + (credits / 10)));
         
-        // Determine strength based on user performance
         let topStrength = 'Getting Started';
-        if (streak >= 7) {
-            topStrength = 'Consistency';
-        } else if (streak >= 3) {
-            topStrength = 'Building Habits';
-        } else if (completedTasks.length >= 10) {
-            topStrength = 'Task Completion';
-        } else if (completedTasks.length >= 5) {
-            topStrength = 'Taking Action';
-        } else if (credits >= 100) {
-            topStrength = 'Earning Rewards';
-        }
+        if (streak >= 7) topStrength = 'Consistency';
+        else if (streak >= 3) topStrength = 'Building Habits';
+        else if (completedTasks.length >= 10) topStrength = 'Task Completion';
+        else if (completedTasks.length >= 5) topStrength = 'Taking Action';
+        else if (credits >= 100) topStrength = 'Earning Rewards';
         
-        // Determine focus area
         let focusArea = 'Getting Started';
-        if (completedTasks.length < 3) {
-            focusArea = 'Complete First Tasks';
-        } else if (streak < 3) {
-            focusArea = 'Build Your Streak';
-        } else if (streak < 7) {
-            focusArea = 'Maintain Consistency';
-        } else {
-            focusArea = 'Push Your Limits';
-        }
+        if (completedTasks.length < 3) focusArea = 'Complete First Tasks';
+        else if (streak < 3) focusArea = 'Build Your Streak';
+        else if (streak < 7) focusArea = 'Maintain Consistency';
+        else focusArea = 'Push Your Limits';
         
         return {
             trend: completedTasks.length > 0 
@@ -518,7 +523,6 @@ export default function StatsView() {
                         generateDeepInsights(user)
                     ]);
                     setBudgetData(budget);
-                    // Merge with mock insights to ensure all fields exist
                     setInsights({ ...mockInsights, ...insightData });
                 } catch (error) {
                     setInsights(mockInsights);
@@ -562,7 +566,7 @@ export default function StatsView() {
         setCalendarEvents(prev => prev.filter(e => e.id !== eventId));
     };
 
-    // Default connected apps data with SVG icons
+    // Connected apps data
     const connectedAppsData = useMemo(() => {
         const apps = user.connectedApps || [];
         
@@ -575,9 +579,7 @@ export default function StatsView() {
                 color: '#96BF48',
                 metrics: [
                     { id: 'revenue', name: 'Revenue', value: 0, unit: '$', change: 0, history: [0, 0, 0, 0, 0, 0, 0] },
-                    { id: 'orders', name: 'Orders', value: 0, unit: '', change: 0, history: [0, 0, 0, 0, 0, 0, 0] },
-                    { id: 'visitors', name: 'Visitors', value: 0, unit: '', change: 0, history: [0, 0, 0, 0, 0, 0, 0] },
-                    { id: 'conversion', name: 'Conversion', value: 0, unit: '%', change: 0, history: [0, 0, 0, 0, 0, 0, 0] }
+                    { id: 'orders', name: 'Orders', value: 0, unit: '', change: 0, history: [0, 0, 0, 0, 0, 0, 0] }
                 ]
             },
             {
@@ -588,9 +590,7 @@ export default function StatsView() {
                 color: '#000000',
                 metrics: [
                     { id: 'views', name: 'Views', value: 0, unit: '', change: 0, history: [0, 0, 0, 0, 0, 0, 0] },
-                    { id: 'followers', name: 'Followers', value: 0, unit: '', change: 0, history: [0, 0, 0, 0, 0, 0, 0] },
-                    { id: 'likes', name: 'Likes', value: 0, unit: '', change: 0, history: [0, 0, 0, 0, 0, 0, 0] },
-                    { id: 'engagement', name: 'Engagement', value: 0, unit: '%', change: 0, history: [0, 0, 0, 0, 0, 0, 0] }
+                    { id: 'followers', name: 'Followers', value: 0, unit: '', change: 0, history: [0, 0, 0, 0, 0, 0, 0] }
                 ]
             },
             {
@@ -601,9 +601,7 @@ export default function StatsView() {
                 color: '#E1306C',
                 metrics: [
                     { id: 'reach', name: 'Reach', value: 0, unit: '', change: 0, history: [0, 0, 0, 0, 0, 0, 0] },
-                    { id: 'followers', name: 'Followers', value: 0, unit: '', change: 0, history: [0, 0, 0, 0, 0, 0, 0] },
-                    { id: 'engagement', name: 'Engagement', value: 0, unit: '%', change: 0, history: [0, 0, 0, 0, 0, 0, 0] },
-                    { id: 'posts', name: 'Posts', value: 0, unit: '', change: 0, history: [0, 0, 0, 0, 0, 0, 0] }
+                    { id: 'engagement', name: 'Engagement', value: 0, unit: '%', change: 0, history: [0, 0, 0, 0, 0, 0, 0] }
                 ]
             },
             {
@@ -614,9 +612,7 @@ export default function StatsView() {
                 color: '#4285F4',
                 metrics: [
                     { id: 'spend', name: 'Spend', value: 0, unit: '$', change: 0, history: [0, 0, 0, 0, 0, 0, 0] },
-                    { id: 'clicks', name: 'Clicks', value: 0, unit: '', change: 0, history: [0, 0, 0, 0, 0, 0, 0] },
-                    { id: 'impressions', name: 'Impressions', value: 0, unit: '', change: 0, history: [0, 0, 0, 0, 0, 0, 0] },
-                    { id: 'roas', name: 'ROAS', value: 0, unit: 'x', change: 0, history: [0, 0, 0, 0, 0, 0, 0] }
+                    { id: 'clicks', name: 'Clicks', value: 0, unit: '', change: 0, history: [0, 0, 0, 0, 0, 0, 0] }
                 ]
             }
         ];
@@ -630,12 +626,31 @@ export default function StatsView() {
         });
     }, [user.connectedApps]);
 
-    // Chart Components
+    // FIX #20: LineChart with touch support
     const LineChart = ({ data, color = "#4F46E5", height = 100, labels = [] }: { 
         data: number[], color?: string, height?: number, labels?: string[]
     }) => {
-        const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
-        if (!data || data.length === 0) return <div className="flex items-center justify-center text-gray-400 text-sm" style={{ height }}>No data</div>;
+        const [localHovered, setLocalHovered] = useState<number | null>(null);
+        
+        // FIX #20: Handle touch events
+        const handleTouchStart = (index: number) => {
+            setLocalHovered(index);
+            if (touchTimeoutRef.current) clearTimeout(touchTimeoutRef.current);
+        };
+        
+        const handleTouchEnd = () => {
+            touchTimeoutRef.current = setTimeout(() => {
+                setLocalHovered(null);
+            }, 2000);
+        };
+        
+        if (!data || data.length === 0) {
+            return (
+                <div className="flex items-center justify-center text-gray-400 text-sm" style={{ height }}>
+                    No data
+                </div>
+            );
+        }
         
         const max = Math.max(...data, 1);
         const min = Math.min(...data, 0);
@@ -664,9 +679,28 @@ export default function StatsView() {
                     <path d={linePath} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                     {points.map((point, i) => (
                         <g key={i}>
-                            <circle cx={point.x} cy={point.y} r={hoveredPoint === i ? 6 : 4} fill="white" stroke={color} strokeWidth="2"
-                                className="transition-all cursor-pointer" onMouseEnter={() => setHoveredPoint(i)} onMouseLeave={() => setHoveredPoint(null)} />
-                            {hoveredPoint === i && (
+                            {/* FIX #20: Larger touch target */}
+                            <circle 
+                                cx={point.x} 
+                                cy={point.y} 
+                                r={20} 
+                                fill="transparent"
+                                className="cursor-pointer"
+                                onMouseEnter={() => setLocalHovered(i)}
+                                onMouseLeave={() => setLocalHovered(null)}
+                                onTouchStart={() => handleTouchStart(i)}
+                                onTouchEnd={handleTouchEnd}
+                            />
+                            <circle 
+                                cx={point.x} 
+                                cy={point.y} 
+                                r={localHovered === i ? 6 : 4} 
+                                fill="white" 
+                                stroke={color} 
+                                strokeWidth="2"
+                                className="transition-all pointer-events-none"
+                            />
+                            {localHovered === i && (
                                 <g>
                                     <rect x={point.x - 18} y={point.y - 26} width="36" height="18" rx="4" fill={color} />
                                     <text x={point.x} y={point.y - 13} textAnchor="middle" fill="white" fontSize="10" fontWeight="bold">{point.value}</text>
@@ -675,7 +709,13 @@ export default function StatsView() {
                         </g>
                     ))}
                 </svg>
-                {labels.length > 0 && <div className="flex justify-between px-2 mt-1">{labels.map((label, i) => <span key={i} className="text-[9px] text-gray-400">{label}</span>)}</div>}
+                {labels.length > 0 && (
+                    <div className="flex justify-between px-2 mt-1">
+                        {labels.map((label, i) => (
+                            <span key={i} className="text-[9px] text-gray-400">{label}</span>
+                        ))}
+                    </div>
+                )}
             </div>
         );
     };
@@ -701,20 +741,50 @@ export default function StatsView() {
         );
     };
 
+    // FIX #20: BarChart with touch support
     const BarChart = ({ data, height = 120 }: { data: { label: string; value: number; color?: string }[], height?: number }) => {
         const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
         const max = Math.max(...data.map(d => d.value), 1);
+        
+        const handleTouchStart = (index: number) => {
+            setHoveredIndex(index);
+            if (touchTimeoutRef.current) clearTimeout(touchTimeoutRef.current);
+        };
+        
+        const handleTouchEnd = () => {
+            touchTimeoutRef.current = setTimeout(() => {
+                setHoveredIndex(null);
+            }, 2000);
+        };
 
         return (
             <div className="flex items-end justify-between gap-1" style={{ height }}>
                 {data.map((item, i) => {
                     const barHeight = (item.value / max) * 100;
                     return (
-                        <div key={i} className="flex-1 flex flex-col items-center gap-1" onMouseEnter={() => setHoveredIndex(i)} onMouseLeave={() => setHoveredIndex(null)}>
+                        <div 
+                            key={i} 
+                            className="flex-1 flex flex-col items-center gap-1" 
+                            onMouseEnter={() => setHoveredIndex(i)} 
+                            onMouseLeave={() => setHoveredIndex(null)}
+                            onTouchStart={() => handleTouchStart(i)}
+                            onTouchEnd={handleTouchEnd}
+                        >
                             <div className="relative w-full flex justify-center">
-                                {hoveredIndex === i && <div className="absolute -top-6 bg-gray-800 text-white text-[10px] px-1.5 py-0.5 rounded z-10">{item.value}</div>}
-                                <div className="w-full max-w-[28px] rounded-t transition-all cursor-pointer"
-                                    style={{ height: `${barHeight}%`, minHeight: 4, backgroundColor: item.color || '#4F46E5', opacity: hoveredIndex === i ? 1 : 0.7 }} />
+                                {hoveredIndex === i && (
+                                    <div className="absolute -top-6 bg-gray-800 text-white text-[10px] px-1.5 py-0.5 rounded z-10">
+                                        {item.value}
+                                    </div>
+                                )}
+                                <div 
+                                    className="w-full max-w-[28px] rounded-t transition-all cursor-pointer"
+                                    style={{ 
+                                        height: `${barHeight}%`, 
+                                        minHeight: 4, 
+                                        backgroundColor: item.color || '#4F46E5', 
+                                        opacity: hoveredIndex === i ? 1 : 0.7 
+                                    }} 
+                                />
                             </div>
                             <span className="text-[9px] text-gray-400">{item.label}</span>
                         </div>
@@ -724,7 +794,9 @@ export default function StatsView() {
         );
     };
 
-    const ProgressRing = ({ progress, size = 80, strokeWidth = 8, color = "#4F46E5", label, value }: { progress: number, size?: number, strokeWidth?: number, color?: string, label?: string, value?: string | number }) => {
+    const ProgressRing = ({ progress, size = 80, strokeWidth = 8, color = "#4F46E5", label, value }: { 
+        progress: number, size?: number, strokeWidth?: number, color?: string, label?: string, value?: string | number 
+    }) => {
         const radius = (size - strokeWidth) / 2;
         const circumference = radius * 2 * Math.PI;
         const offset = circumference - (progress / 100) * circumference;
@@ -733,8 +805,18 @@ export default function StatsView() {
             <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
                 <svg className="transform -rotate-90" width={size} height={size}>
                     <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#F3F4F6" strokeWidth={strokeWidth} />
-                    <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={color} strokeWidth={strokeWidth}
-                        strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round" className="transition-all duration-1000" />
+                    <circle 
+                        cx={size / 2} 
+                        cy={size / 2} 
+                        r={radius} 
+                        fill="none" 
+                        stroke={color} 
+                        strokeWidth={strokeWidth}
+                        strokeDasharray={circumference} 
+                        strokeDashoffset={offset} 
+                        strokeLinecap="round" 
+                        className="transition-all duration-1000" 
+                    />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
                     {value !== undefined && <span className="text-base font-black text-gray-800">{value}</span>}
@@ -744,7 +826,7 @@ export default function StatsView() {
         );
     };
 
-    // Scrollable Calendar Strip - FIXED scrolling behavior
+    // FIX #19: Scrollable Calendar Strip with improved behavior
     const renderCalendarStrip = () => {
         const isToday = (date: Date) => date.toDateString() === new Date().toDateString();
         const isSelected = (date: Date) => date.toDateString() === new Date(selectedDate).toDateString();
@@ -753,8 +835,11 @@ export default function StatsView() {
             <div 
                 ref={calendarStripRef}
                 onScroll={handleCalendarScroll}
-                className="flex gap-2 overflow-x-auto py-2 px-4 scrollbar-hide"
-                style={{ scrollSnapType: 'x mandatory' }}
+                className="flex gap-2 overflow-x-auto py-2 px-4 scrollbar-hide scroll-smooth"
+                style={{ 
+                    scrollSnapType: 'x mandatory',
+                    WebkitOverflowScrolling: 'touch'
+                }}
             >
                 {calendarDays.map((d, i) => {
                     const selected = isSelected(d);
@@ -767,13 +852,15 @@ export default function StatsView() {
                             key={i} 
                             onClick={() => handleDateClick(d, i)}
                             style={{ scrollSnapAlign: 'center' }}
-                            className={`flex flex-col items-center justify-center min-w-[44px] w-11 h-14 rounded-xl transition-all flex-shrink-0 ${
+                            className={`flex flex-col items-center justify-center min-w-[48px] w-12 h-16 rounded-xl transition-all flex-shrink-0 ${
                                 selected 
-                                    ? 'bg-primary text-white shadow-lg' 
+                                    ? 'bg-primary text-white shadow-lg shadow-primary/20' 
                                     : today 
                                         ? 'bg-primary/10 text-primary' 
-                                        : 'bg-white text-gray-600 border border-gray-200'
+                                        : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-300'
                             }`}
+                            aria-label={`Select ${d.toLocaleDateString()}`}
+                            aria-pressed={selected}
                         >
                             <span className={`text-[9px] font-bold uppercase ${selected ? 'text-white/70' : today ? 'text-primary/70' : 'text-gray-400'}`}>
                                 {viewMode === 'monthly' 
@@ -785,8 +872,8 @@ export default function StatsView() {
                                 {viewMode === 'monthly' ? d.getFullYear().toString().slice(-2) : d.getDate()}
                             </span>
                             <div className="flex gap-0.5 h-1.5">
-                                {hasData && <div className={`w-1 h-1 rounded-full ${selected ? 'bg-white' : 'bg-emerald-500'}`}></div>}
-                                {events.length > 0 && <div className={`w-1 h-1 rounded-full ${selected ? 'bg-white/60' : 'bg-violet-500'}`}></div>}
+                                {hasData && <div className={`w-1 h-1 rounded-full ${selected ? 'bg-white' : 'bg-emerald-500'}`} />}
+                                {events.length > 0 && <div className={`w-1 h-1 rounded-full ${selected ? 'bg-white/60' : 'bg-violet-500'}`} />}
                             </div>
                         </button>
                     );
@@ -795,589 +882,329 @@ export default function StatsView() {
         );
     };
 
-    const renderFullCalendar = () => {
-        const year = currentMonth.getFullYear();
-        const month = currentMonth.getMonth();
-        const firstDay = new Date(year, month, 1);
-        const lastDay = new Date(year, month + 1, 0);
-        const startingDay = firstDay.getDay();
-        const totalDays = lastDay.getDate();
-        const prevMonthLastDay = new Date(year, month, 0).getDate();
-        
-        const days = [];
-        const weekDays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-        
-        for (let i = startingDay - 1; i >= 0; i--) days.push(<div key={`prev-${i}`} className="h-9 flex items-center justify-center text-gray-300 text-xs">{prevMonthLastDay - i}</div>);
-        
-        for (let day = 1; day <= totalDays; day++) {
-            const date = new Date(year, month, day);
-            const isToday = date.toDateString() === new Date().toDateString();
-            const isSelectedDay = date.toDateString() === new Date(selectedDate).toDateString();
-            const dayHasActivity = hasActivity(date);
-            const dayEvents = getEventsForDate(date);
-            
-            days.push(
-                <button key={day} onClick={() => { setSelectedDate(date.getTime()); setSelectedEventDate(date); if (dayEvents.length > 0) setShowDayEvents(true); }}
-                    className={`h-9 rounded-lg flex flex-col items-center justify-center relative transition-all ${
-                        isSelectedDay ? 'bg-primary text-white' : isToday ? 'bg-primary/10 text-primary font-bold' : 'text-gray-700 hover:bg-gray-50'
-                    }`}>
-                    <span className="text-xs font-semibold">{day}</span>
-                    {(dayHasActivity || dayEvents.length > 0) && (
-                        <div className="flex gap-0.5 absolute bottom-0.5">
-                            {dayHasActivity && <div className={`w-1 h-1 rounded-full ${isSelectedDay ? 'bg-white' : 'bg-emerald-500'}`}></div>}
-                            {dayEvents.length > 0 && <div className={`w-1 h-1 rounded-full ${isSelectedDay ? 'bg-white/60' : 'bg-violet-500'}`}></div>}
-                        </div>
-                    )}
-                </button>
-            );
-        }
-        
-        const remainingDays = 42 - days.length;
-        for (let i = 1; i <= remainingDays; i++) days.push(<div key={`next-${i}`} className="h-9 flex items-center justify-center text-gray-300 text-xs">{i}</div>);
-        
-        return (
-            <Card className="p-4 bg-white border border-gray-200">
-                <div className="flex items-center justify-between mb-3">
-                    <button onClick={() => { const n = new Date(currentMonth); n.setMonth(n.getMonth() - 1); setCurrentMonth(n); }} className="p-1.5 hover:bg-gray-100 rounded-full">
-                        <Icons.ChevronLeft className="w-4 h-4 text-gray-500" />
-                    </button>
-                    <h3 className="font-bold text-gray-800 text-sm">{currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</h3>
-                    <button onClick={() => { const n = new Date(currentMonth); n.setMonth(n.getMonth() + 1); setCurrentMonth(n); }} className="p-1.5 hover:bg-gray-100 rounded-full">
-                        <Icons.ChevronRight className="w-4 h-4 text-gray-500" />
-                    </button>
-                </div>
-                <div className="grid grid-cols-7 gap-0.5 mb-1">{weekDays.map(day => <div key={day} className="text-center text-[10px] font-bold text-gray-400 py-1">{day}</div>)}</div>
-                <div className="grid grid-cols-7 gap-0.5">{days}</div>
-                <button onClick={() => { setSelectedEventDate(new Date(selectedDate)); setShowEventModal(true); }} className="w-full mt-4 py-2.5 border border-dashed border-gray-300 rounded-xl text-gray-400 text-xs font-medium hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-1">
-                    <Icons.Plus className="w-3 h-3" /> Add Event
-                </button>
-            </Card>
-        );
-    };
-
-    const renderViewModeToggle = () => (
-        <div className="flex bg-gray-100 rounded-full p-0.5">
-            {(['daily', 'weekly', 'monthly'] as const).map(mode => (
-                <button key={mode} onClick={() => setViewMode(mode)}
-                    className={`flex-1 py-1.5 px-3 rounded-full text-[10px] font-bold transition-all ${viewMode === mode ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
-                    {mode.charAt(0).toUpperCase() + mode.slice(1)}
-                </button>
-            ))}
-        </div>
-    );
-
-    // Stats Cards
-    const renderStatsCards = () => (
-        <div className="grid grid-cols-3 gap-3">
-            <Card className="p-3 bg-gradient-to-br from-primary to-primary/80 text-white border-none shadow-sm">
-                <div className="flex items-center gap-1 mb-0.5">
-                    <Icons.Check className="w-3 h-3 text-white/60" />
-                    <span className="text-[8px] font-bold uppercase text-white/60">Tasks</span>
-                </div>
-                <div className="text-xl font-black">{animatedValues.tasksCompleted ?? calculatedStats.tasksCompleted}</div>
-                <div className="text-[9px] text-white/60">{viewMode === 'daily' ? 'Today' : viewMode === 'weekly' ? 'Week' : 'Month'}</div>
-            </Card>
-            
-            <Card className="p-3 bg-gradient-to-br from-amber-500 to-amber-400 text-white border-none shadow-sm">
-                <div className="flex items-center gap-1 mb-0.5">
-                    <CoinIcon className="w-3 h-3 opacity-60" />
-                    <span className="text-[8px] font-bold uppercase text-white/60">Credits</span>
-                </div>
-                <div className="text-xl font-black">{animatedValues.totalCredits ?? calculatedStats.totalCredits}</div>
-                <div className="text-[9px] text-white/60">+{animatedValues.periodCredits ?? calculatedStats.periodCredits}</div>
-            </Card>
-            
-            <Card className="p-3 bg-gradient-to-br from-red-500 to-orange-400 text-white border-none shadow-sm">
-                <div className="flex items-center gap-1 mb-0.5">
-                    <Icons.Flame className="w-3 h-3 text-white/60" />
-                    <span className="text-[8px] font-bold uppercase text-white/60">Streak</span>
-                </div>
-                <div className="text-xl font-black">{animatedValues.streak ?? calculatedStats.streak}</div>
-                <div className="text-[9px] text-white/60">Best: {calculatedStats.longestStreak}</div>
-            </Card>
-        </div>
-    );
-
-    const renderAlerts = () => {
-        if (alerts.length === 0) return null;
-        
-        const getAlertStyles = (type: string) => {
-            switch (type) {
-                case 'danger': return { bg: 'bg-red-50', border: 'border-red-200', icon: 'bg-red-100 text-red-600', title: 'text-red-800', message: 'text-red-600', button: 'bg-red-600 text-white' };
-                case 'warning': return { bg: 'bg-amber-50', border: 'border-amber-200', icon: 'bg-amber-100 text-amber-600', title: 'text-amber-800', message: 'text-amber-600', button: 'bg-amber-600 text-white' };
-                case 'success': return { bg: 'bg-emerald-50', border: 'border-emerald-200', icon: 'bg-emerald-100 text-emerald-600', title: 'text-emerald-800', message: 'text-emerald-600', button: 'bg-emerald-600 text-white' };
-                default: return { bg: 'bg-blue-50', border: 'border-blue-200', icon: 'bg-blue-100 text-blue-600', title: 'text-blue-800', message: 'text-blue-600', button: 'bg-blue-600 text-white' };
-            }
-        };
-        
-        return (
-            <div className="space-y-3">
-                {alerts.slice(0, 2).map(alert => {
-                    const styles = getAlertStyles(alert.type);
-                    const IconComponent = alert.icon;
-                    return (
-                        <div key={alert.id} className={`${styles.bg} border ${styles.border} rounded-xl p-3 relative`}>
-                            <button onClick={() => dismissAlert(alert.id)} className="absolute top-2 right-2 p-0.5 hover:bg-black/5 rounded-full"><Icons.X className="w-3 h-3 text-gray-400" /></button>
-                            <div className="flex gap-2 items-start">
-                                <div className={`${styles.icon} p-1.5 rounded-lg flex-shrink-0`}><IconComponent className="w-4 h-4" /></div>
-                                <div className="flex-1 pr-4">
-                                    <h4 className={`${styles.title} font-bold text-xs`}>{alert.title}</h4>
-                                    <p className={`${styles.message} text-[10px]`}>{alert.message}</p>
-                                    {alert.actionLabel && (
-                                        <button className={`${styles.button} mt-2 px-2 py-1 rounded text-[10px] font-bold`} onClick={() => { dismissAlert(alert.id); if (alert.actionView) setView(alert.actionView); }}>
-                                            {alert.actionLabel}
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-        );
-    };
-
-    const renderGoalProgress = () => {
-        if (!user.goal) return null;
-        const daysElapsed = user.goal.createdAt ? Math.floor((Date.now() - new Date(user.goal.createdAt).getTime()) / (1000 * 60 * 60 * 24)) : 0;
-        const totalDays = user.goal.durationDays || 30;
-        const progress = Math.min((daysElapsed / totalDays) * 100, 100);
-
-        return (
-            <Card className="p-4 bg-white border border-gray-200">
-                <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-bold text-gray-800 text-sm flex items-center gap-1.5"><Icons.Trophy className="w-4 h-4 text-primary" />Goal Progress</h3>
-                    <span className="text-[10px] text-gray-400">Day {calculatedStats.currentDay}/{totalDays}</span>
-                </div>
-                <div className="flex items-center gap-4">
-                    <ProgressRing progress={progress} size={70} strokeWidth={8} color="#4F46E5" value={`${Math.round(progress)}%`} />
-                    <div className="flex-1">
-                        <h4 className="font-bold text-gray-800 text-sm mb-0.5 line-clamp-1">{user.goal.title}</h4>
-                        <p className="text-[10px] text-gray-400 mb-2">{user.goal.category}</p>
-                        <div className="w-full bg-gray-100 rounded-full h-1.5">
-                            <div className="bg-primary h-1.5 rounded-full transition-all duration-1000" style={{ width: `${progress}%` }} />
-                        </div>
-                    </div>
-                </div>
-            </Card>
-        );
-    };
-
-    // IMPROVED Activity Section
-    const renderActivityChart = () => {
-        const chartLabels = calculatedStats.historyData.map(d => {
-            if (viewMode === 'daily') return d.date.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 2);
-            if (viewMode === 'weekly') return `W${Math.ceil(d.date.getDate() / 7)}`;
-            return d.date.toLocaleDateString('en-US', { month: 'short' }).slice(0, 3);
-        });
-        
-        const hasData = calculatedStats.historyData.some(d => d.tasks > 0);
-        const totalTasks = calculatedStats.historyData.reduce((sum, d) => sum + d.tasks, 0);
-        const avgTasks = (totalTasks / 7).toFixed(1);
-        const maxTasks = Math.max(...calculatedStats.historyData.map(d => d.tasks));
-        const minTasks = Math.min(...calculatedStats.historyData.map(d => d.tasks));
-        
-        // Calculate trend percentage
-        const firstHalf = calculatedStats.historyData.slice(0, 3).reduce((s, d) => s + d.tasks, 0);
-        const secondHalf = calculatedStats.historyData.slice(4).reduce((s, d) => s + d.tasks, 0);
-        const trendPercent = firstHalf > 0 ? Math.round(((secondHalf - firstHalf) / firstHalf) * 100) : secondHalf > 0 ? 100 : 0;
-        const isUp = trendPercent >= 0;
-
-        return (
-            <Card className="p-4 bg-white border border-gray-200">
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-bold text-gray-800 text-sm flex items-center gap-1.5">
-                        <Icons.Activity className="w-4 h-4 text-primary" />
-                        Activity Overview
-                    </h3>
-                    <span className="text-[10px] text-gray-400">
-                        Last 7 {viewMode === 'daily' ? 'days' : viewMode === 'weekly' ? 'weeks' : 'months'}
-                    </span>
-                </div>
-                
-                {hasData ? (
-                    <>
-                        {/* Stats Row */}
-                        <div className="grid grid-cols-4 gap-2 mb-4">
-                            <div className="text-center">
-                                <div className="text-lg font-black text-gray-800">{totalTasks}</div>
-                                <div className="text-[9px] text-gray-400 uppercase">Total</div>
-                            </div>
-                            <div className="text-center">
-                                <div className="text-lg font-black text-gray-800">{avgTasks}</div>
-                                <div className="text-[9px] text-gray-400 uppercase">Average</div>
-                            </div>
-                            <div className="text-center">
-                                <div className="text-lg font-black text-gray-800">{maxTasks}</div>
-                                <div className="text-[9px] text-gray-400 uppercase">Best</div>
-                            </div>
-                            <div className="text-center">
-                                <div className={`text-lg font-black flex items-center justify-center gap-0.5 ${isUp ? 'text-emerald-600' : 'text-red-500'}`}>
-                                    {isUp ? <Icons.TrendingUp className="w-3.5 h-3.5" /> : <Icons.TrendingDown className="w-3.5 h-3.5" />}
-                                    {Math.abs(trendPercent)}%
-                                </div>
-                                <div className="text-[9px] text-gray-400 uppercase">Trend</div>
-                            </div>
-                        </div>
-                        
-                        {/* Chart */}
-                        <LineChart 
-                            data={calculatedStats.historyData.map(d => d.tasks)} 
-                            color="#4F46E5" 
-                            height={100} 
-                            labels={chartLabels} 
-                        />
-                        
-                        {/* Daily breakdown */}
-                        <div className="mt-4 pt-3 border-t border-gray-100">
-                            <div className="flex justify-between items-center">
-                                {calculatedStats.historyData.map((d, i) => {
-                                    const isMax = d.tasks === maxTasks && maxTasks > 0;
-                                    const isToday = d.date.toDateString() === new Date().toDateString();
-                                    return (
-                                        <div key={i} className="flex flex-col items-center">
-                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
-                                                isMax ? 'bg-primary text-white' : 
-                                                isToday ? 'bg-primary/10 text-primary' : 
-                                                d.tasks > 0 ? 'bg-gray-100 text-gray-700' : 'bg-gray-50 text-gray-300'
-                                            }`}>
-                                                {d.tasks}
-                                            </div>
-                                            <span className={`text-[8px] mt-1 ${isToday ? 'text-primary font-bold' : 'text-gray-400'}`}>
-                                                {chartLabels[i]}
-                                            </span>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    </>
-                ) : (
-                    <div className="flex flex-col items-center justify-center py-10 text-gray-400">
-                        <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-3">
-                            <Icons.Activity className="w-8 h-8 text-gray-300" />
-                        </div>
-                        <p className="text-sm text-gray-500 font-medium">No activity yet</p>
-                        <p className="text-xs text-gray-400 mt-1">Complete tasks to see your trends</p>
-                    </div>
-                )}
-            </Card>
-        );
-    };
-
-    // Connected Apps Statistics with clean SVG icons
-    const renderConnectedAppsStats = () => {
-        const [activeAppIndex, setActiveAppIndex] = useState(0);
-        const activeApp = connectedAppsData[activeAppIndex];
-        const AppIcon = activeApp.Icon;
-
-        return (
-            <Card className="p-4 bg-white border border-gray-200">
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-bold text-gray-800 text-sm flex items-center gap-1.5">
-                        <Icons.Cpu className="w-4 h-4 text-primary" />
-                        Integrations
-                    </h3>
-                    <button onClick={() => setView(AppView.SETTINGS)} className="text-[10px] text-primary font-bold">
-                        Manage
-                    </button>
-                </div>
-                
-                {/* App tabs with clean SVG icons */}
-                <div className="flex gap-2 mb-4 overflow-x-auto scrollbar-hide">
-                    {connectedAppsData.map((app, i) => {
-                        const Icon = app.Icon;
-                        return (
-                            <button
-                                key={app.id}
-                                onClick={() => setActiveAppIndex(i)}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all border ${
-                                    activeAppIndex === i 
-                                        ? 'bg-gray-900 text-white border-gray-900' 
-                                        : app.isConnected 
-                                            ? 'bg-white text-gray-700 border-gray-200' 
-                                            : 'bg-gray-50 text-gray-400 border-gray-100'
-                                }`}
-                            >
-                                <Icon className="w-3.5 h-3.5" />
-                                {app.name}
-                                {app.isConnected && <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>}
-                            </button>
-                        );
-                    })}
-                </div>
-
-                {/* Active app content */}
-                {activeApp.isConnected ? (
-                    <div className="space-y-3">
-                        <div className="grid grid-cols-2 gap-3">
-                            {activeApp.metrics.slice(0, 4).map(metric => (
-                                <div key={metric.id} className="bg-gray-50 rounded-xl p-3">
-                                    <div className="flex items-center justify-between mb-1">
-                                        <span className="text-[9px] text-gray-400 uppercase font-medium">{metric.name}</span>
-                                        {metric.change !== 0 && (
-                                            <span className={`text-[9px] font-bold ${metric.change > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                                                {metric.change > 0 ? '+' : ''}{metric.change}%
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className="flex items-end justify-between">
-                                        <span className="text-base font-black text-gray-800">
-                                            {metric.unit === '$' ? '$' : ''}{metric.value}{metric.unit === '%' ? '%' : metric.unit === 'x' ? 'x' : ''}
-                                        </span>
-                                        <MiniSparkline data={metric.history} color={activeApp.color} height={24} />
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                ) : (
-                    <div className="text-center py-8">
-                        <div className="w-14 h-14 mx-auto mb-3 rounded-xl bg-gray-100 flex items-center justify-center">
-                            <AppIcon className="w-7 h-7 text-gray-400" />
-                        </div>
-                        <p className="text-sm text-gray-600 font-medium mb-1">Connect {activeApp.name}</p>
-                        <p className="text-xs text-gray-400 mb-4">View your analytics here</p>
-                        <button 
-                            onClick={() => setView(AppView.SETTINGS)}
-                            className="px-5 py-2 bg-gray-900 text-white rounded-lg text-xs font-bold"
-                        >
-                            Connect
-                        </button>
-                    </div>
-                )}
-            </Card>
-        );
-    };
-
-    // Credits Chart
-    const renderCreditsChart = () => {
-        const hasData = calculatedStats.historyData.some(d => d.credits > 0);
-        return (
-            <Card className="p-4 bg-white border border-gray-200">
-                <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-bold text-gray-800 text-sm flex items-center gap-1.5"><CoinIcon className="w-4 h-4" />Earnings</h3>
-                    <div className="flex items-center gap-2 text-[10px]">
-                        <span className="text-gray-400">Total:</span>
-                        <span className="font-bold text-amber-600 flex items-center gap-0.5"><CoinIcon className="w-3 h-3" />{calculatedStats.totalCredits}</span>
-                    </div>
-                </div>
-                {hasData ? (
-                    <BarChart data={calculatedStats.historyData.map((d, i) => ({
-                        label: viewMode === 'daily' ? d.date.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 2) : viewMode === 'weekly' ? `W${i + 1}` : d.date.toLocaleDateString('en-US', { month: 'short' }).slice(0, 3),
-                        value: d.credits,
-                        color: i === calculatedStats.historyData.length - 1 ? '#F59E0B' : '#FCD34D'
-                    }))} height={80} />
-                ) : (
-                    <div className="flex flex-col items-center justify-center py-8 text-gray-400">
-                        <CoinIcon className="w-10 h-10 mb-2 opacity-20" />
-                        <p className="text-xs text-gray-400">Earn credits to see history</p>
-                    </div>
-                )}
-            </Card>
-        );
-    };
-
-    const renderUpcomingMilestones = () => {
-        const upcomingEvents = allEvents.filter(e => new Date(e.date) >= new Date()).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(0, 3);
-        if (upcomingEvents.length === 0) return null;
-        
-        return (
-            <div>
-                <h3 className="font-bold text-gray-800 text-sm mb-3 flex items-center gap-1.5"><Icons.Clock className="w-4 h-4 text-primary" />Upcoming</h3>
-                <div className="space-y-2">
-                    {upcomingEvents.map(event => {
-                        const eventDate = new Date(event.date);
-                        const daysUntil = Math.ceil((eventDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-                        return (
-                            <div key={event.id} className="flex gap-3 items-center p-3 bg-white rounded-xl border border-gray-200">
-                                <div className="w-10 h-10 rounded-lg flex items-center justify-center text-sm font-black" style={{ backgroundColor: `${event.color}15`, color: event.color }}>
-                                    {eventDate.getDate()}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <h4 className="font-bold text-gray-800 text-xs truncate">{event.title}</h4>
-                                    <p className="text-[10px] text-gray-400">{eventDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
-                                </div>
-                                <div className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${daysUntil <= 3 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'}`}>
-                                    {daysUntil === 0 ? 'Today' : daysUntil === 1 ? '1d' : `${daysUntil}d`}
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            </div>
-        );
-    };
-
-    // FIXED AI Insights - always shows all fields
-    const renderInsights = () => {
-        const displayInsights = insights || mockInsights;
-        
-        return (
-            <Card className="bg-gradient-to-br from-gray-800 via-gray-900 to-black text-white p-5 border-none relative overflow-hidden shadow-sm">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2"></div>
-                <div className="absolute bottom-0 left-0 w-20 h-20 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2"></div>
-                
-                <div className="relative">
-                    <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-white/50 text-[10px] font-bold uppercase flex items-center gap-1.5">
-                            <Icons.Sparkles className="w-3.5 h-3.5" />
-                            AI Insight
-                        </h3>
-                        {displayInsights?.weeklyScore !== undefined && (
-                            <div className="bg-white/15 px-2.5 py-1 rounded-full text-[10px] font-bold">
-                                Score: {displayInsights.weeklyScore}/100
-                            </div>
-                        )}
-                    </div>
-                    
-                    {isLoading ? (
-                        <div className="flex items-center gap-2 py-4">
-                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                            <span className="text-white/50 text-xs">Analyzing your progress...</span>
-                        </div>
-                    ) : (
-                        <>
-                            {/* Main insight */}
-                            <p className="text-sm font-medium leading-relaxed mb-4 text-white/90">
-                                "{displayInsights?.trend || 'Start completing tasks to see insights.'}"
-                            </p>
-                            
-                            {/* Stats grid - 3 columns now */}
-                            <div className="grid grid-cols-3 gap-2">
-                                <div className="bg-white/10 rounded-xl p-3">
-                                    <div className="text-[9px] text-white/40 uppercase font-medium mb-1">Focus</div>
-                                    <div className="font-bold text-xs text-white">
-                                        {displayInsights?.focusArea || 'Getting Started'}
-                                    </div>
-                                </div>
-                                <div className="bg-white/10 rounded-xl p-3">
-                                    <div className="text-[9px] text-white/40 uppercase font-medium mb-1">Strength</div>
-                                    <div className="font-bold text-xs text-white">
-                                        {displayInsights?.topStrength || 'Getting Started'}
-                                    </div>
-                                </div>
-                                <div className="bg-white/10 rounded-xl p-3">
-                                    <div className="text-[9px] text-white/40 uppercase font-medium mb-1">Prediction</div>
-                                    <div className="font-bold text-xs text-white truncate">
-                                        {displayInsights?.prediction?.split(' ').slice(0, 3).join(' ') || 'Build streak'}
-                                    </div>
-                                </div>
-                            </div>
-                        </>
-                    )}
-                </div>
-            </Card>
-        );
-    };
-
-    // Modals
-    const renderEventModal = () => {
-        if (!showEventModal) return null;
-        return (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                <Card className="w-full max-w-sm p-4 bg-white border border-gray-200">
-                    <div className="flex items-center justify-between mb-3">
-                        <h3 className="font-bold text-gray-800 text-sm">Add Event</h3>
-                        <button onClick={() => setShowEventModal(false)} className="p-1 hover:bg-gray-100 rounded-full"><Icons.X className="w-4 h-4 text-gray-400" /></button>
-                    </div>
-                    <div className="space-y-3">
-                        <div>
-                            <label className="block text-xs font-medium text-gray-600 mb-1">Date</label>
-                            <div className="px-3 py-2 bg-gray-50 rounded-lg text-gray-700 text-sm">{selectedEventDate?.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</div>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-medium text-gray-600 mb-1">Title</label>
-                            <input type="text" value={newEvent.title} onChange={(e) => setNewEvent(prev => ({ ...prev, title: e.target.value }))} placeholder="Event title" className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-primary text-sm" />
-                        </div>
-                        <div className="flex gap-2 pt-1">
-                            <button onClick={() => setShowEventModal(false)} className="flex-1 py-2 border border-gray-200 rounded-lg font-medium text-gray-600 text-sm">Cancel</button>
-                            <button onClick={handleAddEvent} disabled={!newEvent.title.trim()} className="flex-1 py-2 bg-primary text-white rounded-lg font-medium text-sm disabled:opacity-50">Add</button>
-                        </div>
-                    </div>
-                </Card>
-            </div>
-        );
-    };
-
-    const renderDayEventsModal = () => {
-        if (!showDayEvents) return null;
-        const dayEvents = getEventsForDate(new Date(selectedDate));
-        return (
-            <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50">
-                <Card className="w-full max-w-md rounded-t-2xl rounded-b-none p-4 max-h-[60vh] overflow-y-auto bg-white border-t border-x border-gray-200">
-                    <div className="flex items-center justify-between mb-3">
-                        <div>
-                            <h3 className="font-bold text-gray-800 text-sm">{new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</h3>
-                            <p className="text-[10px] text-gray-400">{dayEvents.length} event(s)</p>
-                        </div>
-                        <button onClick={() => setShowDayEvents(false)} className="p-1 hover:bg-gray-100 rounded-full"><Icons.X className="w-4 h-4 text-gray-400" /></button>
-                    </div>
-                    {dayEvents.length === 0 ? (
-                        <div className="text-center py-6"><Icons.Clock className="w-8 h-8 mx-auto mb-1 opacity-20 text-gray-400" /><p className="text-xs text-gray-400">No events</p></div>
-                    ) : (
-                        <div className="space-y-2">
-                            {dayEvents.map(event => (
-                                <div key={event.id} className="p-3 bg-gray-50 rounded-lg" style={{ borderLeft: `3px solid ${event.color}` }}>
-                                    <div className="flex items-start justify-between">
-                                        <div>
-                                            <h4 className="font-bold text-gray-800 text-sm">{event.title}</h4>
-                                            <span className="text-[9px] uppercase font-bold text-gray-400">{event.type}</span>
-                                        </div>
-                                        {event.type === 'custom' && <button onClick={() => handleDeleteEvent(event.id)} className="text-gray-300 hover:text-red-500"><Icons.Trash className="w-3 h-3" /></button>}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                    <button onClick={() => { setShowDayEvents(false); setShowEventModal(true); }} className="w-full mt-3 py-2 bg-primary text-white rounded-lg font-medium text-sm flex items-center justify-center gap-1">
-                        <Icons.Plus className="w-3 h-3" />Add Event
-                    </button>
-                </Card>
-            </div>
-        );
-    };
+    // FIX #22: Connected Apps with horizontal scroll and snap
+    const [selectedAppIndex, setSelectedAppIndex] = useState(0);
+    const connectedApp = connectedAppsData[selectedAppIndex];
 
     return (
-        <div className="h-full overflow-y-auto pb-safe scroll-smooth">
-            <div className="min-h-full bg-gray-50 pb-28 flex flex-col">
+        <div className="h-full overflow-y-auto bg-gray-50" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <div className="min-h-full pb-24">
                 {/* Header */}
-                <div className="p-4 pb-3 bg-white border-b border-gray-200">
-                    <div className="flex justify-between items-center mb-3">
-                        <h1 className="text-xl font-bold text-gray-800">Analytics</h1>
-                        <button onClick={() => setView(AppView.DASHBOARD)} className="p-1.5 bg-gray-100 rounded-full hover:bg-gray-200"><Icons.X className="w-4 h-4 text-gray-500" /></button>
+                <div className="bg-white border-b border-gray-100 sticky top-0 z-20">
+                    <div className="p-4 flex items-center justify-between">
+                        <div>
+                            <h1 className="text-xl font-black text-primary">Analytics</h1>
+                            <p className="text-xs text-gray-400">Track your progress</p>
+                        </div>
+                        <button 
+                            onClick={() => setView(AppView.SETTINGS)}
+                            className="p-2 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
+                            aria-label="Open settings"
+                        >
+                            <Icons.Settings className="w-5 h-5 text-gray-600" />
+                        </button>
                     </div>
-                    {renderViewModeToggle()}
-                </div>
-                
-                {/* Scrollable Calendar Strip */}
-                <div className="bg-white border-b border-gray-200">
+                    
+                    {/* View Mode Toggle */}
+                    <div className="px-4 pb-3 flex gap-2">
+                        {(['daily', 'weekly', 'monthly'] as const).map((mode) => (
+                            <button
+                                key={mode}
+                                onClick={() => setViewMode(mode)}
+                                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
+                                    viewMode === mode 
+                                        ? 'bg-primary text-white' 
+                                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                }`}
+                                aria-pressed={viewMode === mode}
+                            >
+                                {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                            </button>
+                        ))}
+                    </div>
+                    
+                    {/* FIX #19: Calendar Strip */}
                     {renderCalendarStrip()}
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 p-4 space-y-5">
-                    {renderStatsCards()}
-                    {renderAlerts()}
-                    {renderGoalProgress()}
-                    {renderActivityChart()}
-                    {renderConnectedAppsStats()}
-                    {renderCreditsChart()}
-                    {renderUpcomingMilestones()}
-                    
-                    <div>
-                        <h3 className="font-bold text-gray-800 text-sm mb-3 flex items-center gap-1.5"><Icons.Clock className="w-4 h-4 text-primary" />Calendar</h3>
-                        {renderFullCalendar()}
+                <div className="p-4 space-y-4">
+                    {/* FIX #21: Alerts Section with larger dismiss button */}
+                    {alerts.length > 0 && (
+                        <div className="space-y-2">
+                            {alerts.map((alert) => {
+                                const AlertIcon = alert.icon;
+                                const bgColor = {
+                                    warning: 'bg-amber-50 border-amber-200',
+                                    danger: 'bg-red-50 border-red-200',
+                                    info: 'bg-blue-50 border-blue-200',
+                                    success: 'bg-green-50 border-green-200'
+                                }[alert.type];
+                                const textColor = {
+                                    warning: 'text-amber-700',
+                                    danger: 'text-red-700',
+                                    info: 'text-blue-700',
+                                    success: 'text-green-700'
+                                }[alert.type];
+                                const iconColor = {
+                                    warning: 'text-amber-500',
+                                    danger: 'text-red-500',
+                                    info: 'text-blue-500',
+                                    success: 'text-green-500'
+                                }[alert.type];
+                                
+                                return (
+                                    <div 
+                                        key={alert.id}
+                                        className={`relative p-4 rounded-2xl border ${bgColor}`}
+                                    >
+                                        {/* FIX #21: Larger dismiss button for mobile */}
+                                        <button 
+                                            onClick={() => dismissAlert(alert.id)} 
+                                            className="absolute top-2 right-2 p-2 hover:bg-black/10 rounded-full transition-colors touch-target"
+                                            aria-label={`Dismiss ${alert.title} alert`}
+                                        >
+                                            <Icons.X className="w-4 h-4 text-gray-400" />
+                                        </button>
+                                        
+                                        <div className="flex gap-3 pr-8">
+                                            <div className={`p-2 rounded-xl bg-white/50 ${iconColor}`}>
+                                                <AlertIcon className="w-5 h-5" />
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <h4 className={`font-bold text-sm ${textColor}`}>{alert.title}</h4>
+                                                    <span className="text-[9px] font-bold text-gray-400 uppercase">
+                                                        {alert.source}
+                                                    </span>
+                                                </div>
+                                                <p className="text-xs text-gray-600 mb-2">{alert.message}</p>
+                                                {alert.actionLabel && alert.actionView && (
+                                                    <button
+                                                        onClick={() => setView(alert.actionView!)}
+                                                        className={`text-xs font-bold ${textColor} hover:underline`}
+                                                    >
+                                                        {alert.actionLabel} →
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+
+                    {/* Stats Cards */}
+                    <div className="grid grid-cols-2 gap-3">
+                        <Card className="p-4 bg-white">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Icons.CheckCircle className="w-4 h-4 text-emerald-500" />
+                                <span className="text-[10px] font-bold text-gray-400 uppercase">Tasks</span>
+                            </div>
+                            <div className="text-2xl font-black text-primary">
+                                {animatedValues.tasksCompleted ?? calculatedStats.tasksCompleted}
+                            </div>
+                            <div className="text-[10px] text-gray-400">
+                                {viewMode === 'daily' ? 'Today' : viewMode === 'weekly' ? 'This Week' : 'This Month'}
+                            </div>
+                        </Card>
+                        
+                        <Card className="p-4 bg-white">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Icons.Flame className="w-4 h-4 text-orange-500" />
+                                <span className="text-[10px] font-bold text-gray-400 uppercase">Streak</span>
+                            </div>
+                            <div className="text-2xl font-black text-primary">
+                                {animatedValues.streak ?? calculatedStats.streak}
+                            </div>
+                            <div className="text-[10px] text-gray-400">
+                                Best: {calculatedStats.longestStreak} days
+                            </div>
+                        </Card>
+                        
+                        <Card className="p-4 bg-white">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Icons.Coins className="w-4 h-4 text-yellow-500" />
+                                <span className="text-[10px] font-bold text-gray-400 uppercase">Credits</span>
+                            </div>
+                            <div className="text-2xl font-black text-primary">
+                                {(animatedValues.totalCredits ?? calculatedStats.totalCredits).toLocaleString()}
+                            </div>
+                            <div className="text-[10px] text-emerald-500">
+                                +{calculatedStats.periodCredits} this period
+                            </div>
+                        </Card>
+                        
+                        <Card className="p-4 bg-white">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Icons.TrendingUp className="w-4 h-4 text-blue-500" />
+                                <span className="text-[10px] font-bold text-gray-400 uppercase">Score</span>
+                            </div>
+                            <div className="text-2xl font-black text-primary">
+                                {insights?.weeklyScore || 0}%
+                            </div>
+                            <div className="text-[10px] text-gray-400">
+                                Weekly performance
+                            </div>
+                        </Card>
                     </div>
-                    
-                    <div>
-                        <h3 className="font-bold text-gray-800 text-sm mb-3 flex items-center gap-1.5"><Icons.Sparkles className="w-4 h-4 text-primary" />AI Analysis</h3>
-                        {renderInsights()}
+
+                    {/* Activity Chart */}
+                    <Card className="p-4 bg-white">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-bold text-primary">Activity</h3>
+                            <span className="text-xs text-gray-400">Last 7 {viewMode === 'daily' ? 'days' : viewMode === 'weekly' ? 'weeks' : 'months'}</span>
+                        </div>
+                        <LineChart 
+                            data={calculatedStats.historyData.map(d => d.tasks)}
+                            color="#4F46E5"
+                            height={120}
+                            labels={calculatedStats.historyData.map(d => {
+                                if (viewMode === 'monthly') {
+                                    return d.date.toLocaleDateString('en-US', { month: 'short' });
+                                }
+                                return d.date.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 2);
+                            })}
+                        />
+                    </Card>
+
+                    {/* Insights Card */}
+                    {insights && (
+                        <Card className="p-4 bg-white">
+                            <div className="flex items-center gap-2 mb-4">
+                                <Icons.Zap className="w-5 h-5 text-primary" />
+                                <h3 className="font-bold text-primary">Insights</h3>
+                            </div>
+                            
+                            <div className="space-y-3">
+                                <div className="p-3 bg-gray-50 rounded-xl">
+                                    <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">Top Strength</div>
+                                    <div className="text-sm font-bold text-primary">{insights.topStrength}</div>
+                                </div>
+                                
+                                <div className="p-3 bg-gray-50 rounded-xl">
+                                    <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">Focus Area</div>
+                                    <div className="text-sm font-bold text-primary">{insights.focusArea}</div>
+                                </div>
+                                
+                                <div className="p-3 bg-blue-50 rounded-xl">
+                                    <div className="text-[10px] font-bold text-blue-400 uppercase mb-1">Trend</div>
+                                    <div className="text-sm text-blue-700">{insights.trend}</div>
+                                </div>
+                            </div>
+                        </Card>
+                    )}
+
+                    {/* FIX #22: Connected Apps Section with scroll snap */}
+                    <Card className="p-4 bg-white">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-bold text-primary">Connected Apps</h3>
+                            <button 
+                                onClick={() => setView(AppView.SETTINGS)}
+                                className="text-xs text-primary font-bold"
+                            >
+                                Manage
+                            </button>
+                        </div>
+                        
+                        {/* FIX #22: Horizontal scrolling app tabs with snap */}
+                        <div 
+                            className="flex gap-2 mb-4 overflow-x-auto scrollbar-hide scroll-smooth pb-1"
+                            style={{ scrollSnapType: 'x mandatory' }}
+                        >
+                            {connectedAppsData.map((app, index) => {
+                                const AppIcon = app.Icon;
+                                return (
+                                    <button
+                                        key={app.id}
+                                        onClick={() => setSelectedAppIndex(index)}
+                                        style={{ scrollSnapAlign: 'start' }}
+                                        className={`flex items-center gap-2 px-3 py-2 rounded-xl flex-shrink-0 transition-all ${
+                                            selectedAppIndex === index
+                                                ? 'bg-primary text-white'
+                                                : app.isConnected
+                                                    ? 'bg-gray-100 text-gray-700'
+                                                    : 'bg-gray-50 text-gray-400'
+                                        }`}
+                                        aria-pressed={selectedAppIndex === index}
+                                    >
+                                        <AppIcon className="w-4 h-4" />
+                                        <span className="text-xs font-bold whitespace-nowrap">{app.name}</span>
+                                        {!app.isConnected && (
+                                            <span className="text-[8px] px-1.5 py-0.5 bg-gray-200 rounded-full text-gray-500">
+                                                Not connected
+                                            </span>
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        
+                        {/* Selected App Metrics */}
+                        {connectedApp && (
+                            <div>
+                                {connectedApp.isConnected ? (
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {connectedApp.metrics?.map((metric: any) => (
+                                            <div key={metric.id} className="p-3 bg-gray-50 rounded-xl">
+                                                <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">
+                                                    {metric.name}
+                                                </div>
+                                                <div className="flex items-baseline gap-1">
+                                                    <span className="text-lg font-black text-primary">
+                                                        {metric.unit === '$' && '$'}{metric.value.toLocaleString()}{metric.unit === '%' && '%'}
+                                                    </span>
+                                                    {metric.change !== 0 && (
+                                                        <span className={`text-[10px] font-bold ${metric.change > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                                                            {metric.change > 0 ? '+' : ''}{metric.change}%
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                {metric.history && <MiniSparkline data={metric.history} color={connectedApp.color} />}
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-6">
+                                        <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                                            <connectedApp.Icon className="w-6 h-6 text-gray-400" />
+                                        </div>
+                                        <p className="text-sm text-gray-500 mb-3">Connect {connectedApp.name} to see metrics</p>
+                                        <button 
+                                            onClick={() => setView(AppView.SETTINGS)}
+                                            className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-lg"
+                                        >
+                                            Connect App
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </Card>
+
+                    {/* Quick Actions */}
+                    <div className="grid grid-cols-2 gap-3">
+                        <button
+                            onClick={() => setView(AppView.DASHBOARD)}
+                            className="p-4 bg-white rounded-2xl border border-gray-100 text-left hover:shadow-md transition-all"
+                        >
+                            <Icons.Target className="w-5 h-5 text-primary mb-2" />
+                            <div className="font-bold text-sm text-primary">View Goals</div>
+                            <div className="text-[10px] text-gray-400">Track your progress</div>
+                        </button>
+                        
+                        <button
+                            onClick={() => setView(AppView.SHOP)}
+                            className="p-4 bg-white rounded-2xl border border-gray-100 text-left hover:shadow-md transition-all"
+                        >
+                            <Icons.Shop className="w-5 h-5 text-primary mb-2" />
+                            <div className="font-bold text-sm text-primary">Asset Store</div>
+                            <div className="text-[10px] text-gray-400">Manage credits</div>
+                        </button>
                     </div>
                 </div>
             </div>
-            {renderEventModal()}
-            {renderDayEventsModal()}
         </div>
     );
 }

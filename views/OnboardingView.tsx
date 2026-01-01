@@ -219,26 +219,36 @@ export default function OnboardingView() {
                 </div>
                 
                 <div className="w-full mb-8">
-                    <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-primary transition-all duration-500 ease-out" style={{ width: `${(onboardStep / 4) * 100}%` }}></div>
-                    </div>
-                </div>
+    <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
+        <div 
+            className="h-full bg-primary transition-all duration-500 ease-out" 
+            style={{ 
+                width: `${(onboardStep / 4) * 100}%`, 
+                minWidth: onboardStep > 0 ? '2%' : '0%' 
+            }}
+        />
+    </div>
+</div>
 
                 {onboardStep === 1 && (
                     <div className="animate-slide-up">
                         <h2 className="text-xl font-black text-primary mb-6 uppercase tracking-tight">Select Domain</h2>
-                        <div className="grid grid-cols-2 gap-4 mb-10">
-                            {Object.values(GoalCategory).map((cat) => (
-                                <button 
-                                    key={cat} 
-                                    onClick={() => handleCategorySelect(cat)} 
-                                    className={`p-6 rounded-[2rem] text-left h-40 w-full border-2 transition-all active:scale-95 ${CATEGORY_THEMES[cat]}`}
-                                >
-                                    <div className="p-3 rounded-2xl mb-3 inline-block bg-white/60 backdrop-blur-md shadow-sm">{CATEGORY_ICONS[cat]}</div>
-                                    <span className="font-black text-xs uppercase tracking-widest block leading-tight">{cat}</span>
-                                </button>
-                            ))}
-                        </div>
+                       <div className="grid grid-cols-2 gap-4 mb-10">
+    {Object.values(GoalCategory).map((cat) => (
+        <button 
+            key={cat} 
+            onClick={() => handleCategorySelect(cat)} 
+            className={`p-6 rounded-[2rem] text-left min-h-[160px] w-full border-2 transition-all active:scale-95 ${CATEGORY_THEMES[cat]}`}
+        >
+            <div className="p-3 rounded-2xl mb-3 inline-block bg-white/60 backdrop-blur-md shadow-sm">
+                {CATEGORY_ICONS[cat]}
+            </div>
+            <span className="font-black text-xs uppercase tracking-widest block leading-tight">
+                {cat}
+            </span>
+        </button>
+    ))}
+</div>
                         
                         {/* Cancel button at bottom of step 1 */}
                         {hasExistingGoal && (
@@ -292,14 +302,20 @@ export default function OnboardingView() {
                             </div>
                         </div>
                         <textarea 
-                            className="w-full h-56 p-8 rounded-[2.5rem] bg-accent/30 border-2 border-accent text-lg text-primary focus:outline-none placeholder:text-primary/20 font-medium" 
-                            placeholder="Type your strategic response..." 
-                            disabled={isOnboardingLoading} 
-                            autoFocus 
-                            value={onboardingInput}
-                            onChange={(e) => setOnboardingInput(e.target.value)}
-                            onKeyDown={(e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleOnboardingAnswer(onboardingInput); } }} 
-                        />
+    className="w-full h-56 p-8 rounded-[2.5rem] bg-accent/30 border-2 border-accent text-lg text-primary focus:outline-none placeholder:text-primary/40 font-medium focus-visible:ring-2 focus-visible:ring-primary/50" 
+    placeholder="Type your strategic response..." 
+    disabled={isOnboardingLoading} 
+    autoFocus 
+    value={onboardingInput}
+    onChange={(e) => setOnboardingInput(e.target.value)}
+    onKeyDown={(e) => { 
+        if(e.key === 'Enter' && !e.shiftKey) { 
+            e.preventDefault(); 
+            handleOnboardingAnswer(onboardingInput); 
+        } 
+    }}
+    aria-label="Enter your response"
+/>
                         <div className="flex mt-8 gap-4 items-center">
                             <button onClick={() => setOnboardStep(2)} className="text-[10px] font-black uppercase text-gray-400 tracking-widest px-6 py-2">Back</button>
                             

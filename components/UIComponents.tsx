@@ -2,6 +2,7 @@
 // Complete UI Components library for INJAZI
 // FIX #38: Enhanced BottomNav active state
 // Added: Button, Card, Input, Textarea, Badge, Avatar, ProgressBar, Divider
+// Added: Toggle alias, safety checks for all array mappings
 
 import React from 'react';
 
@@ -644,6 +645,29 @@ export const Icons = {
       <path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94" />
     </svg>
   ),
+  Play: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <polygon points="5 3 19 12 5 21 5 3" />
+    </svg>
+  ),
+  Pause: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <rect x="6" y="4" width="4" height="16" />
+      <rect x="14" y="4" width="4" height="16" />
+    </svg>
+  ),
+  SkipBack: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <polygon points="19 20 9 12 19 4 19 20" />
+      <line x1="5" y1="19" x2="5" y2="5" />
+    </svg>
+  ),
+  SkipForward: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <polygon points="5 4 15 12 5 20 5 4" />
+      <line x1="19" y1="5" x2="19" y2="19" />
+    </svg>
+  ),
 };
 
 // ============================================
@@ -716,11 +740,7 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ size = 'md', cla
 
   return (
     <div 
-      className={`
-        ${sizeClasses[size]} 
-        border-white/20 border-t-[#3423A6] rounded-full animate-spin
-        ${className}
-      `}
+      className={`${sizeClasses[size]} border-white/20 border-t-[#3423A6] rounded-full animate-spin ${className}`}
       role="status"
       aria-label="Loading"
     />
@@ -816,13 +836,7 @@ export const Card: React.FC<CardProps> = ({
   onClick,
   hoverable = false
 }) => {
-  const paddingStyles = {
-    none: '',
-    sm: 'p-3',
-    md: 'p-4',
-    lg: 'p-6'
-  };
-
+  const paddingStyles = { none: '', sm: 'p-3', md: 'p-4', lg: 'p-6' };
   const variantStyles = {
     default: 'bg-white/5 border border-white/5',
     outlined: 'bg-transparent border border-white/10',
@@ -890,51 +904,26 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const Input: React.FC<InputProps> = ({
-  label,
-  error,
-  helperText,
-  leftIcon,
-  rightIcon,
-  className = '',
-  id,
-  ...props
+  label, error, helperText, leftIcon, rightIcon, className = '', id, ...props
 }) => {
   const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
 
   return (
     <div className="w-full">
-      {label && (
-        <label htmlFor={inputId} className="block text-white text-sm font-medium mb-2">
-          {label}
-        </label>
-      )}
+      {label && <label htmlFor={inputId} className="block text-white text-sm font-medium mb-2">{label}</label>}
       <div className="relative">
-        {leftIcon && (
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50">
-            {leftIcon}
-          </div>
-        )}
+        {leftIcon && <div className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50">{leftIcon}</div>}
         <input
           id={inputId}
           className={`
-            w-full bg-white/10 text-white placeholder-white/40 rounded-xl
-            px-4 py-3 text-sm
-            border border-transparent
+            w-full bg-white/10 text-white placeholder-white/40 rounded-xl px-4 py-3 text-sm border border-transparent
             focus:outline-none focus:ring-2 focus:ring-[#3423A6] focus:ring-offset-2 focus:ring-offset-[#171738]
-            focus:bg-white/15 transition-all duration-200
-            disabled:opacity-50 disabled:cursor-not-allowed
-            ${leftIcon ? 'pl-10' : ''}
-            ${rightIcon ? 'pr-10' : ''}
-            ${error ? 'border-red-500 focus:ring-red-500' : ''}
-            ${className}
+            focus:bg-white/15 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed
+            ${leftIcon ? 'pl-10' : ''} ${rightIcon ? 'pr-10' : ''} ${error ? 'border-red-500 focus:ring-red-500' : ''} ${className}
           `}
           {...props}
         />
-        {rightIcon && (
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50">
-            {rightIcon}
-          </div>
-        )}
+        {rightIcon && <div className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50">{rightIcon}</div>}
       </div>
       {error && <p className="mt-1 text-red-400 text-xs">{error}</p>}
       {helperText && !error && <p className="mt-1 text-white/50 text-xs">{helperText}</p>}
@@ -953,36 +942,80 @@ interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement
 }
 
 export const Textarea: React.FC<TextareaProps> = ({
-  label,
-  error,
-  helperText,
-  className = '',
-  id,
-  ...props
+  label, error, helperText, className = '', id, ...props
 }) => {
   const textareaId = id || label?.toLowerCase().replace(/\s+/g, '-');
 
   return (
     <div className="w-full">
-      {label && (
-        <label htmlFor={textareaId} className="block text-white text-sm font-medium mb-2">
-          {label}
-        </label>
-      )}
+      {label && <label htmlFor={textareaId} className="block text-white text-sm font-medium mb-2">{label}</label>}
       <textarea
         id={textareaId}
         className={`
-          w-full bg-white/10 text-white placeholder-white/40 rounded-xl
-          px-4 py-3 text-sm min-h-[100px] resize-none
-          border border-transparent
-          focus:outline-none focus:ring-2 focus:ring-[#3423A6] focus:ring-offset-2 focus:ring-offset-[#171738]
-          focus:bg-white/15 transition-all duration-200
-          disabled:opacity-50 disabled:cursor-not-allowed
-          ${error ? 'border-red-500 focus:ring-red-500' : ''}
-          ${className}
+          w-full bg-white/10 text-white placeholder-white/40 rounded-xl px-4 py-3 text-sm min-h-[100px] resize-none
+          border border-transparent focus:outline-none focus:ring-2 focus:ring-[#3423A6] focus:ring-offset-2 focus:ring-offset-[#171738]
+          focus:bg-white/15 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed
+          ${error ? 'border-red-500 focus:ring-red-500' : ''} ${className}
         `}
         {...props}
       />
+      {error && <p className="mt-1 text-red-400 text-xs">{error}</p>}
+      {helperText && !error && <p className="mt-1 text-white/50 text-xs">{helperText}</p>}
+    </div>
+  );
+};
+
+// ============================================
+// SELECT COMPONENT (with safety check)
+// ============================================
+
+interface SelectOption {
+  value: string;
+  label: string;
+  disabled?: boolean;
+}
+
+interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, 'onChange'> {
+  label?: string;
+  error?: string;
+  helperText?: string;
+  options?: SelectOption[];
+  onChange?: (value: string) => void;
+  placeholder?: string;
+}
+
+export const Select: React.FC<SelectProps> = ({
+  label, error, helperText, options = [], onChange, placeholder = 'Select an option', className = '', id, value, ...props
+}) => {
+  const selectId = id || label?.toLowerCase().replace(/\s+/g, '-');
+
+  return (
+    <div className="w-full">
+      {label && <label htmlFor={selectId} className="block text-white text-sm font-medium mb-2">{label}</label>}
+      <div className="relative">
+        <select
+          id={selectId}
+          value={value}
+          onChange={(e) => onChange?.(e.target.value)}
+          className={`
+            w-full bg-white/10 text-white rounded-xl px-4 py-3 text-sm appearance-none border border-transparent
+            focus:outline-none focus:ring-2 focus:ring-[#3423A6] focus:ring-offset-2 focus:ring-offset-[#171738]
+            focus:bg-white/15 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed
+            ${error ? 'border-red-500 focus:ring-red-500' : ''} ${className}
+          `}
+          {...props}
+        >
+          <option value="" disabled className="bg-[#171738] text-white/50">{placeholder}</option>
+          {options && options.length > 0 && options.map((option) => (
+            <option key={option.value} value={option.value} disabled={option.disabled} className="bg-[#171738] text-white">
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/50">
+          <Icons.ChevronDown className="w-5 h-5" />
+        </div>
+      </div>
       {error && <p className="mt-1 text-red-400 text-xs">{error}</p>}
       {helperText && !error && <p className="mt-1 text-white/50 text-xs">{helperText}</p>}
     </div>
@@ -1000,12 +1033,7 @@ interface BadgeProps {
   className?: string;
 }
 
-export const Badge: React.FC<BadgeProps> = ({
-  children,
-  variant = 'default',
-  size = 'sm',
-  className = ''
-}) => {
+export const Badge: React.FC<BadgeProps> = ({ children, variant = 'default', size = 'sm', className = '' }) => {
   const variantStyles = {
     default: 'bg-white/10 text-white/70',
     success: 'bg-green-500/20 text-green-400',
@@ -1014,19 +1042,10 @@ export const Badge: React.FC<BadgeProps> = ({
     info: 'bg-blue-500/20 text-blue-400',
     primary: 'bg-[#3423A6]/30 text-white'
   };
-
-  const sizeStyles = {
-    sm: 'px-2 py-0.5 text-xs',
-    md: 'px-3 py-1 text-sm'
-  };
+  const sizeStyles = { sm: 'px-2 py-0.5 text-xs', md: 'px-3 py-1 text-sm' };
 
   return (
-    <span className={`
-      inline-flex items-center rounded-full font-medium
-      ${variantStyles[variant]}
-      ${sizeStyles[size]}
-      ${className}
-    `}>
+    <span className={`inline-flex items-center rounded-full font-medium ${variantStyles[variant]} ${sizeStyles[size]} ${className}`}>
       {children}
     </span>
   );
@@ -1044,28 +1063,12 @@ interface AvatarProps {
   className?: string;
 }
 
-export const Avatar: React.FC<AvatarProps> = ({
-  src,
-  alt = 'Avatar',
-  fallback,
-  size = 'md',
-  className = ''
-}) => {
-  const sizeStyles = {
-    sm: 'w-8 h-8 text-xs',
-    md: 'w-10 h-10 text-sm',
-    lg: 'w-12 h-12 text-base',
-    xl: 'w-16 h-16 text-lg'
-  };
-
+export const Avatar: React.FC<AvatarProps> = ({ src, alt = 'Avatar', fallback, size = 'md', className = '' }) => {
+  const sizeStyles = { sm: 'w-8 h-8 text-xs', md: 'w-10 h-10 text-sm', lg: 'w-12 h-12 text-base', xl: 'w-16 h-16 text-lg' };
   const initials = fallback || alt?.charAt(0).toUpperCase() || '?';
 
   return (
-    <div className={`
-      relative rounded-full overflow-hidden bg-white/10 flex items-center justify-center
-      ${sizeStyles[size]}
-      ${className}
-    `}>
+    <div className={`relative rounded-full overflow-hidden bg-white/10 flex items-center justify-center ${sizeStyles[size]} ${className}`}>
       {src ? (
         <img src={src} alt={alt} className="w-full h-full object-cover" loading="lazy" />
       ) : (
@@ -1089,22 +1092,11 @@ interface ProgressBarProps {
 }
 
 export const ProgressBar: React.FC<ProgressBarProps> = ({
-  value,
-  max = 100,
-  size = 'md',
-  showLabel = false,
-  className = '',
-  color = 'primary'
+  value, max = 100, size = 'md', showLabel = false, className = '', color = 'primary'
 }) => {
   const percentage = Math.min(Math.max((value / max) * 100, 0), 100);
-
   const sizeStyles = { sm: 'h-1', md: 'h-2', lg: 'h-3' };
-  const colorStyles = {
-    primary: 'bg-[#3423A6]',
-    success: 'bg-green-500',
-    warning: 'bg-yellow-500',
-    error: 'bg-red-500'
-  };
+  const colorStyles = { primary: 'bg-[#3423A6]', success: 'bg-green-500', warning: 'bg-yellow-500', error: 'bg-red-500' };
 
   return (
     <div className={className}>
@@ -1137,16 +1129,9 @@ interface DividerProps {
   orientation?: 'horizontal' | 'vertical';
 }
 
-export const Divider: React.FC<DividerProps> = ({
-  className = '',
-  orientation = 'horizontal'
-}) => (
+export const Divider: React.FC<DividerProps> = ({ className = '', orientation = 'horizontal' }) => (
   <div
-    className={`
-      bg-white/10
-      ${orientation === 'horizontal' ? 'h-px w-full' : 'w-px h-full'}
-      ${className}
-    `}
+    className={`bg-white/10 ${orientation === 'horizontal' ? 'h-px w-full' : 'w-px h-full'} ${className}`}
     role="separator"
     aria-orientation={orientation}
   />
@@ -1187,17 +1172,56 @@ export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({
         ${enabled ? 'bg-[#3423A6]' : 'bg-white/20'}
       `}
     >
-      <span className={`
-        absolute top-1 w-5 h-5 bg-white rounded-full transition-transform duration-200 shadow-md
-        ${enabled ? 'right-1' : 'left-1'}
-      `} />
+      <span className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-transform duration-200 shadow-md ${enabled ? 'right-1' : 'left-1'}`} />
     </button>
   </div>
 );
 
-// Alias for backward compatibility
+// Toggle alias for backward compatibility
 export const Toggle = ToggleSwitch;
 
+// ============================================
+// CHECKBOX COMPONENT
+// ============================================
+
+interface CheckboxProps {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  label?: string;
+  description?: string;
+  disabled?: boolean;
+  id?: string;
+}
+
+export const Checkbox: React.FC<CheckboxProps> = ({ checked, onChange, label, description, disabled = false, id }) => {
+  const checkboxId = id || label?.toLowerCase().replace(/\s+/g, '-');
+
+  return (
+    <div className="flex items-start gap-3">
+      <button
+        id={checkboxId}
+        role="checkbox"
+        aria-checked={checked}
+        disabled={disabled}
+        onClick={() => !disabled && onChange(!checked)}
+        className={`
+          w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all duration-200
+          focus:outline-none focus:ring-2 focus:ring-[#3423A6] focus:ring-offset-2 focus:ring-offset-[#171738]
+          ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+          ${checked ? 'bg-[#3423A6] border-[#3423A6]' : 'bg-transparent border-white/30 hover:border-white/50'}
+        `}
+      >
+        {checked && <Icons.Check className="w-3 h-3 text-white" />}
+      </button>
+      {(label || description) && (
+        <div className="flex-1">
+          {label && <label htmlFor={checkboxId} className={`text-white text-sm font-medium ${disabled ? '' : 'cursor-pointer'}`}>{label}</label>}
+          {description && <p className="text-white/50 text-xs mt-0.5">{description}</p>}
+        </div>
+      )}
+    </div>
+  );
+};
 
 // ============================================
 // EMPTY STATE COMPONENT
@@ -1211,9 +1235,7 @@ interface EmptyStateProps {
   compact?: boolean;
 }
 
-export const EmptyState: React.FC<EmptyStateProps> = ({ 
-  icon, title, description, action, compact = false 
-}) => (
+export const EmptyState: React.FC<EmptyStateProps> = ({ icon, title, description, action, compact = false }) => (
   <div className={`flex flex-col items-center justify-center text-center ${compact ? 'p-6 min-h-[150px]' : 'p-8 min-h-[200px]'}`}>
     {icon && (
       <div className={`flex items-center justify-center bg-white/5 rounded-full mb-4 ${compact ? 'w-12 h-12' : 'w-16 h-16'}`}>
@@ -1221,14 +1243,8 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       </div>
     )}
     <h3 className={`text-white/70 font-medium ${compact ? 'text-sm' : 'text-base'}`}>{title}</h3>
-    {description && (
-      <p className={`text-white/50 mt-1 max-w-[280px] ${compact ? 'text-xs' : 'text-sm'}`}>{description}</p>
-    )}
-    {action && (
-      <Button onClick={action.onClick} className="mt-4" size="sm">
-        {action.label}
-      </Button>
-    )}
+    {description && <p className={`text-white/50 mt-1 max-w-[280px] ${compact ? 'text-xs' : 'text-sm'}`}>{description}</p>}
+    {action && <Button onClick={action.onClick} className="mt-4" size="sm">{action.label}</Button>}
   </div>
 );
 
@@ -1243,20 +1259,11 @@ interface SkeletonProps {
   height?: string | number;
 }
 
-export const Skeleton: React.FC<SkeletonProps> = ({ 
-  className = '', variant = 'rectangular', width, height 
-}) => {
-  const variantClasses = {
-    text: 'rounded h-4',
-    circular: 'rounded-full',
-    rectangular: 'rounded-xl'
-  };
+export const Skeleton: React.FC<SkeletonProps> = ({ className = '', variant = 'rectangular', width, height }) => {
+  const variantClasses = { text: 'rounded h-4', circular: 'rounded-full', rectangular: 'rounded-xl' };
 
   return (
-    <div
-      className={`bg-white/10 animate-pulse relative overflow-hidden ${variantClasses[variant]} ${className}`}
-      style={{ width, height }}
-    >
+    <div className={`bg-white/10 animate-pulse relative overflow-hidden ${variantClasses[variant]} ${className}`} style={{ width, height }}>
       <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/5 to-transparent" />
     </div>
   );
@@ -1277,44 +1284,24 @@ interface ModalProps {
 export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, size = 'md' }) => {
   if (!isOpen) return null;
 
-  const sizeClasses = {
-    sm: 'max-w-sm',
-    md: 'max-w-md',
-    lg: 'max-w-lg',
-    full: 'max-w-[calc(100%-2rem)] max-h-[calc(100%-2rem)]'
-  };
+  const sizeClasses = { sm: 'max-w-sm', md: 'max-w-md', lg: 'max-w-lg', full: 'max-w-[calc(100%-2rem)] max-h-[calc(100%-2rem)]' };
 
   return (
     <div className="fixed inset-0 z-[400]">
-      <div 
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-[fadeIn_200ms_ease]"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-[fadeIn_200ms_ease]" onClick={onClose} />
       <div className="absolute inset-0 flex items-center justify-center p-4">
-        <div 
-          className={`relative bg-[#1e1e4a] rounded-2xl w-full ${sizeClasses[size]} animate-[slideUp_200ms_ease] shadow-xl border border-white/10`}
-          role="dialog"
-          aria-modal="true"
-        >
+        <div className={`relative bg-[#1e1e4a] rounded-2xl w-full ${sizeClasses[size]} animate-[slideUp_200ms_ease] shadow-xl border border-white/10`} role="dialog" aria-modal="true">
           {title && (
             <div className="flex items-center justify-between p-4 border-b border-white/10">
               <h2 className="text-white font-semibold text-lg">{title}</h2>
-              <button
-                onClick={onClose}
-                className="p-2 -mr-2 hover:bg-white/10 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#3423A6]"
-                aria-label="Close modal"
-              >
+              <button onClick={onClose} className="p-2 -mr-2 hover:bg-white/10 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#3423A6]" aria-label="Close modal">
                 <Icons.X className="w-5 h-5 text-white/70" />
               </button>
             </div>
           )}
           <div className="p-4">{children}</div>
           {!title && (
-            <button
-              onClick={onClose}
-              className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#3423A6]"
-              aria-label="Close modal"
-            >
+            <button onClick={onClose} className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#3423A6]" aria-label="Close modal">
               <Icons.X className="w-5 h-5 text-white/70" />
             </button>
           )}
@@ -1344,7 +1331,6 @@ export const Toast: React.FC<ToastProps> = ({ message, type = 'info', isVisible,
   };
 
   if (!isVisible) return null;
-
   const style = typeStyles[type];
 
   return (
@@ -1359,61 +1345,97 @@ export const Toast: React.FC<ToastProps> = ({ message, type = 'info', isVisible,
 };
 
 // ============================================
-// BOTTOM NAV COMPONENT - FIX #38
+// ALERT COMPONENT
+// ============================================
+
+interface AlertProps {
+  type?: 'info' | 'success' | 'warning' | 'error';
+  title?: string;
+  children: React.ReactNode;
+  onClose?: () => void;
+  className?: string;
+}
+
+export const Alert: React.FC<AlertProps> = ({ type = 'info', title, children, onClose, className = '' }) => {
+  const typeStyles = {
+    info: { bg: 'bg-blue-500/10 border-blue-500/20', icon: <Icons.Info className="w-5 h-5 text-blue-400" />, title: 'text-blue-400' },
+    success: { bg: 'bg-green-500/10 border-green-500/20', icon: <Icons.CheckCircle className="w-5 h-5 text-green-400" />, title: 'text-green-400' },
+    warning: { bg: 'bg-yellow-500/10 border-yellow-500/20', icon: <Icons.AlertTriangle className="w-5 h-5 text-yellow-400" />, title: 'text-yellow-400' },
+    error: { bg: 'bg-red-500/10 border-red-500/20', icon: <Icons.AlertCircle className="w-5 h-5 text-red-400" />, title: 'text-red-400' }
+  };
+  const styles = typeStyles[type];
+
+  return (
+    <div className={`${styles.bg} border rounded-xl p-4 ${className}`} role="alert">
+      <div className="flex gap-3">
+        <div className="shrink-0">{styles.icon}</div>
+        <div className="flex-1 min-w-0">
+          {title && <h4 className={`font-medium text-sm ${styles.title}`}>{title}</h4>}
+          <div className={`text-white/70 text-sm ${title ? 'mt-1' : ''}`}>{children}</div>
+        </div>
+        {onClose && (
+          <button onClick={onClose} className="shrink-0 p-1 hover:bg-white/10 rounded-lg transition-colors" aria-label="Dismiss">
+            <Icons.X className="w-4 h-4 text-white/50" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ============================================
+// BOTTOM NAV COMPONENT - FIX #38 (with safety check)
 // ============================================
 
 interface BottomNavProps {
-  items: Array<{ id: string; label: string; icon: React.ReactNode; view: string }>;
+  items?: Array<{ id: string; label: string; icon: React.ReactNode; view: string }>;
   activeView: string;
   onNavigate: (view: string) => void;
 }
 
-export const BottomNav: React.FC<BottomNavProps> = ({ items, activeView, onNavigate }) => (
-  <nav 
-    className="fixed bottom-0 left-0 right-0 bg-[#171738]/95 backdrop-blur-xl border-t border-white/10 z-50"
-    style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
-    role="navigation"
-    aria-label="Main navigation"
-  >
-    <div className="flex justify-around items-center py-2 px-4">
-      {items.map((item) => {
-        const isActive = activeView === item.view;
-        return (
-          <button
-            key={item.id}
-            onClick={() => onNavigate(item.view)}
-            className={`
-              relative flex flex-col items-center justify-center py-2 px-4 rounded-xl
-              transition-all duration-300 ease-out min-w-[64px]
-              focus:outline-none focus:ring-2 focus:ring-[#3423A6] focus:ring-offset-2 focus:ring-offset-[#171738]
-              ${isActive ? 'text-white' : 'text-white/50 hover:text-white/70 hover:bg-white/5'}
-            `}
-            aria-label={item.label}
-            aria-current={isActive ? 'page' : undefined}
-          >
-            {isActive && (
-              <div 
-                className="absolute inset-0 bg-[#3423A6]/20 rounded-xl"
-                style={{ boxShadow: '0 0 20px rgba(52, 35, 166, 0.4), 0 0 40px rgba(52, 35, 166, 0.2)' }}
-              />
-            )}
-            <div className={`relative z-10 transition-transform duration-300 ${isActive ? 'scale-110' : 'scale-100'}`}>
-              {item.icon}
-            </div>
-            <span className={`relative z-10 text-xs mt-1 font-medium transition-all duration-300 ${isActive ? 'opacity-100' : 'opacity-70'}`}>
-              {item.label}
-            </span>
-            {isActive && (
-              <div className="absolute -bottom-0.5 left-1/2 transform -translate-x-1/2">
-                <div className="w-1.5 h-1.5 bg-[#3423A6] rounded-full shadow-lg shadow-[#3423A6]/50" />
-              </div>
-            )}
-          </button>
-        );
-      })}
-    </div>
-  </nav>
-);
+export const BottomNav: React.FC<BottomNavProps> = ({ items = [], activeView, onNavigate }) => {
+  if (!items || items.length === 0) return null;
+
+  return (
+    <nav 
+      className="fixed bottom-0 left-0 right-0 bg-[#171738]/95 backdrop-blur-xl border-t border-white/10 z-50"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+      role="navigation"
+      aria-label="Main navigation"
+    >
+      <div className="flex justify-around items-center py-2 px-4">
+        {items.map((item) => {
+          const isActive = activeView === item.view;
+          return (
+            <button
+              key={item.id}
+              onClick={() => onNavigate(item.view)}
+              className={`
+                relative flex flex-col items-center justify-center py-2 px-4 rounded-xl
+                transition-all duration-300 ease-out min-w-[64px]
+                focus:outline-none focus:ring-2 focus:ring-[#3423A6] focus:ring-offset-2 focus:ring-offset-[#171738]
+                ${isActive ? 'text-white' : 'text-white/50 hover:text-white/70 hover:bg-white/5'}
+              `}
+              aria-label={item.label}
+              aria-current={isActive ? 'page' : undefined}
+            >
+              {isActive && (
+                <div className="absolute inset-0 bg-[#3423A6]/20 rounded-xl" style={{ boxShadow: '0 0 20px rgba(52, 35, 166, 0.4), 0 0 40px rgba(52, 35, 166, 0.2)' }} />
+              )}
+              <div className={`relative z-10 transition-transform duration-300 ${isActive ? 'scale-110' : 'scale-100'}`}>{item.icon}</div>
+              <span className={`relative z-10 text-xs mt-1 font-medium transition-all duration-300 ${isActive ? 'opacity-100' : 'opacity-70'}`}>{item.label}</span>
+              {isActive && (
+                <div className="absolute -bottom-0.5 left-1/2 transform -translate-x-1/2">
+                  <div className="w-1.5 h-1.5 bg-[#3423A6] rounded-full shadow-lg shadow-[#3423A6]/50" />
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </nav>
+  );
+};
 
 // ============================================
 // KPI CARD COMPONENT
@@ -1461,876 +1483,4 @@ export const AgentActionCard: React.FC<AgentActionCardProps> = ({ action, onAppr
   };
 
   return (
-    <div className={`min-w-[200px] p-3 rounded-xl border ${priorityColors[action.priority]}`}>
-      <p className="text-white text-sm font-medium truncate">{action.title}</p>
-      <p className="text-white/60 text-xs mt-1 line-clamp-2">{action.description}</p>
-      <div className="flex gap-2 mt-3">
-        <button onClick={onApprove} className="flex-1 py-1.5 bg-green-500/20 text-green-400 rounded-lg text-xs font-medium hover:bg-green-500/30 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500">
-          Approve
-        </button>
-        <button onClick={onReject} className="flex-1 py-1.5 bg-red-500/20 text-red-400 rounded-lg text-xs font-medium hover:bg-red-500/30 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500">
-          Reject
-        </button>
-      </div>
-    </div>
-  );
-};
-
-// ============================================
-// PRODUCT DRAFT CARD COMPONENT
-// ============================================
-
-interface ProductDraftCardProps {
-  product: { id: string; title: string; description: string; price: number; images: string[]; status: 'draft' | 'approved' | 'published' };
-  onApprove: () => void;
-  onPublish: () => void;
-}
-
-export const ProductDraftCard: React.FC<ProductDraftCardProps> = ({ product, onApprove, onPublish }) => {
-  const statusStyles = {
-    draft: 'bg-white/10 text-white/70',
-    approved: 'bg-green-500/20 text-green-400',
-    published: 'bg-[#3423A6]/30 text-white'
-  };
-
-  return (
-    <div className="bg-white/5 rounded-2xl overflow-hidden border border-white/5">
-      {product.images && product.images[0] && (
-        <div className="aspect-video bg-white/10 relative">
-          <img src={product.images[0]} alt={product.title} className="w-full h-full object-cover" loading="lazy" />
-        </div>
-      )}
-      <div className="p-4">
-        <div className="flex items-start justify-between gap-2">
-          <h4 className="text-white font-medium text-sm line-clamp-1 flex-1">{product.title}</h4>
-          <span className={`px-2 py-0.5 rounded-full text-xs shrink-0 ${statusStyles[product.status]}`}>{product.status}</span>
-        </div>
-        <p className="text-white/60 text-xs mt-1 line-clamp-2">{product.description}</p>
-        <p className="text-white font-bold mt-2">${product.price.toFixed(2)}</p>
-        {product.status === 'draft' && (
-          <Button onClick={onApprove} variant="success" fullWidth className="mt-3" size="sm">Approve Draft</Button>
-        )}
-        {product.status === 'approved' && (
-          <Button onClick={onPublish} fullWidth className="mt-3" size="sm">Publish Now</Button>
-        )}
-        {product.status === 'published' && (
-          <div className="mt-3 py-2 text-center text-white/50 text-sm">
-            <Icons.CheckCircle className="w-4 h-4 inline mr-1" />Published
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// ============================================
-// INSIGHT CARD COMPONENT
-// ============================================
-
-interface InsightCardProps {
-  insight: { id: string; type: 'positive' | 'negative' | 'neutral'; title: string; description: string };
-}
-
-export const InsightCard: React.FC<InsightCardProps> = ({ insight }) => {
-  const typeStyles = {
-    positive: { bg: 'bg-green-500/10 border-green-500/20', icon: <Icons.TrendingUp className="w-5 h-5 text-green-400" />, text: 'text-green-400' },
-    negative: { bg: 'bg-red-500/10 border-red-500/20', icon: <Icons.TrendingDown className="w-5 h-5 text-red-400" />, text: 'text-red-400' },
-    neutral: { bg: 'bg-blue-500/10 border-blue-500/20', icon: <Icons.Info className="w-5 h-5 text-blue-400" />, text: 'text-blue-400' }
-  };
-  const style = typeStyles[insight.type];
-
-  return (
-    <div className={`p-4 rounded-xl border ${style.bg}`}>
-      <div className="flex items-start gap-3">
-        <div className="shrink-0 mt-0.5">{style.icon}</div>
-        <div className="flex-1 min-w-0">
-          <h4 className={`font-medium text-sm ${style.text}`}>{insight.title}</h4>
-          <p className="text-white/60 text-xs mt-1 leading-relaxed">{insight.description}</p>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ============================================
-// EMAIL PREVIEW CARD COMPONENT
-// ============================================
-
-interface EmailPreviewCardProps {
-  draft: { id: string; subject: string; preview: string; campaignType: string; status: string };
-}
-
-export const EmailPreviewCard: React.FC<EmailPreviewCardProps> = ({ draft }) => {
-  const statusStyles: Record<string, string> = {
-    draft: 'bg-white/10 text-white/70',
-    scheduled: 'bg-yellow-500/20 text-yellow-400',
-    sent: 'bg-green-500/20 text-green-400'
-  };
-
-  return (
-    <div className="bg-white/5 rounded-xl p-4 border border-white/5">
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <div className="flex items-center gap-2">
-          <Icons.Mail className="w-4 h-4 text-white/50" />
-          <span className="text-white/50 text-xs uppercase tracking-wide">{draft.campaignType.replace('_', ' ')}</span>
-        </div>
-        <span className={`px-2 py-0.5 rounded-full text-xs ${statusStyles[draft.status] || statusStyles.draft}`}>{draft.status}</span>
-      </div>
-      <h4 className="text-white font-medium text-sm">{draft.subject}</h4>
-      <p className="text-white/60 text-xs mt-1 line-clamp-2">{draft.preview}</p>
-      <div className="flex gap-2 mt-3">
-        <Button variant="secondary" size="sm" fullWidth>Edit</Button>
-        <Button size="sm" fullWidth>Send</Button>
-      </div>
-    </div>
-  );
-};
-
-// ============================================
-// SOCIAL CONTENT CARD COMPONENT
-// ============================================
-
-interface SocialContentCardProps {
-  draft: { id: string; platform: string; contentType: string; content: string; status: string };
-}
-
-export const SocialContentCard: React.FC<SocialContentCardProps> = ({ draft }) => {
-  const platformIcons: Record<string, React.ReactNode> = {
-    instagram: <EcommerceIcons.Instagram className="w-4 h-4" />,
-    twitter: <EcommerceIcons.Twitter className="w-4 h-4" />,
-    facebook: <EcommerceIcons.Facebook className="w-4 h-4" />,
-    tiktok: <EcommerceIcons.TikTok className="w-4 h-4" />,
-    linkedin: <EcommerceIcons.LinkedIn className="w-4 h-4" />,
-        youtube: <EcommerceIcons.YouTube className="w-4 h-4" />
-  };
-
-  const statusStyles: Record<string, string> = {
-    draft: 'bg-white/10 text-white/70',
-    scheduled: 'bg-yellow-500/20 text-yellow-400',
-    published: 'bg-green-500/20 text-green-400'
-  };
-
-  return (
-    <div className="bg-white/5 rounded-xl p-4 border border-white/5">
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <div className="flex items-center gap-2">
-          <span className="text-white/70">{platformIcons[draft.platform] || <Icons.Globe className="w-4 h-4" />}</span>
-          <span className="text-white/50 text-xs capitalize">{draft.platform}</span>
-        </div>
-        <span className={`px-2 py-0.5 rounded-full text-xs ${statusStyles[draft.status] || statusStyles.draft}`}>
-          {draft.status}
-        </span>
-      </div>
-      <p className="text-white text-sm line-clamp-3">{draft.content}</p>
-      <div className="flex gap-2 mt-3">
-        <Button variant="secondary" size="sm" fullWidth>Edit</Button>
-        <Button size="sm" fullWidth>Post</Button>
-      </div>
-    </div>
-  );
-};
-
-// ============================================
-// CONNECTED ACCOUNT CARD COMPONENT
-// ============================================
-
-interface ConnectedAccountCardProps {
-  service: { id: string; name: string; icon: React.ReactNode; connected: boolean };
-  onConnect: () => void;
-}
-
-export const ConnectedAccountCard: React.FC<ConnectedAccountCardProps> = ({ service, onConnect }) => (
-  <div className="bg-white/5 rounded-xl p-4 flex items-center justify-between border border-white/5">
-    <div className="flex items-center gap-3">
-      <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center text-white/70">
-        {service.icon}
-      </div>
-      <div>
-        <p className="text-white font-medium text-sm">{service.name}</p>
-        <p className={`text-xs ${service.connected ? 'text-green-400' : 'text-white/50'}`}>
-          {service.connected ? 'Connected' : 'Not connected'}
-        </p>
-      </div>
-    </div>
-    <Button
-      onClick={onConnect}
-      variant={service.connected ? 'secondary' : 'primary'}
-      size="sm"
-    >
-      {service.connected ? 'Manage' : 'Connect'}
-    </Button>
-  </div>
-);
-
-// ============================================
-// SELECT COMPONENT
-// ============================================
-
-interface SelectOption {
-  value: string;
-  label: string;
-  disabled?: boolean;
-}
-
-interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, 'onChange'> {
-  label?: string;
-  error?: string;
-  helperText?: string;
-  options: SelectOption[];
-  onChange?: (value: string) => void;
-  placeholder?: string;
-}
-
-export const Select: React.FC<SelectProps> = ({
-  label,
-  error,
-  helperText,
-  options,
-  onChange,
-  placeholder = 'Select an option',
-  className = '',
-  id,
-  value,
-  ...props
-}) => {
-  const selectId = id || label?.toLowerCase().replace(/\s+/g, '-');
-
-  return (
-    <div className="w-full">
-      {label && (
-        <label htmlFor={selectId} className="block text-white text-sm font-medium mb-2">
-          {label}
-        </label>
-      )}
-      <div className="relative">
-        <select
-          id={selectId}
-          value={value}
-          onChange={(e) => onChange?.(e.target.value)}
-          className={`
-            w-full bg-white/10 text-white rounded-xl
-            px-4 py-3 text-sm appearance-none
-            border border-transparent
-            focus:outline-none focus:ring-2 focus:ring-[#3423A6] focus:ring-offset-2 focus:ring-offset-[#171738]
-            focus:bg-white/15 transition-all duration-200
-            disabled:opacity-50 disabled:cursor-not-allowed
-            ${error ? 'border-red-500 focus:ring-red-500' : ''}
-            ${className}
-          `}
-          {...props}
-        >
-          <option value="" disabled className="bg-[#171738] text-white/50">
-            {placeholder}
-          </option>
-          {options.map((option) => (
-            <option
-              key={option.value}
-              value={option.value}
-              disabled={option.disabled}
-              className="bg-[#171738] text-white"
-            >
-              {option.label}
-            </option>
-          ))}
-        </select>
-        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/50">
-          <Icons.ChevronDown className="w-5 h-5" />
-        </div>
-      </div>
-      {error && <p className="mt-1 text-red-400 text-xs">{error}</p>}
-      {helperText && !error && <p className="mt-1 text-white/50 text-xs">{helperText}</p>}
-    </div>
-  );
-};
-
-// ============================================
-// CHECKBOX COMPONENT
-// ============================================
-
-interface CheckboxProps {
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-  label?: string;
-  description?: string;
-  disabled?: boolean;
-  id?: string;
-}
-
-export const Checkbox: React.FC<CheckboxProps> = ({
-  checked,
-  onChange,
-  label,
-  description,
-  disabled = false,
-  id
-}) => {
-  const checkboxId = id || label?.toLowerCase().replace(/\s+/g, '-');
-
-  return (
-    <div className="flex items-start gap-3">
-      <button
-        id={checkboxId}
-        role="checkbox"
-        aria-checked={checked}
-        disabled={disabled}
-        onClick={() => !disabled && onChange(!checked)}
-        className={`
-          w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 mt-0.5
-          transition-all duration-200
-          focus:outline-none focus:ring-2 focus:ring-[#3423A6] focus:ring-offset-2 focus:ring-offset-[#171738]
-          ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-          ${checked 
-            ? 'bg-[#3423A6] border-[#3423A6]' 
-            : 'bg-transparent border-white/30 hover:border-white/50'
-          }
-        `}
-      >
-        {checked && <Icons.Check className="w-3 h-3 text-white" />}
-      </button>
-      {(label || description) && (
-        <div className="flex-1">
-          {label && (
-            <label 
-              htmlFor={checkboxId} 
-              className={`text-white text-sm font-medium ${disabled ? '' : 'cursor-pointer'}`}
-            >
-              {label}
-            </label>
-          )}
-          {description && (
-            <p className="text-white/50 text-xs mt-0.5">{description}</p>
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ============================================
-// RADIO GROUP COMPONENT
-// ============================================
-
-interface RadioOption {
-  value: string;
-  label: string;
-  description?: string;
-  disabled?: boolean;
-}
-
-interface RadioGroupProps {
-  name: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: RadioOption[];
-  label?: string;
-  orientation?: 'horizontal' | 'vertical';
-}
-
-export const RadioGroup: React.FC<RadioGroupProps> = ({
-  name,
-  value,
-  onChange,
-  options,
-  label,
-  orientation = 'vertical'
-}) => (
-  <div className="w-full">
-    {label && (
-      <p className="text-white text-sm font-medium mb-3">{label}</p>
-    )}
-    <div className={`flex ${orientation === 'vertical' ? 'flex-col gap-3' : 'flex-row flex-wrap gap-4'}`}>
-      {options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          role="radio"
-          aria-checked={value === option.value}
-          disabled={option.disabled}
-          onClick={() => !option.disabled && onChange(option.value)}
-          className={`
-            flex items-start gap-3 text-left
-            ${option.disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-          `}
-        >
-          <div className={`
-            w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5
-            transition-all duration-200
-            ${value === option.value 
-              ? 'border-[#3423A6]' 
-              : 'border-white/30 hover:border-white/50'
-            }
-          `}>
-            {value === option.value && (
-              <div className="w-2.5 h-2.5 rounded-full bg-[#3423A6]" />
-            )}
-          </div>
-          <div className="flex-1">
-            <span className="text-white text-sm font-medium">{option.label}</span>
-            {option.description && (
-              <p className="text-white/50 text-xs mt-0.5">{option.description}</p>
-            )}
-          </div>
-        </button>
-      ))}
-    </div>
-  </div>
-);
-
-// ============================================
-// TABS COMPONENT
-// ============================================
-
-interface Tab {
-  id: string;
-  label: string;
-  icon?: React.ReactNode;
-  disabled?: boolean;
-}
-
-interface TabsProps {
-  tabs: Tab[];
-  activeTab: string;
-  onChange: (tabId: string) => void;
-  variant?: 'default' | 'pills' | 'underline';
-  fullWidth?: boolean;
-}
-
-export const Tabs: React.FC<TabsProps> = ({
-  tabs,
-  activeTab,
-  onChange,
-  variant = 'default',
-  fullWidth = false
-}) => {
-  const variantStyles = {
-    default: {
-      container: 'bg-white/5 p-1 rounded-xl',
-      tab: (active: boolean) => active 
-        ? 'bg-[#3423A6] text-white shadow-lg' 
-        : 'text-white/60 hover:text-white hover:bg-white/10',
-      tabBase: 'rounded-lg'
-    },
-    pills: {
-      container: 'gap-2',
-      tab: (active: boolean) => active 
-        ? 'bg-[#3423A6] text-white' 
-        : 'bg-white/5 text-white/60 hover:text-white hover:bg-white/10',
-      tabBase: 'rounded-full'
-    },
-    underline: {
-      container: 'border-b border-white/10 gap-0',
-      tab: (active: boolean) => active 
-        ? 'text-white border-b-2 border-[#3423A6] -mb-px' 
-        : 'text-white/60 hover:text-white border-b-2 border-transparent -mb-px',
-      tabBase: 'rounded-none'
-    }
-  };
-
-  const styles = variantStyles[variant];
-
-  return (
-    <div className={`flex ${styles.container} ${fullWidth ? 'w-full' : ''}`} role="tablist">
-      {tabs.map((tab) => (
-        <button
-          key={tab.id}
-          role="tab"
-          aria-selected={activeTab === tab.id}
-          disabled={tab.disabled}
-          onClick={() => !tab.disabled && onChange(tab.id)}
-          className={`
-            flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium
-            transition-all duration-200
-            focus:outline-none focus:ring-2 focus:ring-[#3423A6] focus:ring-inset
-            disabled:opacity-50 disabled:cursor-not-allowed
-            ${styles.tabBase}
-            ${styles.tab(activeTab === tab.id)}
-            ${fullWidth ? 'flex-1' : ''}
-          `}
-        >
-          {tab.icon}
-          {tab.label}
-        </button>
-      ))}
-    </div>
-  );
-};
-
-// ============================================
-// ACCORDION COMPONENT
-// ============================================
-
-interface AccordionItem {
-  id: string;
-  title: string;
-  content: React.ReactNode;
-  disabled?: boolean;
-}
-
-interface AccordionProps {
-  items: AccordionItem[];
-  allowMultiple?: boolean;
-  defaultOpen?: string[];
-}
-
-export const Accordion: React.FC<AccordionProps> = ({
-  items,
-  allowMultiple = false,
-  defaultOpen = []
-}) => {
-  const [openItems, setOpenItems] = React.useState<string[]>(defaultOpen);
-
-  const toggleItem = (id: string) => {
-    if (allowMultiple) {
-      setOpenItems(prev => 
-        prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-      );
-    } else {
-      setOpenItems(prev => prev.includes(id) ? [] : [id]);
-    }
-  };
-
-  return (
-    <div className="space-y-2">
-      {items.map((item) => {
-        const isOpen = openItems.includes(item.id);
-        return (
-          <div key={item.id} className="bg-white/5 rounded-xl overflow-hidden border border-white/5">
-            <button
-              onClick={() => !item.disabled && toggleItem(item.id)}
-              disabled={item.disabled}
-              className={`
-                w-full flex items-center justify-between p-4 text-left
-                transition-colors duration-200
-                focus:outline-none focus:ring-2 focus:ring-[#3423A6] focus:ring-inset
-                ${item.disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/5'}
-              `}
-              aria-expanded={isOpen}
-            >
-              <span className="text-white font-medium">{item.title}</span>
-              <Icons.ChevronDown 
-                className={`w-5 h-5 text-white/50 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} 
-              />
-            </button>
-            {isOpen && (
-              <div className="px-4 pb-4 text-white/70 text-sm">
-                {item.content}
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-};
-
-// ============================================
-// TOOLTIP COMPONENT
-// ============================================
-
-interface TooltipProps {
-  content: string;
-  children: React.ReactNode;
-  position?: 'top' | 'bottom' | 'left' | 'right';
-}
-
-export const Tooltip: React.FC<TooltipProps> = ({
-  content,
-  children,
-  position = 'top'
-}) => {
-  const [isVisible, setIsVisible] = React.useState(false);
-
-  const positionStyles = {
-    top: 'bottom-full left-1/2 -translate-x-1/2 mb-2',
-    bottom: 'top-full left-1/2 -translate-x-1/2 mt-2',
-    left: 'right-full top-1/2 -translate-y-1/2 mr-2',
-    right: 'left-full top-1/2 -translate-y-1/2 ml-2'
-  };
-
-  return (
-    <div 
-      className="relative inline-block"
-      onMouseEnter={() => setIsVisible(true)}
-      onMouseLeave={() => setIsVisible(false)}
-      onFocus={() => setIsVisible(true)}
-      onBlur={() => setIsVisible(false)}
-    >
-      {children}
-      {isVisible && (
-        <div 
-          className={`
-            absolute z-[600] px-2 py-1 text-xs text-white bg-[#1e1e4a] 
-            rounded-lg shadow-lg border border-white/10 whitespace-nowrap
-            animate-[fadeIn_150ms_ease]
-            ${positionStyles[position]}
-          `}
-          role="tooltip"
-        >
-          {content}
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ============================================
-// ALERT COMPONENT
-// ============================================
-
-interface AlertProps {
-  type?: 'info' | 'success' | 'warning' | 'error';
-  title?: string;
-  children: React.ReactNode;
-  onClose?: () => void;
-  className?: string;
-}
-
-export const Alert: React.FC<AlertProps> = ({
-  type = 'info',
-  title,
-  children,
-  onClose,
-  className = ''
-}) => {
-  const typeStyles = {
-    info: {
-      bg: 'bg-blue-500/10 border-blue-500/20',
-      icon: <Icons.Info className="w-5 h-5 text-blue-400" />,
-      title: 'text-blue-400'
-    },
-    success: {
-      bg: 'bg-green-500/10 border-green-500/20',
-      icon: <Icons.CheckCircle className="w-5 h-5 text-green-400" />,
-      title: 'text-green-400'
-    },
-    warning: {
-      bg: 'bg-yellow-500/10 border-yellow-500/20',
-      icon: <Icons.AlertTriangle className="w-5 h-5 text-yellow-400" />,
-      title: 'text-yellow-400'
-    },
-    error: {
-      bg: 'bg-red-500/10 border-red-500/20',
-      icon: <Icons.AlertCircle className="w-5 h-5 text-red-400" />,
-      title: 'text-red-400'
-    }
-  };
-
-  const styles = typeStyles[type];
-
-  return (
-    <div className={`${styles.bg} border rounded-xl p-4 ${className}`} role="alert">
-      <div className="flex gap-3">
-        <div className="shrink-0">{styles.icon}</div>
-        <div className="flex-1 min-w-0">
-          {title && <h4 className={`font-medium text-sm ${styles.title}`}>{title}</h4>}
-          <div className={`text-white/70 text-sm ${title ? 'mt-1' : ''}`}>{children}</div>
-        </div>
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="shrink-0 p-1 hover:bg-white/10 rounded-lg transition-colors"
-            aria-label="Dismiss"
-          >
-            <Icons.X className="w-4 h-4 text-white/50" />
-          </button>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// ============================================
-// DROPDOWN MENU COMPONENT
-// ============================================
-
-interface DropdownItem {
-  id: string;
-  label: string;
-  icon?: React.ReactNode;
-  onClick?: () => void;
-  disabled?: boolean;
-  danger?: boolean;
-  divider?: boolean;
-}
-
-interface DropdownMenuProps {
-  trigger: React.ReactNode;
-  items: DropdownItem[];
-  align?: 'left' | 'right';
-}
-
-export const DropdownMenu: React.FC<DropdownMenuProps> = ({
-  trigger,
-  items,
-  align = 'right'
-}) => {
-  const [isOpen, setIsOpen] = React.useState(false);
-  const dropdownRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  return (
-    <div className="relative" ref={dropdownRef}>
-      <div onClick={() => setIsOpen(!isOpen)}>{trigger}</div>
-      {isOpen && (
-        <div 
-          className={`
-            absolute z-[500] mt-2 min-w-[180px] py-1
-            bg-[#1e1e4a] rounded-xl shadow-lg border border-white/10
-            animate-[fadeIn_150ms_ease]
-            ${align === 'right' ? 'right-0' : 'left-0'}
-          `}
-        >
-          {items.map((item) => (
-            item.divider ? (
-              <div key={item.id} className="my-1 border-t border-white/10" />
-            ) : (
-              <button
-                key={item.id}
-                onClick={() => {
-                  item.onClick?.();
-                  setIsOpen(false);
-                }}
-                disabled={item.disabled}
-                className={`
-                  w-full flex items-center gap-3 px-4 py-2 text-sm text-left
-                  transition-colors duration-150
-                  disabled:opacity-50 disabled:cursor-not-allowed
-                  ${item.danger 
-                    ? 'text-red-400 hover:bg-red-500/10' 
-                    : 'text-white hover:bg-white/10'
-                  }
-                `}
-              >
-                {item.icon}
-                {item.label}
-              </button>
-            )
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ============================================
-// CONFIRMATION DIALOG COMPONENT
-// ============================================
-
-interface ConfirmDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onConfirm: () => void;
-  title: string;
-  message: string;
-  confirmLabel?: string;
-  cancelLabel?: string;
-  variant?: 'danger' | 'warning' | 'default';
-  isLoading?: boolean;
-}
-
-export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
-  isOpen,
-  onClose,
-  onConfirm,
-  title,
-  message,
-  confirmLabel = 'Confirm',
-  cancelLabel = 'Cancel',
-  variant = 'default',
-  isLoading = false
-}) => {
-  const variantStyles = {
-    danger: 'danger',
-    warning: 'warning' as const,
-    default: 'primary'
-  } as const;
-
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} title={title} size="sm">
-      <p className="text-white/70 text-sm mb-6">{message}</p>
-      <div className="flex gap-3">
-        <Button variant="secondary" onClick={onClose} fullWidth disabled={isLoading}>
-          {cancelLabel}
-        </Button>
-        <Button 
-          variant={variant === 'danger' ? 'danger' : variant === 'warning' ? 'secondary' : 'primary'} 
-          onClick={onConfirm} 
-          fullWidth
-          isLoading={isLoading}
-        >
-          {confirmLabel}
-        </Button>
-      </div>
-    </Modal>
-  );
-};
-
-// ============================================
-// DEFAULT EXPORT
-// ============================================
-
-export default {
-  // Icons
-  Icons,
-  EcommerceIcons,
-  
-  // Basic Components
-  Button,
-  Card,
-  CardHeader,
-  ToggleSwitch,
-  Toggle,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
-  
-  // Form Components
-  Input,
-  Textarea,
-  Select,
-  Checkbox,
-  RadioGroup,
-  ToggleSwitch,
-  
-  // Display Components
-  Badge,
-  Avatar,
-  ProgressBar,
-  Divider,
-  Alert,
-  Tooltip,
-  
-  // Navigation Components
-  BottomNav,
-  Tabs,
-  Accordion,
-  DropdownMenu,
-  
-  // Feedback Components
-  LoadingSpinner,
-  Skeleton,
-  EmptyState,
-  Toast,
-  Modal,
-  ConfirmDialog,
-  
-  // Ecommerce Components
-  KPICard,
-  AgentActionCard,
-  ProductDraftCard,
-  InsightCard,
-  EmailPreviewCard,
-  SocialContentCard,
-  ConnectedAccountCard
-};
+    <div className={

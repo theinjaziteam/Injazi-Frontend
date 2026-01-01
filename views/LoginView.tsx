@@ -506,23 +506,24 @@ export default function LoginView() {
     // ============================================
 
     const renderCodeInputs = (codes: string[], refs: React.MutableRefObject<(HTMLInputElement | null)[]>, isReset: boolean = false) => (
-        <div className="flex justify-center gap-2">
-            {codes.map((digit, index) => (
-                <input
-                    key={index}
-                    ref={el => refs.current[index] = el}
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={1}
-                    value={digit}
-                    onChange={(e) => handleCodeChange(index, e.target.value, isReset)}
-                    onKeyDown={(e) => handleCodeKeyDown(index, e, isReset)}
-                    onPaste={(e) => handleCodePaste(e, isReset)}
-                    className="w-11 h-14 text-center text-2xl font-bold bg-black/20 border border-white/10 rounded-xl text-white focus:border-[#3423A6]/50 focus:bg-black/30 outline-none transition-all"
-                />
-            ))}
-        </div>
-    );
+    <div className="flex justify-center gap-2">
+        {codes.map((digit, index) => (
+            <input
+                key={index}
+                ref={el => refs.current[index] = el}
+                type="text"
+                inputMode="numeric"
+                maxLength={1}
+                value={digit}
+                onChange={(e) => handleCodeChange(index, e.target.value, isReset)}
+                onKeyDown={(e) => handleCodeKeyDown(index, e, isReset)}
+                onPaste={(e) => handleCodePaste(e, isReset)}
+                className="w-11 h-14 text-center text-2xl font-bold bg-black/20 border border-white/10 rounded-xl text-white focus:border-[#3423A6]/50 focus:bg-black/30 outline-none transition-all focus-visible:ring-2 focus-visible:ring-[#3423A6]/50"
+                aria-label={`Digit ${index + 1} of ${isReset ? 'reset' : 'verification'} code`}
+            />
+        ))}
+    </div>
+);
 
     // Login/Register View
     const renderAuthForm = () => (
@@ -616,7 +617,7 @@ export default function LoginView() {
                                     required 
                                 />
                                 {showCountrySuggestions && filteredCountries.length > 0 && (
-                                    <div className="absolute z-50 left-0 right-0 mt-2 bg-[#171738] border border-white/10 rounded-2xl shadow-2xl max-h-40 overflow-y-auto">
+                                    <div className="absolute z-[100] left-0 right-0 mt-2 bg-[#171738] border border-white/10 rounded-2xl shadow-2xl max-h-40 overflow-y-auto">
                                         {filteredCountries.map(c => (
                                             <button 
                                                 key={c.code}
@@ -905,11 +906,12 @@ const renderVerifyForm = () => (
                     {showLegal === 'terms' ? 'Terms of Service' : 'Privacy Policy'}
                 </h2>
                 <button 
-                    onClick={() => setShowLegal(null)}
-                    className="p-2 bg-gray-100 rounded-full"
-                >
-                    <Icons.X className="w-5 h-5 text-[#171738]" />
-                </button>
+    onClick={() => setShowLegal(null)}
+    className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
+    aria-label="Close legal document"
+>
+    <Icons.X className="w-5 h-5 text-[#171738]" />
+</button>
             </div>
             
             {/* Modal Content */}

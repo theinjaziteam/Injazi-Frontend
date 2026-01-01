@@ -1,6 +1,7 @@
 // components/UIComponents.tsx
-// FIX #38: Enhanced BottomNav active state with glow, background highlight, and indicator dots
 // Complete UI Components library for INJAZI
+// FIX #38: Enhanced BottomNav active state
+// Added: Button, Card, Input, Textarea, Badge, Avatar, ProgressBar, Divider
 
 import React from 'react';
 
@@ -375,12 +376,6 @@ export const Icons = {
       <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
     </svg>
   ),
-  VideoOff: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34l1 1L23 7v10" />
-      <line x1="1" y1="1" x2="23" y2="23" />
-    </svg>
-  ),
   Mic: (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
       <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
@@ -600,19 +595,6 @@ export const Icons = {
       <circle cx="12" cy="19" r="1" />
     </svg>
   ),
-  BarChart: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <line x1="12" y1="20" x2="12" y2="10" />
-      <line x1="18" y1="20" x2="18" y2="4" />
-      <line x1="6" y1="20" x2="6" y2="16" />
-    </svg>
-  ),
-  PieChart: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M21.21 15.89A10 10 0 1 1 8 2.83" />
-      <path d="M22 12A10 10 0 0 0 12 2v10z" />
-    </svg>
-  ),
   Wallet: (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
       <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" />
@@ -633,6 +615,33 @@ export const Icons = {
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
       <circle cx="12" cy="8" r="7" />
       <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" />
+    </svg>
+  ),
+  Compass: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <circle cx="12" cy="12" r="10" />
+      <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
+    </svg>
+  ),
+  Layers: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <polygon points="12 2 2 7 12 12 22 7 12 2" />
+      <polyline points="2 17 12 22 22 17" />
+      <polyline points="2 12 12 17 22 12" />
+    </svg>
+  ),
+  Hash: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <line x1="4" y1="9" x2="20" y2="9" />
+      <line x1="4" y1="15" x2="20" y2="15" />
+      <line x1="10" y1="3" x2="8" y2="21" />
+      <line x1="16" y1="3" x2="14" y2="21" />
+    </svg>
+  ),
+  AtSign: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94" />
     </svg>
   ),
 };
@@ -674,7 +683,7 @@ export const EcommerceIcons = {
   ),
   Shopify: (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
-      <path d="M15.337 23.979l7.216-1.561s-2.604-17.613-2.625-17.756c-.021-.143-.163-.236-.285-.257s-1.989-.042-1.989-.042-.883-.864-1.196-1.177c-.063-.063-.145-.085-.221-.085l-.866 20.878zm-1.283-19.537c0-.021-.021-.042-.042-.042s-.493-.085-.756-.107c-.263-.021-.599-.021-.599-.021s-1.155-1.134-1.282-1.261c-.127-.127-.381-.085-.493-.064-.021 0-.275.085-.706.212-.421-1.218-1.155-2.33-2.457-2.33h-.127c-.366-.472-.814-.685-1.219-.685-3.022 0-4.472 3.778-4.924 5.698-.599.185-1.155.357-1.712.528-.527.163-.545.185-.613.685-.056.399-1.439 11.049-1.439 11.049l10.815 2.028 1.554-15.69zm-2.436-.536c-.456.143-.97.3-1.504.463 0-.064 0-.127-.021-.191-.273-1.419-.756-2.111-1.484-2.394.364-.043.814.021 1.155.236.685.428 1.012 1.397 1.012 2.457-.021-.021-.021-.064 0-.085.063-.149.191-.235.334-.257.107-.021.206 0 .299.064.127.085.213.213.213.364v.021c-.001.043-.003.128-.004.322zm-1.869-.536c-.057 0-.127 0-.19.021-.599.127-1.176.897-1.439 2.162-.443.128-.863.257-1.304.385.359-1.312 1.176-2.478 2.204-2.862.254-.085.494-.128.729-.128v.422zm-.399-1.313c.236 0 .493.063.707.212-.127.063-.255.149-.381.255-.706.614-1.24 1.57-1.526 2.585-.356.107-.692.213-1.006.32.467-1.533 1.439-3.372 2.206-3.372z"/>
+      <path d="M15.337 23.979l7.216-1.561s-2.604-17.613-2.625-17.756c-.021-.143-.163-.236-.285-.257s-1.989-.042-1.989-.042-.883-.864-1.196-1.177a.475.475 0 0 0-.221-.085l-.866 20.878zM13.553 4.96a.39.39 0 0 0-.041-.042c-.021 0-.493-.085-.756-.107-.263-.021-.599-.021-.599-.021s-1.155-1.134-1.282-1.261c-.127-.127-.381-.085-.493-.064-.021 0-.275.085-.706.212-.421-1.218-1.155-2.33-2.457-2.33h-.127c-.366-.472-.814-.685-1.219-.685-3.022 0-4.472 3.778-4.924 5.698l-2.139.664c-.666.206-.686.227-.771.853L0 19.343l11.513 2.164L13.553 4.96z"/>
     </svg>
   ),
   Stripe: (props: React.SVGProps<SVGSVGElement>) => (
@@ -684,505 +693,9 @@ export const EcommerceIcons = {
   ),
   Mailchimp: (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
-      <path d="M18.824 15.556c-.281-.027-.503.158-.652.388-.297.467-.649.732-1.064.73-.27-.001-.465-.098-.594-.278-.202-.278-.243-.718-.113-1.212.178-.677.623-1.258 1.082-1.413.127-.043.249-.041.372.015.17.077.322.246.45.506l.088.179.177-.094c.246-.128.384-.254.46-.39.125-.224.109-.484-.044-.714-.225-.338-.668-.551-1.148-.551-.151 0-.311.02-.477.061-.799.197-1.434.767-1.865 1.56.16-.593.166-1.182.017-1.66-.218-.702-.753-1.143-1.398-1.143-.295 0-.596.095-.87.275-.454.298-.751.792-.833 1.39-.087.637.111 1.301.546 1.834.083.103.175.196.275.28-.207.56-.456 1.126-.69 1.573-.471.906-.874 1.36-1.199 1.36-.18 0-.27-.134-.27-.4 0-.596.343-1.678.686-2.604l.106-.285-.294-.087c-.087-.026-.178-.04-.27-.04-.414 0-.778.301-.995.756-.168-.463-.526-.756-.973-.756-.197 0-.39.058-.565.17l.004-.011c.036-.157.066-.313.09-.466.11-.72-.038-1.306-.417-1.654-.219-.201-.518-.306-.864-.306-.76 0-1.603.413-2.366 1.16-.624.61-1.064 1.291-1.234 1.917l-.049.151-.07-.014c-.038-.008-.077-.013-.115-.013-.27 0-.46.19-.46.455 0 .206.08.385.176.5l.018.018-.063.215c-.19.646-.362 1.238-.435 1.564-.132.6-.118.913.043 1.03.078.058.194.085.355.085.331 0 .737-.092 1.096-.248l.15-.065.058.153c.22.581.739.929 1.394.929.676 0 1.374-.369 1.966-1.039.526-.595.917-1.318 1.182-1.939.143.032.3.049.465.049.504 0 .95-.167 1.227-.469.084.269.219.509.407.709.317.336.787.521 1.324.521.524 0 1.077-.178 1.604-.515.126.186.282.341.466.461.293.191.643.289 1.042.289.633 0 1.2-.22 1.598-.62.346-.347.541-.808.541-1.282-.003-.294-.08-.515-.231-.655z"/>
+      <path d="M18.824 15.556c-.281-.027-.503.158-.652.388-.297.467-.649.732-1.064.73-.27-.001-.465-.098-.594-.278-.202-.278-.243-.718-.113-1.212.178-.677.623-1.258 1.082-1.413.127-.043.249-.041.372.015.17.077.322.246.45.506l.088.179.177-.094c.246-.128.384-.254.46-.39.125-.224.109-.484-.044-.714-.225-.338-.668-.551-1.148-.551-.151 0-.311.02-.477.061-.799.197-1.434.767-1.865 1.56.16-.593.166-1.182.017-1.66-.218-.702-.753-1.143-1.398-1.143-.295 0-.596.095-.87.275-.454.298-.751.792-.833 1.39-.087.637.111 1.301.546 1.834.083.103.175.196.275.28-.207.56-.456 1.126-.69 1.573-.471.906-.874 1.36-1.199 1.36-.18 0-.27-.134-.27-.4 0-.596.343-1.678.686-2.604l.106-.285-.294-.087a.926.926 0 0 0-.27-.04c-.414 0-.778.301-.995.756-.168-.463-.526-.756-.973-.756-.197 0-.39.058-.565.17l.004-.011c.036-.157.066-.313.09-.466.11-.72-.038-1.306-.417-1.654-.219-.201-.518-.306-.864-.306-.76 0-1.603.413-2.366 1.16-.624.61-1.064 1.291-1.234 1.917l-.049.151-.07-.014a.542.542 0 0 0-.115-.013c-.27 0-.46.19-.46.455 0 .206.08.385.176.5l.018.018-.063.215c-.19.646-.362 1.238-.435 1.564-.132.6-.118.913.043 1.03.078.058.194.085.355.085.331 0 .737-.092 1.096-.248l.15-.065.058.153c.22.581.739.929 1.394.929.676 0 1.374-.369 1.966-1.039.526-.595.917-1.318 1.182-1.939.143.032.3.049.465.049.504 0 .95-.167 1.227-.469.084.269.219.509.407.709.317.336.787.521 1.324.521.524 0 1.077-.178 1.604-.515.126.186.282.341.466.461.293.191.643.289 1.042.289.633 0 1.2-.22 1.598-.62.346-.347.541-.808.541-1.282-.003-.294-.08-.515-.231-.655z"/>
     </svg>
   ),
-  WooCommerce: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
-      <path d="M2.227 4.857A2.228 2.228 0 000 7.094v7.457c0 1.236 1.001 2.237 2.237 2.237h9.253l4.229 2.355-.962-2.355h7.006c1.236 0 2.237-1 2.237-2.237V7.094c0-1.236-1.001-2.237-2.237-2.237H2.227zm.627 1.442h.222c.388 0 .627.286.727.858.187 1.073.476 2.39.867 3.96h.017l1.603-4.593c.1-.286.285-.425.556-.425h.034c.27 0 .438.139.505.416l.942 3.842c.22-.938.44-1.846.66-2.724l.22-.894c.068-.27.184-.454.35-.553a.655.655 0 01.353-.1h.017c.252 0 .454.102.606.304.152.203.228.487.228.853 0 .09-.008.191-.024.304l-1.008 6.234c-.032.19-.102.343-.209.457a.525.525 0 01-.396.17h-.085c-.236 0-.413-.119-.532-.356l-1.109-4.102-1.547 4.102c-.12.237-.297.356-.532.356h-.085a.505.505 0 01-.396-.17c-.107-.114-.177-.267-.209-.457l-1.008-6.234a1.89 1.89 0 01-.025-.304c0-.366.077-.65.228-.853.152-.202.354-.304.606-.304zm10.54 0h.221c.389 0 .628.286.727.858.188 1.073.477 2.39.868 3.96h.017l1.603-4.593c.1-.286.285-.425.556-.425h.034c.27 0 .438.139.505.416l.943 3.842c.22-.938.44-1.846.659-2.724l.22-.894c.068-.27.185-.454.35-.553a.655.655 0 01.354-.1h.017c.253 0 .454.102.606.304.152.203.228.487.228.853 0 .09-.008.191-.025.304l-1.008 6.234c-.031.19-.101.343-.208.457a.525.525 0 01-.397.17h-.085c-.236 0-.413-.119-.532-.356l-1.109-4.102-1.546 4.102c-.12.237-.298.356-.533.356h-.085a.505.505 0 01-.396-.17c-.107-.114-.176-.267-.208-.457l-1.009-6.234a1.878 1.878 0 01-.024-.304c0-.366.076-.65.228-.853.152-.202.354-.304.605-.304z"/>
-    </svg>
-  ),
-  GoogleAnalytics: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
-      <path d="M22.84 2.9982v17.9987c.0086.2867-.0982.5765-.3093.7876-.2111.211-.493.3093-.7877.3093h-3.2759c-.2947 0-.5765-.0983-.7876-.3093-.211-.2111-.3179-.5009-.3093-.7876V2.9982c-.0086-.2867.0983-.5765.3093-.7876.2111-.2111.4929-.3093.7876-.3093h3.2759c.2947 0 .5766.0982.7877.3093.211.2111.3179.5009.3093.7876zm-7.954 8.9975v8.9987c.0086.2867-.0983.5765-.3093.7876-.2111.211-.493.3093-.7877.3093h-3.276c-.2946 0-.5765-.0983-.7876-.3093-.211-.2111-.3178-.5009-.3093-.7876v-8.9987c-.0085-.2868.0983-.5766.3093-.7877.2111-.211.493-.3093.7877-.3093h3.276c.2946 0 .5765.0983.7876.3093.211.2111.3178.5009.3093.7877zm-7.9542 4.4993v4.4993c.0086.2867-.0982.5765-.3093.7876-.2111.211-.493.3093-.7876.3093H3.5589c-.2947 0-.5765-.0983-.7876-.3093-.2111-.2111-.3179-.5009-.3093-.7876v-4.4993c-.0086-.2868.0982-.5766.3093-.7877.211-.211.4929-.3093.7876-.3093h3.276c.2946 0 .5765.0983.7876.3093.211.2111.3178.5009.3093.7877z"/>
-    </svg>
-  ),
-};
-
-// ============================================
-// COMPONENT INTERFACES
-// ============================================
-
-interface BottomNavProps {
-  items: Array<{
-    id: string;
-    label: string;
-    icon: React.ReactNode;
-    view: string;
-  }>;
-  activeView: string;
-  onNavigate: (view: string) => void;
-}
-
-interface KPICardProps {
-  title: string;
-  value: string;
-  change: number;
-  icon: React.ReactNode;
-}
-
-interface AgentActionCardProps {
-  action: {
-    id: string;
-    type: string;
-    title: string;
-    description: string;
-    priority: 'high' | 'medium' | 'low';
-  };
-  onApprove: () => void;
-  onReject: () => void;
-}
-
-interface ProductDraftCardProps {
-  product: {
-    id: string;
-    title: string;
-    description: string;
-    price: number;
-    images: string[];
-    status: 'draft' | 'approved' | 'published';
-  };
-  onApprove: () => void;
-  onPublish: () => void;
-}
-
-interface InsightCardProps {
-  insight: {
-    id: string;
-    type: 'positive' | 'negative' | 'neutral';
-    title: string;
-    description: string;
-  };
-}
-
-interface EmailPreviewCardProps {
-  draft: {
-    id: string;
-    subject: string;
-    preview: string;
-    campaignType: string;
-    status: string;
-  };
-}
-
-interface SocialContentCardProps {
-  draft: {
-    id: string;
-    platform: string;
-    contentType: string;
-    content: string;
-    status: string;
-  };
-}
-
-interface ConnectedAccountCardProps {
-  service: {
-    id: string;
-    name: string;
-    icon: React.ReactNode;
-    connected: boolean;
-  };
-  onConnect: () => void;
-}
-
-// ============================================
-// FIX #38: BOTTOM NAV WITH ENHANCED ACTIVE STATE
-// ============================================
-
-export const BottomNav: React.FC<BottomNavProps> = ({ items, activeView, onNavigate }) => {
-  return (
-    <nav 
-      className="fixed bottom-0 left-0 right-0 bg-[#171738]/95 backdrop-blur-xl border-t border-white/10 z-50"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
-      role="navigation"
-      aria-label="Main navigation"
-    >
-      <div className="flex justify-around items-center py-2 px-4">
-        {items.map((item) => {
-          const isActive = activeView === item.view;
-          return (
-            <button
-              key={item.id}
-              onClick={() => onNavigate(item.view)}
-              className={`
-                relative flex flex-col items-center justify-center py-2 px-4 rounded-xl
-                transition-all duration-300 ease-out min-w-[64px]
-                focus:outline-none focus:ring-2 focus:ring-[#3423A6] focus:ring-offset-2 focus:ring-offset-[#171738]
-                ${isActive 
-                  ? 'text-white' 
-                  : 'text-white/50 hover:text-white/70 hover:bg-white/5'
-                }
-              `}
-              aria-label={item.label}
-              aria-current={isActive ? 'page' : undefined}
-            >
-              {/* FIX #38: Active background glow effect */}
-              {isActive && (
-                <div 
-                  className="absolute inset-0 bg-[#3423A6]/20 rounded-xl"
-                  style={{
-                    boxShadow: '0 0 20px rgba(52, 35, 166, 0.4), 0 0 40px rgba(52, 35, 166, 0.2)',
-                  }}
-                />
-              )}
-              
-              {/* Icon container */}
-              <div className={`
-                relative z-10 transition-transform duration-300
-                ${isActive ? 'scale-110' : 'scale-100'}
-              `}>
-                {item.icon}
-              </div>
-              
-              {/* Label */}
-              <span className={`
-                relative z-10 text-xs mt-1 font-medium transition-all duration-300
-                ${isActive ? 'opacity-100' : 'opacity-70'}
-              `}>
-                {item.label}
-              </span>
-              
-              {/* FIX #38: Active indicator dot */}
-              {isActive && (
-                <div className="absolute -bottom-0.5 left-1/2 transform -translate-x-1/2">
-                  <div className="w-1.5 h-1.5 bg-[#3423A6] rounded-full shadow-lg shadow-[#3423A6]/50" />
-                </div>
-              )}
-            </button>
-          );
-        })}
-      </div>
-    </nav>
-  );
-};
-
-// ============================================
-// KPI CARD COMPONENT
-// ============================================
-
-export const KPICard: React.FC<KPICardProps> = ({ title, value, change, icon }) => {
-  const isPositive = change >= 0;
-  
-  return (
-    <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-white/60 text-sm">{title}</span>
-        <div className="p-2 bg-white/10 rounded-lg text-white/70">
-          {icon}
-        </div>
-      </div>
-      <p className="text-white text-2xl font-bold">{value}</p>
-      <div className={`flex items-center gap-1 mt-1 ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
-        {isPositive ? <Icons.TrendingUp className="w-4 h-4" /> : <Icons.TrendingDown className="w-4 h-4" />}
-        <span className="text-sm font-medium">{isPositive ? '+' : ''}{change}%</span>
-      </div>
-    </div>
-  );
-};
-
-// ============================================
-// AGENT ACTION CARD COMPONENT
-// ============================================
-
-export const AgentActionCard: React.FC<AgentActionCardProps> = ({ action, onApprove, onReject }) => {
-  const priorityColors = {
-    high: 'border-red-500/50 bg-red-500/10',
-    medium: 'border-yellow-500/50 bg-yellow-500/10',
-    low: 'border-green-500/50 bg-green-500/10'
-  };
-
-  return (
-    <div className={`min-w-[200px] p-3 rounded-xl border ${priorityColors[action.priority]}`}>
-      <p className="text-white text-sm font-medium truncate">{action.title}</p>
-      <p className="text-white/60 text-xs mt-1 line-clamp-2">{action.description}</p>
-      <div className="flex gap-2 mt-3">
-        <button
-          onClick={onApprove}
-          className="flex-1 py-1.5 bg-green-500/20 text-green-400 rounded-lg text-xs font-medium
-                     hover:bg-green-500/30 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500"
-          aria-label={`Approve action: ${action.title}`}
-        >
-          Approve
-        </button>
-        <button
-          onClick={onReject}
-          className="flex-1 py-1.5 bg-red-500/20 text-red-400 rounded-lg text-xs font-medium
-                     hover:bg-red-500/30 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
-          aria-label={`Reject action: ${action.title}`}
-        >
-          Reject
-        </button>
-      </div>
-    </div>
-  );
-};
-
-// ============================================
-// PRODUCT DRAFT CARD COMPONENT
-// ============================================
-
-export const ProductDraftCard: React.FC<ProductDraftCardProps> = ({ product, onApprove, onPublish }) => {
-  const statusStyles = {
-    draft: 'bg-white/10 text-white/70',
-    approved: 'bg-green-500/20 text-green-400',
-    published: 'bg-[#3423A6]/30 text-white'
-  };
-
-  return (
-    <div className="bg-white/5 rounded-2xl overflow-hidden border border-white/5">
-      {product.images && product.images[0] && (
-        <div className="aspect-video bg-white/10 relative">
-          <img 
-            src={product.images[0]} 
-            alt={product.title}
-            className="w-full h-full object-cover"
-            loading="lazy"
-          />
-        </div>
-      )}
-      <div className="p-4">
-        <div className="flex items-start justify-between gap-2">
-          <h4 className="text-white font-medium text-sm line-clamp-1 flex-1">{product.title}</h4>
-          <span className={`px-2 py-0.5 rounded-full text-xs shrink-0 ${statusStyles[product.status]}`}>
-            {product.status}
-          </span>
-        </div>
-        <p className="text-white/60 text-xs mt-1 line-clamp-2">{product.description}</p>
-        <p className="text-white font-bold mt-2">${product.price.toFixed(2)}</p>
-        
-        {product.status === 'draft' && (
-          <button
-            onClick={onApprove}
-            className="w-full mt-3 py-2 bg-green-500/20 text-green-400 rounded-xl text-sm font-medium
-                       hover:bg-green-500/30 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500"
-            aria-label={`Approve product: ${product.title}`}
-          >
-            Approve Draft
-          </button>
-        )}
-        {product.status === 'approved' && (
-          <button
-            onClick={onPublish}
-            className="w-full mt-3 py-2 bg-[#3423A6] text-white rounded-xl text-sm font-medium
-                       hover:bg-[#3423A6]/80 transition-colors focus:outline-none focus:ring-2 focus:ring-[#3423A6]"
-            aria-label={`Publish product: ${product.title}`}
-          >
-            Publish Now
-          </button>
-        )}
-        {product.status === 'published' && (
-          <div className="mt-3 py-2 text-center text-white/50 text-sm">
-            <Icons.CheckCircle className="w-4 h-4 inline mr-1" />
-            Published
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// ============================================
-// INSIGHT CARD COMPONENT
-// ============================================
-
-export const InsightCard: React.FC<InsightCardProps> = ({ insight }) => {
-  const typeStyles = {
-    positive: {
-      bg: 'bg-green-500/10 border-green-500/20',
-      icon: <Icons.TrendingUp className="w-5 h-5 text-green-400" />,
-      text: 'text-green-400'
-    },
-    negative: {
-      bg: 'bg-red-500/10 border-red-500/20',
-      icon: <Icons.TrendingDown className="w-5 h-5 text-red-400" />,
-      text: 'text-red-400'
-    },
-    neutral: {
-      bg: 'bg-blue-500/10 border-blue-500/20',
-      icon: <Icons.Info className="w-5 h-5 text-blue-400" />,
-      text: 'text-blue-400'
-    }
-  };
-
-  const style = typeStyles[insight.type];
-
-  return (
-    <div className={`p-4 rounded-xl border ${style.bg}`}>
-      <div className="flex items-start gap-3">
-        <div className="shrink-0 mt-0.5">
-          {style.icon}
-        </div>
-        <div className="flex-1 min-w-0">
-          <h4 className={`font-medium text-sm ${style.text}`}>{insight.title}</h4>
-          <p className="text-white/60 text-xs mt-1 leading-relaxed">{insight.description}</p>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ============================================
-// EMAIL PREVIEW CARD COMPONENT
-// ============================================
-
-export const EmailPreviewCard: React.FC<EmailPreviewCardProps> = ({ draft }) => {
-  const statusStyles: Record<string, string> = {
-    draft: 'bg-white/10 text-white/70',
-    scheduled: 'bg-yellow-500/20 text-yellow-400',
-    sent: 'bg-green-500/20 text-green-400'
-  };
-
-  return (
-    <div className="bg-white/5 rounded-xl p-4 border border-white/5">
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <div className="flex items-center gap-2">
-          <Icons.Mail className="w-4 h-4 text-white/50" />
-          <span className="text-white/50 text-xs uppercase tracking-wide">{draft.campaignType.replace('_', ' ')}</span>
-        </div>
-        <span className={`px-2 py-0.5 rounded-full text-xs ${statusStyles[draft.status] || statusStyles.draft}`}>
-          {draft.status}
-        </span>
-      </div>
-      <h4 className="text-white font-medium text-sm">{draft.subject}</h4>
-      <p className="text-white/60 text-xs mt-1 line-clamp-2">{draft.preview}</p>
-      <div className="flex gap-2 mt-3">
-        <button className="flex-1 py-2 bg-white/10 text-white rounded-lg text-xs font-medium hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/30">
-          Edit
-        </button>
-        <button className="flex-1 py-2 bg-[#3423A6] text-white rounded-lg text-xs font-medium hover:bg-[#3423A6]/80 transition-colors focus:outline-none focus:ring-2 focus:ring-[#3423A6]">
-          Send
-        </button>
-      </div>
-    </div>
-  );
-};
-
-// ============================================
-// SOCIAL CONTENT CARD COMPONENT
-// ============================================
-
-export const SocialContentCard: React.FC<SocialContentCardProps> = ({ draft }) => {
-  const platformIcons: Record<string, React.ReactNode> = {
-    instagram: <EcommerceIcons.Instagram className="w-4 h-4" />,
-    twitter: <EcommerceIcons.Twitter className="w-4 h-4" />,
-    facebook: <EcommerceIcons.Facebook className="w-4 h-4" />,
-    tiktok: <EcommerceIcons.TikTok className="w-4 h-4" />,
-    linkedin: <EcommerceIcons.LinkedIn className="w-4 h-4" />,
-    youtube: <EcommerceIcons.YouTube className="w-4 h-4" />
-  };
-
-  const statusStyles: Record<string, string> = {
-    draft: 'bg-white/10 text-white/70',
-    scheduled: 'bg-yellow-500/20 text-yellow-400',
-    published: 'bg-green-500/20 text-green-400'
-  };
-
-  return (
-    <div className="bg-white/5 rounded-xl p-4 border border-white/5">
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <div className="flex items-center gap-2">
-          <span className="text-white/70">{platformIcons[draft.platform] || <Icons.Globe className="w-4 h-4" />}</span>
-          <span className="text-white/50 text-xs capitalize">{draft.platform}</span>
-        </div>
-        <span className={`px-2 py-0.5 rounded-full text-xs ${statusStyles[draft.status] || statusStyles.draft}`}>
-          {draft.status}
-        </span>
-      </div>
-      <p className="text-white text-sm line-clamp-3">{draft.content}</p>
-      <div className="flex gap-2 mt-3">
-        <button className="flex-1 py-2 bg-white/10 text-white rounded-lg text-xs font-medium hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/30">
-          Edit
-        </button>
-        <button className="flex-1 py-2 bg-[#3423A6] text-white rounded-lg text-xs font-medium hover:bg-[#3423A6]/80 transition-colors focus:outline-none focus:ring-2 focus:ring-[#3423A6]">
-          Post
-        </button>
-      </div>
-    </div>
-  );
-};
-
-// ============================================
-// CONNECTED ACCOUNT CARD COMPONENT
-// ============================================
-
-export const ConnectedAccountCard: React.FC<ConnectedAccountCardProps> = ({ service, onConnect }) => {
-  return (
-    <div className="bg-white/5 rounded-xl p-4 flex items-center justify-between border border-white/5">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center text-white/70">
-          {service.icon}
-        </div>
-        <div>
-          <p className="text-white font-medium text-sm">{service.name}</p>
-          <p className={`text-xs ${service.connected ? 'text-green-400' : 'text-white/50'}`}>
-            {service.connected ? 'Connected' : 'Not connected'}
-          </p>
-        </div>
-      </div>
-      <button
-        onClick={onConnect}
-        className={`px-4 py-2 rounded-lg text-xs font-medium transition-colors focus:outline-none focus:ring-2
-                   ${service.connected 
-                     ? 'bg-white/10 text-white hover:bg-white/20 focus:ring-white/30' 
-                     : 'bg-[#3423A6] text-white hover:bg-[#3423A6]/80 focus:ring-[#3423A6]'
-                   }`}
-        aria-label={service.connected ? `Manage ${service.name} connection` : `Connect ${service.name}`}
-      >
-        {service.connected ? 'Manage' : 'Connect'}
-      </button>
-    </div>
-  );
-};
-
-// ============================================
-// TOGGLE SWITCH COMPONENT
-// ============================================
-
-interface ToggleSwitchProps {
-  enabled: boolean;
-  onChange: (enabled: boolean) => void;
-  label?: string;
-  description?: string;
-  disabled?: boolean;
-}
-
-export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ 
-  enabled, 
-  onChange, 
-  label, 
-  description,
-  disabled = false 
-}) => {
-  return (
-    <div className="flex items-center justify-between">
-      {(label || description) && (
-        <div className="flex-1 mr-4">
-          {label && <p className="text-white text-sm font-medium">{label}</p>}
-          {description && <p className="text-white/50 text-xs mt-0.5">{description}</p>}
-        </div>
-      )}
-      <button
-        role="switch"
-        aria-checked={enabled}
-        aria-label={label || 'Toggle'}
-        disabled={disabled}
-        onClick={() => !disabled && onChange(!enabled)}
-        className={`
-          relative w-12 h-7 rounded-full transition-colors duration-200
-          focus:outline-none focus:ring-2 focus:ring-[#3423A6] focus:ring-offset-2 focus:ring-offset-[#171738]
-          ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-          ${enabled ? 'bg-[#3423A6]' : 'bg-white/20'}
-        `}
-      >
-        <span
-          className={`
-            absolute top-1 w-5 h-5 bg-white rounded-full transition-transform duration-200 shadow-md
-            ${enabled ? 'right-1' : 'left-1'}
-          `}
-        />
-      </button>
-    </div>
-  );
 };
 
 // ============================================
@@ -1215,6 +728,474 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ size = 'md', cla
 };
 
 // ============================================
+// BUTTON COMPONENT
+// ============================================
+
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'success';
+  size?: 'sm' | 'md' | 'lg';
+  isLoading?: boolean;
+  leftIcon?: React.ReactNode;
+  rightIcon?: React.ReactNode;
+  fullWidth?: boolean;
+  children: React.ReactNode;
+}
+
+export const Button: React.FC<ButtonProps> = ({
+  variant = 'primary',
+  size = 'md',
+  isLoading = false,
+  leftIcon,
+  rightIcon,
+  fullWidth = false,
+  children,
+  className = '',
+  disabled,
+  ...props
+}) => {
+  const variantStyles = {
+    primary: 'bg-[#3423A6] text-white hover:bg-[#3423A6]/80 focus:ring-[#3423A6]',
+    secondary: 'bg-white/10 text-white hover:bg-white/20 focus:ring-white/30',
+    ghost: 'bg-transparent text-white hover:bg-white/10 focus:ring-white/20',
+    danger: 'bg-red-500/20 text-red-400 hover:bg-red-500/30 focus:ring-red-500',
+    success: 'bg-green-500/20 text-green-400 hover:bg-green-500/30 focus:ring-green-500'
+  };
+
+  const sizeStyles = {
+    sm: 'px-3 py-1.5 text-xs rounded-lg gap-1.5',
+    md: 'px-4 py-2.5 text-sm rounded-xl gap-2',
+    lg: 'px-6 py-3 text-base rounded-xl gap-2'
+  };
+
+  return (
+    <button
+      className={`
+        inline-flex items-center justify-center font-medium
+        transition-all duration-200
+        focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#171738]
+        disabled:opacity-50 disabled:cursor-not-allowed
+        ${variantStyles[variant]}
+        ${sizeStyles[size]}
+        ${fullWidth ? 'w-full' : ''}
+        ${isLoading ? 'relative text-transparent' : ''}
+        ${className}
+      `}
+      disabled={disabled || isLoading}
+      {...props}
+    >
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <LoadingSpinner size="sm" />
+        </div>
+      )}
+      {leftIcon && <span className={isLoading ? 'invisible' : ''}>{leftIcon}</span>}
+      <span className={isLoading ? 'invisible' : ''}>{children}</span>
+      {rightIcon && <span className={isLoading ? 'invisible' : ''}>{rightIcon}</span>}
+    </button>
+  );
+};
+
+// ============================================
+// CARD COMPONENT
+// ============================================
+
+interface CardProps {
+  children: React.ReactNode;
+  className?: string;
+  padding?: 'none' | 'sm' | 'md' | 'lg';
+  variant?: 'default' | 'outlined' | 'elevated';
+  onClick?: () => void;
+  hoverable?: boolean;
+}
+
+export const Card: React.FC<CardProps> = ({
+  children,
+  className = '',
+  padding = 'md',
+  variant = 'default',
+  onClick,
+  hoverable = false
+}) => {
+  const paddingStyles = {
+    none: '',
+    sm: 'p-3',
+    md: 'p-4',
+    lg: 'p-6'
+  };
+
+  const variantStyles = {
+    default: 'bg-white/5 border border-white/5',
+    outlined: 'bg-transparent border border-white/10',
+    elevated: 'bg-white/5 border border-white/5 shadow-lg shadow-black/20'
+  };
+
+  const Component = onClick ? 'button' : 'div';
+
+  return (
+    <Component
+      className={`
+        rounded-2xl
+        ${paddingStyles[padding]}
+        ${variantStyles[variant]}
+        ${hoverable || onClick ? 'hover:bg-white/10 transition-colors cursor-pointer' : ''}
+        ${onClick ? 'w-full text-left focus:outline-none focus:ring-2 focus:ring-[#3423A6] focus:ring-offset-2 focus:ring-offset-[#171738]' : ''}
+        ${className}
+      `}
+      onClick={onClick}
+    >
+      {children}
+    </Component>
+  );
+};
+
+// ============================================
+// CARD SUB-COMPONENTS
+// ============================================
+
+interface CardSubProps {
+  children: React.ReactNode;
+  className?: string;
+}
+
+export const CardHeader: React.FC<CardSubProps> = ({ children, className = '' }) => (
+  <div className={`mb-4 ${className}`}>{children}</div>
+);
+
+export const CardTitle: React.FC<CardSubProps> = ({ children, className = '' }) => (
+  <h3 className={`text-white font-semibold text-lg ${className}`}>{children}</h3>
+);
+
+export const CardDescription: React.FC<CardSubProps> = ({ children, className = '' }) => (
+  <p className={`text-white/60 text-sm mt-1 ${className}`}>{children}</p>
+);
+
+export const CardContent: React.FC<CardSubProps> = ({ children, className = '' }) => (
+  <div className={className}>{children}</div>
+);
+
+export const CardFooter: React.FC<CardSubProps> = ({ children, className = '' }) => (
+  <div className={`mt-4 pt-4 border-t border-white/10 ${className}`}>{children}</div>
+);
+
+// ============================================
+// INPUT COMPONENT
+// ============================================
+
+interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  label?: string;
+  error?: string;
+  helperText?: string;
+  leftIcon?: React.ReactNode;
+  rightIcon?: React.ReactNode;
+}
+
+export const Input: React.FC<InputProps> = ({
+  label,
+  error,
+  helperText,
+  leftIcon,
+  rightIcon,
+  className = '',
+  id,
+  ...props
+}) => {
+  const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
+
+  return (
+    <div className="w-full">
+      {label && (
+        <label htmlFor={inputId} className="block text-white text-sm font-medium mb-2">
+          {label}
+        </label>
+      )}
+      <div className="relative">
+        {leftIcon && (
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50">
+            {leftIcon}
+          </div>
+        )}
+        <input
+          id={inputId}
+          className={`
+            w-full bg-white/10 text-white placeholder-white/40 rounded-xl
+            px-4 py-3 text-sm
+            border border-transparent
+            focus:outline-none focus:ring-2 focus:ring-[#3423A6] focus:ring-offset-2 focus:ring-offset-[#171738]
+            focus:bg-white/15 transition-all duration-200
+            disabled:opacity-50 disabled:cursor-not-allowed
+            ${leftIcon ? 'pl-10' : ''}
+            ${rightIcon ? 'pr-10' : ''}
+            ${error ? 'border-red-500 focus:ring-red-500' : ''}
+            ${className}
+          `}
+          {...props}
+        />
+        {rightIcon && (
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50">
+            {rightIcon}
+          </div>
+        )}
+      </div>
+      {error && <p className="mt-1 text-red-400 text-xs">{error}</p>}
+      {helperText && !error && <p className="mt-1 text-white/50 text-xs">{helperText}</p>}
+    </div>
+  );
+};
+
+// ============================================
+// TEXTAREA COMPONENT
+// ============================================
+
+interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+  label?: string;
+  error?: string;
+  helperText?: string;
+}
+
+export const Textarea: React.FC<TextareaProps> = ({
+  label,
+  error,
+  helperText,
+  className = '',
+  id,
+  ...props
+}) => {
+  const textareaId = id || label?.toLowerCase().replace(/\s+/g, '-');
+
+  return (
+    <div className="w-full">
+      {label && (
+        <label htmlFor={textareaId} className="block text-white text-sm font-medium mb-2">
+          {label}
+        </label>
+      )}
+      <textarea
+        id={textareaId}
+        className={`
+          w-full bg-white/10 text-white placeholder-white/40 rounded-xl
+          px-4 py-3 text-sm min-h-[100px] resize-none
+          border border-transparent
+          focus:outline-none focus:ring-2 focus:ring-[#3423A6] focus:ring-offset-2 focus:ring-offset-[#171738]
+          focus:bg-white/15 transition-all duration-200
+          disabled:opacity-50 disabled:cursor-not-allowed
+          ${error ? 'border-red-500 focus:ring-red-500' : ''}
+          ${className}
+        `}
+        {...props}
+      />
+      {error && <p className="mt-1 text-red-400 text-xs">{error}</p>}
+      {helperText && !error && <p className="mt-1 text-white/50 text-xs">{helperText}</p>}
+    </div>
+  );
+};
+
+// ============================================
+// BADGE COMPONENT
+// ============================================
+
+interface BadgeProps {
+  children: React.ReactNode;
+  variant?: 'default' | 'success' | 'warning' | 'error' | 'info' | 'primary';
+  size?: 'sm' | 'md';
+  className?: string;
+}
+
+export const Badge: React.FC<BadgeProps> = ({
+  children,
+  variant = 'default',
+  size = 'sm',
+  className = ''
+}) => {
+  const variantStyles = {
+    default: 'bg-white/10 text-white/70',
+    success: 'bg-green-500/20 text-green-400',
+    warning: 'bg-yellow-500/20 text-yellow-400',
+    error: 'bg-red-500/20 text-red-400',
+    info: 'bg-blue-500/20 text-blue-400',
+    primary: 'bg-[#3423A6]/30 text-white'
+  };
+
+  const sizeStyles = {
+    sm: 'px-2 py-0.5 text-xs',
+    md: 'px-3 py-1 text-sm'
+  };
+
+  return (
+    <span className={`
+      inline-flex items-center rounded-full font-medium
+      ${variantStyles[variant]}
+      ${sizeStyles[size]}
+      ${className}
+    `}>
+      {children}
+    </span>
+  );
+};
+
+// ============================================
+// AVATAR COMPONENT
+// ============================================
+
+interface AvatarProps {
+  src?: string;
+  alt?: string;
+  fallback?: string;
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+  className?: string;
+}
+
+export const Avatar: React.FC<AvatarProps> = ({
+  src,
+  alt = 'Avatar',
+  fallback,
+  size = 'md',
+  className = ''
+}) => {
+  const sizeStyles = {
+    sm: 'w-8 h-8 text-xs',
+    md: 'w-10 h-10 text-sm',
+    lg: 'w-12 h-12 text-base',
+    xl: 'w-16 h-16 text-lg'
+  };
+
+  const initials = fallback || alt?.charAt(0).toUpperCase() || '?';
+
+  return (
+    <div className={`
+      relative rounded-full overflow-hidden bg-white/10 flex items-center justify-center
+      ${sizeStyles[size]}
+      ${className}
+    `}>
+      {src ? (
+        <img src={src} alt={alt} className="w-full h-full object-cover" loading="lazy" />
+      ) : (
+        <span className="text-white/70 font-medium">{initials}</span>
+      )}
+    </div>
+  );
+};
+
+// ============================================
+// PROGRESS BAR COMPONENT
+// ============================================
+
+interface ProgressBarProps {
+  value: number;
+  max?: number;
+  size?: 'sm' | 'md' | 'lg';
+  showLabel?: boolean;
+  className?: string;
+  color?: 'primary' | 'success' | 'warning' | 'error';
+}
+
+export const ProgressBar: React.FC<ProgressBarProps> = ({
+  value,
+  max = 100,
+  size = 'md',
+  showLabel = false,
+  className = '',
+  color = 'primary'
+}) => {
+  const percentage = Math.min(Math.max((value / max) * 100, 0), 100);
+
+  const sizeStyles = { sm: 'h-1', md: 'h-2', lg: 'h-3' };
+  const colorStyles = {
+    primary: 'bg-[#3423A6]',
+    success: 'bg-green-500',
+    warning: 'bg-yellow-500',
+    error: 'bg-red-500'
+  };
+
+  return (
+    <div className={className}>
+      {showLabel && (
+        <div className="flex justify-between text-xs text-white/60 mb-1">
+          <span>Progress</span>
+          <span>{Math.round(percentage)}%</span>
+        </div>
+      )}
+      <div className={`w-full bg-white/10 rounded-full overflow-hidden ${sizeStyles[size]}`}>
+        <div
+          className={`h-full rounded-full transition-all duration-300 ${colorStyles[color]}`}
+          style={{ width: `${percentage}%` }}
+          role="progressbar"
+          aria-valuenow={value}
+          aria-valuemin={0}
+          aria-valuemax={max}
+        />
+      </div>
+    </div>
+  );
+};
+
+// ============================================
+// DIVIDER COMPONENT
+// ============================================
+
+interface DividerProps {
+  className?: string;
+  orientation?: 'horizontal' | 'vertical';
+}
+
+export const Divider: React.FC<DividerProps> = ({
+  className = '',
+  orientation = 'horizontal'
+}) => (
+  <div
+    className={`
+      bg-white/10
+      ${orientation === 'horizontal' ? 'h-px w-full' : 'w-px h-full'}
+      ${className}
+    `}
+    role="separator"
+    aria-orientation={orientation}
+  />
+);
+
+// ============================================
+// TOGGLE SWITCH COMPONENT
+// ============================================
+
+interface ToggleSwitchProps {
+  enabled: boolean;
+  onChange: (enabled: boolean) => void;
+  label?: string;
+  description?: string;
+  disabled?: boolean;
+}
+
+export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ 
+  enabled, onChange, label, description, disabled = false 
+}) => (
+  <div className="flex items-center justify-between">
+    {(label || description) && (
+      <div className="flex-1 mr-4">
+        {label && <p className="text-white text-sm font-medium">{label}</p>}
+        {description && <p className="text-white/50 text-xs mt-0.5">{description}</p>}
+      </div>
+    )}
+    <button
+      role="switch"
+      aria-checked={enabled}
+      aria-label={label || 'Toggle'}
+      disabled={disabled}
+      onClick={() => !disabled && onChange(!enabled)}
+      className={`
+        relative w-12 h-7 rounded-full transition-colors duration-200
+        focus:outline-none focus:ring-2 focus:ring-[#3423A6] focus:ring-offset-2 focus:ring-offset-[#171738]
+        ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+        ${enabled ? 'bg-[#3423A6]' : 'bg-white/20'}
+      `}
+    >
+      <span className={`
+        absolute top-1 w-5 h-5 bg-white rounded-full transition-transform duration-200 shadow-md
+        ${enabled ? 'right-1' : 'left-1'}
+      `} />
+    </button>
+  </div>
+);
+
+// ============================================
 // EMPTY STATE COMPONENT
 // ============================================
 
@@ -1222,59 +1203,33 @@ interface EmptyStateProps {
   icon?: React.ReactNode;
   title: string;
   description?: string;
-  action?: {
-    label: string;
-    onClick: () => void;
-  };
+  action?: { label: string; onClick: () => void };
   compact?: boolean;
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({ 
-  icon, 
-  title, 
-  description, 
-  action,
-  compact = false 
-}) => {
-  return (
-    <div className={`
-      flex flex-col items-center justify-center text-center
-      ${compact ? 'p-6 min-h-[150px]' : 'p-8 min-h-[200px]'}
-    `}>
-      {icon && (
-        <div className={`
-          flex items-center justify-center bg-white/5 rounded-full mb-4
-          ${compact ? 'w-12 h-12' : 'w-16 h-16'}
-        `}>
-          <div className={`text-white/30 ${compact ? 'scale-75' : ''}`}>
-            {icon}
-          </div>
-        </div>
-      )}
-      <h3 className={`text-white/70 font-medium ${compact ? 'text-sm' : 'text-base'}`}>
-        {title}
-      </h3>
-      {description && (
-        <p className={`text-white/50 mt-1 max-w-[280px] ${compact ? 'text-xs' : 'text-sm'}`}>
-          {description}
-        </p>
-      )}
-      {action && (
-        <button
-          onClick={action.onClick}
-          className="mt-4 px-4 py-2 bg-[#3423A6] text-white rounded-xl text-sm font-medium
-                     hover:bg-[#3423A6]/80 transition-colors focus:outline-none focus:ring-2 
-                     focus:ring-[#3423A6] focus:ring-offset-2 focus:ring-offset-[#171738]"
-        >
-          {action.label}
-        </button>
-      )}
-    </div>
-  );
-};
+  icon, title, description, action, compact = false 
+}) => (
+  <div className={`flex flex-col items-center justify-center text-center ${compact ? 'p-6 min-h-[150px]' : 'p-8 min-h-[200px]'}`}>
+    {icon && (
+      <div className={`flex items-center justify-center bg-white/5 rounded-full mb-4 ${compact ? 'w-12 h-12' : 'w-16 h-16'}`}>
+        <div className={`text-white/30 ${compact ? 'scale-75' : ''}`}>{icon}</div>
+      </div>
+    )}
+    <h3 className={`text-white/70 font-medium ${compact ? 'text-sm' : 'text-base'}`}>{title}</h3>
+    {description && (
+      <p className={`text-white/50 mt-1 max-w-[280px] ${compact ? 'text-xs' : 'text-sm'}`}>{description}</p>
+    )}
+    {action && (
+      <Button onClick={action.onClick} className="mt-4" size="sm">
+        {action.label}
+      </Button>
+    )}
+  </div>
+);
 
 // ============================================
-// SKELETON LOADER COMPONENT
+// SKELETON COMPONENT
 // ============================================
 
 interface SkeletonProps {
@@ -1285,10 +1240,7 @@ interface SkeletonProps {
 }
 
 export const Skeleton: React.FC<SkeletonProps> = ({ 
-  className = '', 
-  variant = 'rectangular',
-  width,
-  height 
+  className = '', variant = 'rectangular', width, height 
 }) => {
   const variantClasses = {
     text: 'rounded h-4',
@@ -1298,11 +1250,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({
 
   return (
     <div
-      className={`
-        bg-white/10 animate-pulse relative overflow-hidden
-        ${variantClasses[variant]}
-        ${className}
-      `}
+      className={`bg-white/10 animate-pulse relative overflow-hidden ${variantClasses[variant]} ${className}`}
       style={{ width, height }}
     >
       <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/5 to-transparent" />
@@ -1322,13 +1270,7 @@ interface ModalProps {
   size?: 'sm' | 'md' | 'lg' | 'full';
 }
 
-export const Modal: React.FC<ModalProps> = ({ 
-  isOpen, 
-  onClose, 
-  title, 
-  children,
-  size = 'md' 
-}) => {
+export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, size = 'md' }) => {
   if (!isOpen) return null;
 
   const sizeClasses = {
@@ -1340,50 +1282,33 @@ export const Modal: React.FC<ModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[400]">
-      {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-[fadeIn_200ms_ease]"
         onClick={onClose}
-        aria-hidden="true"
       />
-      
-      {/* Modal */}
       <div className="absolute inset-0 flex items-center justify-center p-4">
         <div 
-          className={`
-            relative bg-[#1e1e4a] rounded-2xl w-full ${sizeClasses[size]}
-            animate-[slideUp_200ms_ease] shadow-xl border border-white/10
-          `}
+          className={`relative bg-[#1e1e4a] rounded-2xl w-full ${sizeClasses[size]} animate-[slideUp_200ms_ease] shadow-xl border border-white/10`}
           role="dialog"
           aria-modal="true"
-          aria-labelledby={title ? 'modal-title' : undefined}
         >
-          {/* Header */}
           {title && (
             <div className="flex items-center justify-between p-4 border-b border-white/10">
-              <h2 id="modal-title" className="text-white font-semibold text-lg">{title}</h2>
+              <h2 className="text-white font-semibold text-lg">{title}</h2>
               <button
                 onClick={onClose}
-                className="p-2 -mr-2 hover:bg-white/10 rounded-lg transition-colors
-                           focus:outline-none focus:ring-2 focus:ring-[#3423A6]"
+                className="p-2 -mr-2 hover:bg-white/10 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#3423A6]"
                 aria-label="Close modal"
               >
                 <Icons.X className="w-5 h-5 text-white/70" />
               </button>
             </div>
           )}
-          
-          {/* Content */}
-          <div className="p-4">
-            {children}
-          </div>
-          
-          {/* Close button if no title */}
+          <div className="p-4">{children}</div>
           {!title && (
             <button
               onClick={onClose}
-              className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-lg transition-colors
-                         focus:outline-none focus:ring-2 focus:ring-[#3423A6]"
+              className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#3423A6]"
               aria-label="Close modal"
             >
               <Icons.X className="w-5 h-5 text-white/70" />
@@ -1406,29 +1331,12 @@ interface ToastProps {
   onClose: () => void;
 }
 
-export const Toast: React.FC<ToastProps> = ({ 
-  message, 
-  type = 'info', 
-  isVisible, 
-  onClose 
-}) => {
+export const Toast: React.FC<ToastProps> = ({ message, type = 'info', isVisible, onClose }) => {
   const typeStyles = {
-    success: {
-      bg: 'bg-green-500/20 border-green-500/30',
-      icon: <Icons.CheckCircle className="w-5 h-5 text-green-400" />
-    },
-    error: {
-      bg: 'bg-red-500/20 border-red-500/30',
-      icon: <Icons.AlertCircle className="w-5 h-5 text-red-400" />
-    },
-    warning: {
-      bg: 'bg-yellow-500/20 border-yellow-500/30',
-      icon: <Icons.AlertTriangle className="w-5 h-5 text-yellow-400" />
-    },
-    info: {
-      bg: 'bg-blue-500/20 border-blue-500/30',
-      icon: <Icons.Info className="w-5 h-5 text-blue-400" />
-    }
+    success: { bg: 'bg-green-500/20 border-green-500/30', icon: <Icons.CheckCircle className="w-5 h-5 text-green-400" /> },
+    error: { bg: 'bg-red-500/20 border-red-500/30', icon: <Icons.AlertCircle className="w-5 h-5 text-red-400" /> },
+    warning: { bg: 'bg-yellow-500/20 border-yellow-500/30', icon: <Icons.AlertTriangle className="w-5 h-5 text-yellow-400" /> },
+    info: { bg: 'bg-blue-500/20 border-blue-500/30', icon: <Icons.Info className="w-5 h-5 text-blue-400" /> }
   };
 
   if (!isVisible) return null;
@@ -1436,25 +1344,930 @@ export const Toast: React.FC<ToastProps> = ({
   const style = typeStyles[type];
 
   return (
-    <div 
-      className={`
-        fixed bottom-20 left-4 right-4 mx-auto max-w-sm z-[700]
-        ${style.bg} border rounded-xl p-4
-        flex items-center gap-3
-        animate-[slideUp_200ms_ease]
-      `}
-      role="alert"
-    >
+    <div className={`fixed bottom-20 left-4 right-4 mx-auto max-w-sm z-[700] ${style.bg} border rounded-xl p-4 flex items-center gap-3 animate-[slideUp_200ms_ease]`} role="alert">
       {style.icon}
       <p className="text-white text-sm flex-1">{message}</p>
-      <button
-        onClick={onClose}
-        className="p-1 hover:bg-white/10 rounded-lg transition-colors"
-        aria-label="Dismiss"
-      >
+      <button onClick={onClose} className="p-1 hover:bg-white/10 rounded-lg transition-colors" aria-label="Dismiss">
         <Icons.X className="w-4 h-4 text-white/70" />
       </button>
     </div>
+  );
+};
+
+// ============================================
+// BOTTOM NAV COMPONENT - FIX #38
+// ============================================
+
+interface BottomNavProps {
+  items: Array<{ id: string; label: string; icon: React.ReactNode; view: string }>;
+  activeView: string;
+  onNavigate: (view: string) => void;
+}
+
+export const BottomNav: React.FC<BottomNavProps> = ({ items, activeView, onNavigate }) => (
+  <nav 
+    className="fixed bottom-0 left-0 right-0 bg-[#171738]/95 backdrop-blur-xl border-t border-white/10 z-50"
+    style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+    role="navigation"
+    aria-label="Main navigation"
+  >
+    <div className="flex justify-around items-center py-2 px-4">
+      {items.map((item) => {
+        const isActive = activeView === item.view;
+        return (
+          <button
+            key={item.id}
+            onClick={() => onNavigate(item.view)}
+            className={`
+              relative flex flex-col items-center justify-center py-2 px-4 rounded-xl
+              transition-all duration-300 ease-out min-w-[64px]
+              focus:outline-none focus:ring-2 focus:ring-[#3423A6] focus:ring-offset-2 focus:ring-offset-[#171738]
+              ${isActive ? 'text-white' : 'text-white/50 hover:text-white/70 hover:bg-white/5'}
+            `}
+            aria-label={item.label}
+            aria-current={isActive ? 'page' : undefined}
+          >
+            {isActive && (
+              <div 
+                className="absolute inset-0 bg-[#3423A6]/20 rounded-xl"
+                style={{ boxShadow: '0 0 20px rgba(52, 35, 166, 0.4), 0 0 40px rgba(52, 35, 166, 0.2)' }}
+              />
+            )}
+            <div className={`relative z-10 transition-transform duration-300 ${isActive ? 'scale-110' : 'scale-100'}`}>
+              {item.icon}
+            </div>
+            <span className={`relative z-10 text-xs mt-1 font-medium transition-all duration-300 ${isActive ? 'opacity-100' : 'opacity-70'}`}>
+              {item.label}
+            </span>
+            {isActive && (
+              <div className="absolute -bottom-0.5 left-1/2 transform -translate-x-1/2">
+                <div className="w-1.5 h-1.5 bg-[#3423A6] rounded-full shadow-lg shadow-[#3423A6]/50" />
+              </div>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  </nav>
+);
+
+// ============================================
+// KPI CARD COMPONENT
+// ============================================
+
+interface KPICardProps {
+  title: string;
+  value: string;
+  change: number;
+  icon: React.ReactNode;
+}
+
+export const KPICard: React.FC<KPICardProps> = ({ title, value, change, icon }) => {
+  const isPositive = change >= 0;
+  return (
+    <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-white/60 text-sm">{title}</span>
+        <div className="p-2 bg-white/10 rounded-lg text-white/70">{icon}</div>
+      </div>
+      <p className="text-white text-2xl font-bold">{value}</p>
+      <div className={`flex items-center gap-1 mt-1 ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+        {isPositive ? <Icons.TrendingUp className="w-4 h-4" /> : <Icons.TrendingDown className="w-4 h-4" />}
+        <span className="text-sm font-medium">{isPositive ? '+' : ''}{change}%</span>
+      </div>
+    </div>
+  );
+};
+
+// ============================================
+// AGENT ACTION CARD COMPONENT
+// ============================================
+
+interface AgentActionCardProps {
+  action: { id: string; type: string; title: string; description: string; priority: 'high' | 'medium' | 'low' };
+  onApprove: () => void;
+  onReject: () => void;
+}
+
+export const AgentActionCard: React.FC<AgentActionCardProps> = ({ action, onApprove, onReject }) => {
+  const priorityColors = {
+    high: 'border-red-500/50 bg-red-500/10',
+    medium: 'border-yellow-500/50 bg-yellow-500/10',
+    low: 'border-green-500/50 bg-green-500/10'
+  };
+
+  return (
+    <div className={`min-w-[200px] p-3 rounded-xl border ${priorityColors[action.priority]}`}>
+      <p className="text-white text-sm font-medium truncate">{action.title}</p>
+      <p className="text-white/60 text-xs mt-1 line-clamp-2">{action.description}</p>
+      <div className="flex gap-2 mt-3">
+        <button onClick={onApprove} className="flex-1 py-1.5 bg-green-500/20 text-green-400 rounded-lg text-xs font-medium hover:bg-green-500/30 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500">
+          Approve
+        </button>
+        <button onClick={onReject} className="flex-1 py-1.5 bg-red-500/20 text-red-400 rounded-lg text-xs font-medium hover:bg-red-500/30 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500">
+          Reject
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ============================================
+// PRODUCT DRAFT CARD COMPONENT
+// ============================================
+
+interface ProductDraftCardProps {
+  product: { id: string; title: string; description: string; price: number; images: string[]; status: 'draft' | 'approved' | 'published' };
+  onApprove: () => void;
+  onPublish: () => void;
+}
+
+export const ProductDraftCard: React.FC<ProductDraftCardProps> = ({ product, onApprove, onPublish }) => {
+  const statusStyles = {
+    draft: 'bg-white/10 text-white/70',
+    approved: 'bg-green-500/20 text-green-400',
+    published: 'bg-[#3423A6]/30 text-white'
+  };
+
+  return (
+    <div className="bg-white/5 rounded-2xl overflow-hidden border border-white/5">
+      {product.images && product.images[0] && (
+        <div className="aspect-video bg-white/10 relative">
+          <img src={product.images[0]} alt={product.title} className="w-full h-full object-cover" loading="lazy" />
+        </div>
+      )}
+      <div className="p-4">
+        <div className="flex items-start justify-between gap-2">
+          <h4 className="text-white font-medium text-sm line-clamp-1 flex-1">{product.title}</h4>
+          <span className={`px-2 py-0.5 rounded-full text-xs shrink-0 ${statusStyles[product.status]}`}>{product.status}</span>
+        </div>
+        <p className="text-white/60 text-xs mt-1 line-clamp-2">{product.description}</p>
+        <p className="text-white font-bold mt-2">${product.price.toFixed(2)}</p>
+        {product.status === 'draft' && (
+          <Button onClick={onApprove} variant="success" fullWidth className="mt-3" size="sm">Approve Draft</Button>
+        )}
+        {product.status === 'approved' && (
+          <Button onClick={onPublish} fullWidth className="mt-3" size="sm">Publish Now</Button>
+        )}
+        {product.status === 'published' && (
+          <div className="mt-3 py-2 text-center text-white/50 text-sm">
+            <Icons.CheckCircle className="w-4 h-4 inline mr-1" />Published
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ============================================
+// INSIGHT CARD COMPONENT
+// ============================================
+
+interface InsightCardProps {
+  insight: { id: string; type: 'positive' | 'negative' | 'neutral'; title: string; description: string };
+}
+
+export const InsightCard: React.FC<InsightCardProps> = ({ insight }) => {
+  const typeStyles = {
+    positive: { bg: 'bg-green-500/10 border-green-500/20', icon: <Icons.TrendingUp className="w-5 h-5 text-green-400" />, text: 'text-green-400' },
+    negative: { bg: 'bg-red-500/10 border-red-500/20', icon: <Icons.TrendingDown className="w-5 h-5 text-red-400" />, text: 'text-red-400' },
+    neutral: { bg: 'bg-blue-500/10 border-blue-500/20', icon: <Icons.Info className="w-5 h-5 text-blue-400" />, text: 'text-blue-400' }
+  };
+  const style = typeStyles[insight.type];
+
+  return (
+    <div className={`p-4 rounded-xl border ${style.bg}`}>
+      <div className="flex items-start gap-3">
+        <div className="shrink-0 mt-0.5">{style.icon}</div>
+        <div className="flex-1 min-w-0">
+          <h4 className={`font-medium text-sm ${style.text}`}>{insight.title}</h4>
+          <p className="text-white/60 text-xs mt-1 leading-relaxed">{insight.description}</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ============================================
+// EMAIL PREVIEW CARD COMPONENT
+// ============================================
+
+interface EmailPreviewCardProps {
+  draft: { id: string; subject: string; preview: string; campaignType: string; status: string };
+}
+
+export const EmailPreviewCard: React.FC<EmailPreviewCardProps> = ({ draft }) => {
+  const statusStyles: Record<string, string> = {
+    draft: 'bg-white/10 text-white/70',
+    scheduled: 'bg-yellow-500/20 text-yellow-400',
+    sent: 'bg-green-500/20 text-green-400'
+  };
+
+  return (
+    <div className="bg-white/5 rounded-xl p-4 border border-white/5">
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <div className="flex items-center gap-2">
+          <Icons.Mail className="w-4 h-4 text-white/50" />
+          <span className="text-white/50 text-xs uppercase tracking-wide">{draft.campaignType.replace('_', ' ')}</span>
+        </div>
+        <span className={`px-2 py-0.5 rounded-full text-xs ${statusStyles[draft.status] || statusStyles.draft}`}>{draft.status}</span>
+      </div>
+      <h4 className="text-white font-medium text-sm">{draft.subject}</h4>
+      <p className="text-white/60 text-xs mt-1 line-clamp-2">{draft.preview}</p>
+      <div className="flex gap-2 mt-3">
+        <Button variant="secondary" size="sm" fullWidth>Edit</Button>
+        <Button size="sm" fullWidth>Send</Button>
+      </div>
+    </div>
+  );
+};
+
+// ============================================
+// SOCIAL CONTENT CARD COMPONENT
+// ============================================
+
+interface SocialContentCardProps {
+  draft: { id: string; platform: string; contentType: string; content: string; status: string };
+}
+
+export const SocialContentCard: React.FC<SocialContentCardProps> = ({ draft }) => {
+  const platformIcons: Record<string, React.ReactNode> = {
+    instagram: <EcommerceIcons.Instagram className="w-4 h-4" />,
+    twitter: <EcommerceIcons.Twitter className="w-4 h-4" />,
+    facebook: <EcommerceIcons.Facebook className="w-4 h-4" />,
+    tiktok: <EcommerceIcons.TikTok className="w-4 h-4" />,
+    linkedin: <EcommerceIcons.LinkedIn className="w-4 h-4" />,
+        youtube: <EcommerceIcons.YouTube className="w-4 h-4" />
+  };
+
+  const statusStyles: Record<string, string> = {
+    draft: 'bg-white/10 text-white/70',
+    scheduled: 'bg-yellow-500/20 text-yellow-400',
+    published: 'bg-green-500/20 text-green-400'
+  };
+
+  return (
+    <div className="bg-white/5 rounded-xl p-4 border border-white/5">
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <div className="flex items-center gap-2">
+          <span className="text-white/70">{platformIcons[draft.platform] || <Icons.Globe className="w-4 h-4" />}</span>
+          <span className="text-white/50 text-xs capitalize">{draft.platform}</span>
+        </div>
+        <span className={`px-2 py-0.5 rounded-full text-xs ${statusStyles[draft.status] || statusStyles.draft}`}>
+          {draft.status}
+        </span>
+      </div>
+      <p className="text-white text-sm line-clamp-3">{draft.content}</p>
+      <div className="flex gap-2 mt-3">
+        <Button variant="secondary" size="sm" fullWidth>Edit</Button>
+        <Button size="sm" fullWidth>Post</Button>
+      </div>
+    </div>
+  );
+};
+
+// ============================================
+// CONNECTED ACCOUNT CARD COMPONENT
+// ============================================
+
+interface ConnectedAccountCardProps {
+  service: { id: string; name: string; icon: React.ReactNode; connected: boolean };
+  onConnect: () => void;
+}
+
+export const ConnectedAccountCard: React.FC<ConnectedAccountCardProps> = ({ service, onConnect }) => (
+  <div className="bg-white/5 rounded-xl p-4 flex items-center justify-between border border-white/5">
+    <div className="flex items-center gap-3">
+      <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center text-white/70">
+        {service.icon}
+      </div>
+      <div>
+        <p className="text-white font-medium text-sm">{service.name}</p>
+        <p className={`text-xs ${service.connected ? 'text-green-400' : 'text-white/50'}`}>
+          {service.connected ? 'Connected' : 'Not connected'}
+        </p>
+      </div>
+    </div>
+    <Button
+      onClick={onConnect}
+      variant={service.connected ? 'secondary' : 'primary'}
+      size="sm"
+    >
+      {service.connected ? 'Manage' : 'Connect'}
+    </Button>
+  </div>
+);
+
+// ============================================
+// SELECT COMPONENT
+// ============================================
+
+interface SelectOption {
+  value: string;
+  label: string;
+  disabled?: boolean;
+}
+
+interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, 'onChange'> {
+  label?: string;
+  error?: string;
+  helperText?: string;
+  options: SelectOption[];
+  onChange?: (value: string) => void;
+  placeholder?: string;
+}
+
+export const Select: React.FC<SelectProps> = ({
+  label,
+  error,
+  helperText,
+  options,
+  onChange,
+  placeholder = 'Select an option',
+  className = '',
+  id,
+  value,
+  ...props
+}) => {
+  const selectId = id || label?.toLowerCase().replace(/\s+/g, '-');
+
+  return (
+    <div className="w-full">
+      {label && (
+        <label htmlFor={selectId} className="block text-white text-sm font-medium mb-2">
+          {label}
+        </label>
+      )}
+      <div className="relative">
+        <select
+          id={selectId}
+          value={value}
+          onChange={(e) => onChange?.(e.target.value)}
+          className={`
+            w-full bg-white/10 text-white rounded-xl
+            px-4 py-3 text-sm appearance-none
+            border border-transparent
+            focus:outline-none focus:ring-2 focus:ring-[#3423A6] focus:ring-offset-2 focus:ring-offset-[#171738]
+            focus:bg-white/15 transition-all duration-200
+            disabled:opacity-50 disabled:cursor-not-allowed
+            ${error ? 'border-red-500 focus:ring-red-500' : ''}
+            ${className}
+          `}
+          {...props}
+        >
+          <option value="" disabled className="bg-[#171738] text-white/50">
+            {placeholder}
+          </option>
+          {options.map((option) => (
+            <option
+              key={option.value}
+              value={option.value}
+              disabled={option.disabled}
+              className="bg-[#171738] text-white"
+            >
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/50">
+          <Icons.ChevronDown className="w-5 h-5" />
+        </div>
+      </div>
+      {error && <p className="mt-1 text-red-400 text-xs">{error}</p>}
+      {helperText && !error && <p className="mt-1 text-white/50 text-xs">{helperText}</p>}
+    </div>
+  );
+};
+
+// ============================================
+// CHECKBOX COMPONENT
+// ============================================
+
+interface CheckboxProps {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  label?: string;
+  description?: string;
+  disabled?: boolean;
+  id?: string;
+}
+
+export const Checkbox: React.FC<CheckboxProps> = ({
+  checked,
+  onChange,
+  label,
+  description,
+  disabled = false,
+  id
+}) => {
+  const checkboxId = id || label?.toLowerCase().replace(/\s+/g, '-');
+
+  return (
+    <div className="flex items-start gap-3">
+      <button
+        id={checkboxId}
+        role="checkbox"
+        aria-checked={checked}
+        disabled={disabled}
+        onClick={() => !disabled && onChange(!checked)}
+        className={`
+          w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 mt-0.5
+          transition-all duration-200
+          focus:outline-none focus:ring-2 focus:ring-[#3423A6] focus:ring-offset-2 focus:ring-offset-[#171738]
+          ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+          ${checked 
+            ? 'bg-[#3423A6] border-[#3423A6]' 
+            : 'bg-transparent border-white/30 hover:border-white/50'
+          }
+        `}
+      >
+        {checked && <Icons.Check className="w-3 h-3 text-white" />}
+      </button>
+      {(label || description) && (
+        <div className="flex-1">
+          {label && (
+            <label 
+              htmlFor={checkboxId} 
+              className={`text-white text-sm font-medium ${disabled ? '' : 'cursor-pointer'}`}
+            >
+              {label}
+            </label>
+          )}
+          {description && (
+            <p className="text-white/50 text-xs mt-0.5">{description}</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ============================================
+// RADIO GROUP COMPONENT
+// ============================================
+
+interface RadioOption {
+  value: string;
+  label: string;
+  description?: string;
+  disabled?: boolean;
+}
+
+interface RadioGroupProps {
+  name: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: RadioOption[];
+  label?: string;
+  orientation?: 'horizontal' | 'vertical';
+}
+
+export const RadioGroup: React.FC<RadioGroupProps> = ({
+  name,
+  value,
+  onChange,
+  options,
+  label,
+  orientation = 'vertical'
+}) => (
+  <div className="w-full">
+    {label && (
+      <p className="text-white text-sm font-medium mb-3">{label}</p>
+    )}
+    <div className={`flex ${orientation === 'vertical' ? 'flex-col gap-3' : 'flex-row flex-wrap gap-4'}`}>
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          role="radio"
+          aria-checked={value === option.value}
+          disabled={option.disabled}
+          onClick={() => !option.disabled && onChange(option.value)}
+          className={`
+            flex items-start gap-3 text-left
+            ${option.disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+          `}
+        >
+          <div className={`
+            w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5
+            transition-all duration-200
+            ${value === option.value 
+              ? 'border-[#3423A6]' 
+              : 'border-white/30 hover:border-white/50'
+            }
+          `}>
+            {value === option.value && (
+              <div className="w-2.5 h-2.5 rounded-full bg-[#3423A6]" />
+            )}
+          </div>
+          <div className="flex-1">
+            <span className="text-white text-sm font-medium">{option.label}</span>
+            {option.description && (
+              <p className="text-white/50 text-xs mt-0.5">{option.description}</p>
+            )}
+          </div>
+        </button>
+      ))}
+    </div>
+  </div>
+);
+
+// ============================================
+// TABS COMPONENT
+// ============================================
+
+interface Tab {
+  id: string;
+  label: string;
+  icon?: React.ReactNode;
+  disabled?: boolean;
+}
+
+interface TabsProps {
+  tabs: Tab[];
+  activeTab: string;
+  onChange: (tabId: string) => void;
+  variant?: 'default' | 'pills' | 'underline';
+  fullWidth?: boolean;
+}
+
+export const Tabs: React.FC<TabsProps> = ({
+  tabs,
+  activeTab,
+  onChange,
+  variant = 'default',
+  fullWidth = false
+}) => {
+  const variantStyles = {
+    default: {
+      container: 'bg-white/5 p-1 rounded-xl',
+      tab: (active: boolean) => active 
+        ? 'bg-[#3423A6] text-white shadow-lg' 
+        : 'text-white/60 hover:text-white hover:bg-white/10',
+      tabBase: 'rounded-lg'
+    },
+    pills: {
+      container: 'gap-2',
+      tab: (active: boolean) => active 
+        ? 'bg-[#3423A6] text-white' 
+        : 'bg-white/5 text-white/60 hover:text-white hover:bg-white/10',
+      tabBase: 'rounded-full'
+    },
+    underline: {
+      container: 'border-b border-white/10 gap-0',
+      tab: (active: boolean) => active 
+        ? 'text-white border-b-2 border-[#3423A6] -mb-px' 
+        : 'text-white/60 hover:text-white border-b-2 border-transparent -mb-px',
+      tabBase: 'rounded-none'
+    }
+  };
+
+  const styles = variantStyles[variant];
+
+  return (
+    <div className={`flex ${styles.container} ${fullWidth ? 'w-full' : ''}`} role="tablist">
+      {tabs.map((tab) => (
+        <button
+          key={tab.id}
+          role="tab"
+          aria-selected={activeTab === tab.id}
+          disabled={tab.disabled}
+          onClick={() => !tab.disabled && onChange(tab.id)}
+          className={`
+            flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium
+            transition-all duration-200
+            focus:outline-none focus:ring-2 focus:ring-[#3423A6] focus:ring-inset
+            disabled:opacity-50 disabled:cursor-not-allowed
+            ${styles.tabBase}
+            ${styles.tab(activeTab === tab.id)}
+            ${fullWidth ? 'flex-1' : ''}
+          `}
+        >
+          {tab.icon}
+          {tab.label}
+        </button>
+      ))}
+    </div>
+  );
+};
+
+// ============================================
+// ACCORDION COMPONENT
+// ============================================
+
+interface AccordionItem {
+  id: string;
+  title: string;
+  content: React.ReactNode;
+  disabled?: boolean;
+}
+
+interface AccordionProps {
+  items: AccordionItem[];
+  allowMultiple?: boolean;
+  defaultOpen?: string[];
+}
+
+export const Accordion: React.FC<AccordionProps> = ({
+  items,
+  allowMultiple = false,
+  defaultOpen = []
+}) => {
+  const [openItems, setOpenItems] = React.useState<string[]>(defaultOpen);
+
+  const toggleItem = (id: string) => {
+    if (allowMultiple) {
+      setOpenItems(prev => 
+        prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+      );
+    } else {
+      setOpenItems(prev => prev.includes(id) ? [] : [id]);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      {items.map((item) => {
+        const isOpen = openItems.includes(item.id);
+        return (
+          <div key={item.id} className="bg-white/5 rounded-xl overflow-hidden border border-white/5">
+            <button
+              onClick={() => !item.disabled && toggleItem(item.id)}
+              disabled={item.disabled}
+              className={`
+                w-full flex items-center justify-between p-4 text-left
+                transition-colors duration-200
+                focus:outline-none focus:ring-2 focus:ring-[#3423A6] focus:ring-inset
+                ${item.disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/5'}
+              `}
+              aria-expanded={isOpen}
+            >
+              <span className="text-white font-medium">{item.title}</span>
+              <Icons.ChevronDown 
+                className={`w-5 h-5 text-white/50 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} 
+              />
+            </button>
+            {isOpen && (
+              <div className="px-4 pb-4 text-white/70 text-sm">
+                {item.content}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+// ============================================
+// TOOLTIP COMPONENT
+// ============================================
+
+interface TooltipProps {
+  content: string;
+  children: React.ReactNode;
+  position?: 'top' | 'bottom' | 'left' | 'right';
+}
+
+export const Tooltip: React.FC<TooltipProps> = ({
+  content,
+  children,
+  position = 'top'
+}) => {
+  const [isVisible, setIsVisible] = React.useState(false);
+
+  const positionStyles = {
+    top: 'bottom-full left-1/2 -translate-x-1/2 mb-2',
+    bottom: 'top-full left-1/2 -translate-x-1/2 mt-2',
+    left: 'right-full top-1/2 -translate-y-1/2 mr-2',
+    right: 'left-full top-1/2 -translate-y-1/2 ml-2'
+  };
+
+  return (
+    <div 
+      className="relative inline-block"
+      onMouseEnter={() => setIsVisible(true)}
+      onMouseLeave={() => setIsVisible(false)}
+      onFocus={() => setIsVisible(true)}
+      onBlur={() => setIsVisible(false)}
+    >
+      {children}
+      {isVisible && (
+        <div 
+          className={`
+            absolute z-[600] px-2 py-1 text-xs text-white bg-[#1e1e4a] 
+            rounded-lg shadow-lg border border-white/10 whitespace-nowrap
+            animate-[fadeIn_150ms_ease]
+            ${positionStyles[position]}
+          `}
+          role="tooltip"
+        >
+          {content}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ============================================
+// ALERT COMPONENT
+// ============================================
+
+interface AlertProps {
+  type?: 'info' | 'success' | 'warning' | 'error';
+  title?: string;
+  children: React.ReactNode;
+  onClose?: () => void;
+  className?: string;
+}
+
+export const Alert: React.FC<AlertProps> = ({
+  type = 'info',
+  title,
+  children,
+  onClose,
+  className = ''
+}) => {
+  const typeStyles = {
+    info: {
+      bg: 'bg-blue-500/10 border-blue-500/20',
+      icon: <Icons.Info className="w-5 h-5 text-blue-400" />,
+      title: 'text-blue-400'
+    },
+    success: {
+      bg: 'bg-green-500/10 border-green-500/20',
+      icon: <Icons.CheckCircle className="w-5 h-5 text-green-400" />,
+      title: 'text-green-400'
+    },
+    warning: {
+      bg: 'bg-yellow-500/10 border-yellow-500/20',
+      icon: <Icons.AlertTriangle className="w-5 h-5 text-yellow-400" />,
+      title: 'text-yellow-400'
+    },
+    error: {
+      bg: 'bg-red-500/10 border-red-500/20',
+      icon: <Icons.AlertCircle className="w-5 h-5 text-red-400" />,
+      title: 'text-red-400'
+    }
+  };
+
+  const styles = typeStyles[type];
+
+  return (
+    <div className={`${styles.bg} border rounded-xl p-4 ${className}`} role="alert">
+      <div className="flex gap-3">
+        <div className="shrink-0">{styles.icon}</div>
+        <div className="flex-1 min-w-0">
+          {title && <h4 className={`font-medium text-sm ${styles.title}`}>{title}</h4>}
+          <div className={`text-white/70 text-sm ${title ? 'mt-1' : ''}`}>{children}</div>
+        </div>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="shrink-0 p-1 hover:bg-white/10 rounded-lg transition-colors"
+            aria-label="Dismiss"
+          >
+            <Icons.X className="w-4 h-4 text-white/50" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ============================================
+// DROPDOWN MENU COMPONENT
+// ============================================
+
+interface DropdownItem {
+  id: string;
+  label: string;
+  icon?: React.ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  danger?: boolean;
+  divider?: boolean;
+}
+
+interface DropdownMenuProps {
+  trigger: React.ReactNode;
+  items: DropdownItem[];
+  align?: 'left' | 'right';
+}
+
+export const DropdownMenu: React.FC<DropdownMenuProps> = ({
+  trigger,
+  items,
+  align = 'right'
+}) => {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <div onClick={() => setIsOpen(!isOpen)}>{trigger}</div>
+      {isOpen && (
+        <div 
+          className={`
+            absolute z-[500] mt-2 min-w-[180px] py-1
+            bg-[#1e1e4a] rounded-xl shadow-lg border border-white/10
+            animate-[fadeIn_150ms_ease]
+            ${align === 'right' ? 'right-0' : 'left-0'}
+          `}
+        >
+          {items.map((item) => (
+            item.divider ? (
+              <div key={item.id} className="my-1 border-t border-white/10" />
+            ) : (
+              <button
+                key={item.id}
+                onClick={() => {
+                  item.onClick?.();
+                  setIsOpen(false);
+                }}
+                disabled={item.disabled}
+                className={`
+                  w-full flex items-center gap-3 px-4 py-2 text-sm text-left
+                  transition-colors duration-150
+                  disabled:opacity-50 disabled:cursor-not-allowed
+                  ${item.danger 
+                    ? 'text-red-400 hover:bg-red-500/10' 
+                    : 'text-white hover:bg-white/10'
+                  }
+                `}
+              >
+                {item.icon}
+                {item.label}
+              </button>
+            )
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ============================================
+// CONFIRMATION DIALOG COMPONENT
+// ============================================
+
+interface ConfirmDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  variant?: 'danger' | 'warning' | 'default';
+  isLoading?: boolean;
+}
+
+export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  title,
+  message,
+  confirmLabel = 'Confirm',
+  cancelLabel = 'Cancel',
+  variant = 'default',
+  isLoading = false
+}) => {
+  const variantStyles = {
+    danger: 'danger',
+    warning: 'warning' as const,
+    default: 'primary'
+  } as const;
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={title} size="sm">
+      <p className="text-white/70 text-sm mb-6">{message}</p>
+      <div className="flex gap-3">
+        <Button variant="secondary" onClick={onClose} fullWidth disabled={isLoading}>
+          {cancelLabel}
+        </Button>
+        <Button 
+          variant={variant === 'danger' ? 'danger' : variant === 'warning' ? 'secondary' : 'primary'} 
+          onClick={onConfirm} 
+          fullWidth
+          isLoading={isLoading}
+        >
+          {confirmLabel}
+        </Button>
+      </div>
+    </Modal>
   );
 };
 
@@ -1463,20 +2276,55 @@ export const Toast: React.FC<ToastProps> = ({
 // ============================================
 
 export default {
+  // Icons
   Icons,
   EcommerceIcons,
+  
+  // Basic Components
+  Button,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+  
+  // Form Components
+  Input,
+  Textarea,
+  Select,
+  Checkbox,
+  RadioGroup,
+  ToggleSwitch,
+  
+  // Display Components
+  Badge,
+  Avatar,
+  ProgressBar,
+  Divider,
+  Alert,
+  Tooltip,
+  
+  // Navigation Components
   BottomNav,
+  Tabs,
+  Accordion,
+  DropdownMenu,
+  
+  // Feedback Components
+  LoadingSpinner,
+  Skeleton,
+  EmptyState,
+  Toast,
+  Modal,
+  ConfirmDialog,
+  
+  // Ecommerce Components
   KPICard,
   AgentActionCard,
   ProductDraftCard,
   InsightCard,
   EmailPreviewCard,
   SocialContentCard,
-  ConnectedAccountCard,
-  ToggleSwitch,
-  LoadingSpinner,
-  EmptyState,
-  Skeleton,
-  Modal,
-  Toast
+  ConnectedAccountCard
 };

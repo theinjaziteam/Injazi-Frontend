@@ -1,749 +1,729 @@
 // views/EcommerceAgentView.tsx
-// FIXES: #35 (Tab navigation active state), #36 (Chat input focus), #37 (Product drafts spacing)
-
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { AppView } from '../types';
 import { 
-  Icons, 
-  EcommerceIcons, 
-  AgentActionCard, 
-  KPICard, 
-  ProductDraftCard, 
-  InsightCard, 
-  EmailPreviewCard, 
-  SocialContentCard, 
-  ConnectedAccountCard 
+    Icons, 
+    EcommerceIcons, 
+    AgentActionCard, 
+    KPICard, 
+    ProductDraftCard, 
+    InsightCard,
+    EmailPreviewCard,
+    SocialContentCard,
+    ConnectedAccountCard
 } from '../components/UIComponents';
 import { ecommerceAgentService } from '../services/ecommerceAgentService';
 
 type TabType = 'chat' | 'products' | 'analytics' | 'email' | 'social' | 'settings';
 
-interface ChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
-  suggestions?: string[];
-  timestamp: Date;
-}
-
-interface ProductDraft {
-  id: string;
-  title: string;
-  description: string;
-  price: number;
-  images: string[];
-  status: 'draft' | 'approved' | 'published';
-  sourceUrl?: string;
-}
-
-interface Analytics {
-  revenue: number;
-  revenueChange: number;
-  orders: number;
-  ordersChange: number;
-  visitors: number;
-  visitorsChange: number;
-  conversionRate: number;
-  conversionChange: number;
-  insights: Array<{
-    id: string;
-    type: 'positive' | 'negative' | 'neutral';
-    title: string;
-    description: string;
-  }>;
-}
-
-interface EmailDraft {
-  id: string;
-  subject: string;
-  preview: string;
-  content: string;
-  campaignType: string;
-  status: 'draft' | 'scheduled' | 'sent';
-}
-
-interface SocialDraft {
-  id: string;
-  platform: 'instagram' | 'twitter' | 'facebook' | 'tiktok';
-  contentType: string;
-  content: string;
-  media?: string[];
-  status: 'draft' | 'scheduled' | 'published';
-}
-
-interface PendingAction {
-  id: string;
-  type: string;
-  title: string;
-  description: string;
-  priority: 'high' | 'medium' | 'low';
-}
-
-const EcommerceAgentView: React.FC = () => {
-  const { user, setView } = useApp();
-  
-  // Tab state
-  const [activeTab, setActiveTab] = useState<TabType>('chat');
-  const [isLoading, setIsLoading] = useState(false);
-  
-  // Chat state
-  const [chatInput, setChatInput] = useState('');
-  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([
-    {
-      role: 'assistant',
-      content: "Hi! I'm your Growth Assistant. I can help you manage products, analyze performance, create marketing content, and more. What would you like to work on today?",
-      suggestions: ['Analyze my sales', 'Create email campaign', 'Add new products', 'Generate social content'],
-      timestamp: new Date()
-    }
-  ]);
-  const chatEndRef = useRef<HTMLDivElement>(null);
-  const chatInputRef = useRef<HTMLInputElement>(null);
-  
-  // Products state
-  const [productUrls, setProductUrls] = useState('');
-  const [productDrafts, setProductDrafts] = useState<ProductDraft[]>([]);
-  
-  // Analytics state
-  const [analytics, setAnalytics] = useState<Analytics | null>(null);
-  const [analyticsPeriod, setAnalyticsPeriod] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
-  
-  // Email state
-  const [emailDrafts, setEmailDrafts] = useState<EmailDraft[]>([]);
-  
-  // Social state
-  const [socialDrafts, setSocialDrafts] = useState<SocialDraft[]>([]);
-  
-  // Actions state
-  const [pendingActions, setPendingActions] = useState<PendingAction[]>([]);
-
-  // Scroll to bottom of chat
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatHistory]);
-
-  // Fetch analytics when tab changes or period changes
-  useEffect(() => {
-    if (activeTab === 'analytics') {
-      fetchAnalytics();
-    }
-  }, [activeTab, analyticsPeriod]);
-
-  const fetchAnalytics = async () => {
-    if (!user?.email) return;
-    setIsLoading(true);
-    try {
-      const data = await ecommerceAgentService.getAnalytics(user.email, analyticsPeriod);
-      setAnalytics(data);
-    } catch (error) {
-      console.error('Failed to fetch analytics:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSendMessage = async () => {
-    if (!chatInput.trim() || !user?.email) return;
+export default function EcommerceAgentView() {
+    const { user, setUser, setView } = useApp();
+    const [activeTab, setActiveTab] = useState<TabType>('chat');
+    const [isLoading, setIsLoading] = useState(false);
     
-    const userMessage = chatInput.trim();
-    setChatInput('');
+    // Chat state
+    const [chatInput, setChatInput] = useState('');
+    const [chatHistory, setChatHistory] = useState<{ role: 'user' | 'assistant'; content: string; suggestions?: any[] }[]>([]);
+    const chatEndRef = useRef<HTMLDivElement>(null);
+    const chatInputRef = useRef<HTMLInputElement>(null);
     
-    // Add user message
-    setChatHistory(prev => [...prev, {
-      role: 'user',
-      content: userMessage,
-      timestamp: new Date()
-    }]);
+    // Products state
+    const [productUrls, setProductUrls] = useState('');
+    const [productDrafts, setProductDrafts] = useState<any[]>([]);
     
-    setIsLoading(true);
-    try {
-      const response = await ecommerceAgentService.orchestrate(user.email, userMessage);
-      
-      // Add assistant response
-      setChatHistory(prev => [...prev, {
-        role: 'assistant',
-        content: response.message || "I've processed your request. Is there anything else you'd like me to help with?",
-        suggestions: response.suggestions || [],
-        timestamp: new Date()
-      }]);
-      
-      // Refresh pending actions
-      const actions = await ecommerceAgentService.getActions(user.email, 'pending');
-      setPendingActions(actions || []);
-    } catch (error) {
-      console.error('Chat error:', error);
-      setChatHistory(prev => [...prev, {
-        role: 'assistant',
-        content: "I apologize, but I encountered an error. Please try again.",
-        timestamp: new Date()
-      }]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleScrapeProducts = async () => {
-    if (!productUrls.trim() || !user?.email) return;
+    // Analytics state
+    const [analytics, setAnalytics] = useState<any>(null);
+    const [analyticsPeriod, setAnalyticsPeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily');
     
-    const urls = productUrls.split('\n').filter(url => url.trim());
-    if (urls.length === 0) return;
+    // Email state
+    const [emailDrafts, setEmailDrafts] = useState<any[]>([]);
     
-    setIsLoading(true);
-    try {
-      const drafts = await ecommerceAgentService.scrapeProducts(user.email, urls);
-      setProductDrafts(prev => [...prev, ...drafts]);
-      setProductUrls('');
-    } catch (error) {
-      console.error('Scrape error:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    // Social state
+    const [socialDrafts, setSocialDrafts] = useState<any[]>([]);
+    
+    // Actions state
+    const [pendingActions, setPendingActions] = useState<any[]>([]);
 
-  const handleApproveProduct = async (productId: string) => {
-    if (!user?.email) return;
-    try {
-      await ecommerceAgentService.approveProduct(user.email, productId);
-      setProductDrafts(prev => 
-        prev.map(p => p.id === productId ? { ...p, status: 'approved' } : p)
-      );
-    } catch (error) {
-      console.error('Approve error:', error);
-    }
-  };
+    useEffect(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [chatHistory]);
 
-  const handlePublishProduct = async (productId: string) => {
-    if (!user?.email) return;
-    try {
-      await ecommerceAgentService.publishProduct(user.email, productId);
-      setProductDrafts(prev => 
-        prev.map(p => p.id === productId ? { ...p, status: 'published' } : p)
-      );
-    } catch (error) {
-      console.error('Publish error:', error);
-    }
-  };
+    useEffect(() => {
+        if (activeTab === 'analytics') {
+            fetchAnalytics();
+        }
+    }, [activeTab, analyticsPeriod]);
 
-  const handleGenerateEmail = async (campaignType: string) => {
-    if (!user?.email) return;
-    setIsLoading(true);
-    try {
-      const draft = await ecommerceAgentService.generateEmail(user.email, { campaignType });
-      setEmailDrafts(prev => [...prev, draft]);
-    } catch (error) {
-      console.error('Email generation error:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    useEffect(() => {
+        // Load user's ecommerce data
+        if (user.productDrafts) setProductDrafts(user.productDrafts);
+        if (user.emailCampaignDrafts) setEmailDrafts(user.emailCampaignDrafts);
+        if (user.socialContentDrafts) setSocialDrafts(user.socialContentDrafts);
+        if (user.aiActionLogs) {
+            setPendingActions(user.aiActionLogs.filter((a: any) => a.status === 'pending'));
+        }
+    }, [user]);
 
-  const handleGenerateSocial = async (platform: string, contentType: string) => {
-    if (!user?.email) return;
-    setIsLoading(true);
-    try {
-      const draft = await ecommerceAgentService.generateSocialContent(user.email, { platform, contentType });
-      setSocialDrafts(prev => [...prev, draft]);
-    } catch (error) {
-      console.error('Social generation error:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    const fetchAnalytics = async () => {
+        try {
+            setIsLoading(true);
+            const result = await ecommerceAgentService.getAnalytics(user.email, analyticsPeriod);
+            setAnalytics(result.analytics);
+        } catch (error) {
+            console.error('Analytics fetch error:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-  const handleApproveAction = async (actionId: string) => {
-    if (!user?.email) return;
-    try {
-      await ecommerceAgentService.approveAction(user.email, actionId);
-      setPendingActions(prev => prev.filter(a => a.id !== actionId));
-    } catch (error) {
-      console.error('Action approve error:', error);
-    }
-  };
+    const handleSendMessage = async () => {
+        if (!chatInput.trim()) return;
+        
+        const userMessage = chatInput.trim();
+        setChatInput('');
+        setChatHistory(prev => [...prev, { role: 'user', content: userMessage }]);
+        
+        setIsLoading(true);
+        try {
+            const response = await ecommerceAgentService.orchestrate(user.email, userMessage);
+            setChatHistory(prev => [...prev, { 
+                role: 'assistant', 
+                content: response.response,
+                suggestions: response.suggestedActions
+            }]);
+            
+            // Refresh pending actions
+            const actionsResult = await ecommerceAgentService.getActions(user.email, 'pending');
+            setPendingActions(actionsResult.actions);
+        } catch (error) {
+            console.error('Chat error:', error);
+            setChatHistory(prev => [...prev, { 
+                role: 'assistant', 
+                content: 'Sorry, I encountered an error. Please try again.'
+            }]);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-  const handleRejectAction = async (actionId: string) => {
-    if (!user?.email) return;
-    try {
-      await ecommerceAgentService.rejectAction(user.email, actionId);
-      setPendingActions(prev => prev.filter(a => a.id !== actionId));
-    } catch (error) {
-      console.error('Action reject error:', error);
-    }
-  };
+    const handleScrapeProducts = async () => {
+        const urls = productUrls.split('\n').filter(url => url.trim());
+        if (urls.length === 0) return;
+        
+        setIsLoading(true);
+        try {
+            const result = await ecommerceAgentService.scrapeProducts(user.email, urls);
+            setProductDrafts(prev => [...prev, ...result.drafts]);
+            setProductUrls('');
+        } catch (error) {
+            console.error('Scrape error:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-  const handleConnectService = async (service: string) => {
-    if (!user?.email) return;
-    try {
-      const url = await ecommerceAgentService.getOAuthUrl(user.email, service);
-      window.open(url, '_blank');
-    } catch (error) {
-      console.error('OAuth error:', error);
-    }
-  };
+    const handleApproveProduct = async (productId: string, finalData: any) => {
+        try {
+            await ecommerceAgentService.approveProduct(user.email, productId, finalData);
+            setProductDrafts(prev => prev.map(p => 
+                p.id === productId ? { ...p, status: 'approved', finalData } : p
+            ));
+        } catch (error) {
+            console.error('Approve error:', error);
+        }
+    };
 
-  // Tab configuration
-  const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
-    { id: 'chat', label: 'Chat', icon: <Icons.MessageCircle className="w-5 h-5" /> },
-    { id: 'products', label: 'Products', icon: <Icons.Shop className="w-5 h-5" /> },
-    { id: 'analytics', label: 'Analytics', icon: <Icons.BarChart2 className="w-5 h-5" /> },
-    { id: 'email', label: 'Email', icon: <Icons.Mail className="w-5 h-5" /> },
-    { id: 'social', label: 'Social', icon: <Icons.Globe className="w-5 h-5" /> },
-    { id: 'settings', label: 'Settings', icon: <Icons.Settings className="w-5 h-5" /> }
-  ];
+    const handlePublishProduct = async (productId: string) => {
+        try {
+            await ecommerceAgentService.publishProduct(user.email, productId);
+            setProductDrafts(prev => prev.map(p => 
+                p.id === productId ? { ...p, status: 'published' } : p
+            ));
+        } catch (error) {
+            console.error('Publish error:', error);
+        }
+    };
 
-  // ============================================
-  // TAB RENDERERS
-  // ============================================
+    const handleGenerateEmail = async (type: string) => {
+        setIsLoading(true);
+        try {
+            const result = await ecommerceAgentService.generateEmail(user.email, {
+                campaignType: type as any
+            });
+            setEmailDrafts(prev => [...prev, result.draft]);
+        } catch (error) {
+            console.error('Email generation error:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-  const renderChatTab = () => (
-    <div className="flex flex-col h-full">
-      {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {chatHistory.map((message, index) => (
-          <div
-            key={index}
-            className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
-            <div
-              className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                message.role === 'user'
-                  ? 'bg-[#3423A6] text-white'
-                  : 'bg-white/10 text-white'
-              }`}
-            >
-              <p className="text-sm leading-relaxed">{message.content}</p>
-              {message.suggestions && message.suggestions.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {message.suggestions.map((suggestion, sIndex) => (
-                    <button
-                      key={sIndex}
-                      onClick={() => {
-                        setChatInput(suggestion);
-                        chatInputRef.current?.focus();
-                      }}
-                      className="text-xs px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-[#3423A6] focus:ring-offset-2 focus:ring-offset-[#171738]"
-                      aria-label={`Use suggestion: ${suggestion}`}
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
+    const handleGenerateSocial = async (platform: string, contentType: string) => {
+        setIsLoading(true);
+        try {
+            const result = await ecommerceAgentService.generateSocialContent(user.email, {
+                platform: platform as any,
+                contentType: contentType as any
+            });
+            setSocialDrafts(prev => [...prev, result.draft]);
+        } catch (error) {
+            console.error('Social generation error:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleApproveAction = async (actionId: string) => {
+        try {
+            await ecommerceAgentService.approveAction(user.email, actionId);
+            setPendingActions(prev => prev.filter(a => a.id !== actionId));
+        } catch (error) {
+            console.error('Action approve error:', error);
+        }
+    };
+
+    const handleRejectAction = async (actionId: string) => {
+        try {
+            await ecommerceAgentService.rejectAction(user.email, actionId);
+            setPendingActions(prev => prev.filter(a => a.id !== actionId));
+        } catch (error) {
+            console.error('Action reject error:', error);
+        }
+    };
+
+    // Tab content components
+    const renderChatTab = () => (
+        <div className="flex flex-col h-full">
+            {/* Pending Actions Banner */}
+            {pendingActions.length > 0 && (
+                <div className="mx-4 mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <Icons.AlertCircle className="w-5 h-5 text-yellow-500" aria-hidden="true" />
+                            <span className="text-sm font-medium text-yellow-800">
+                                {pendingActions.length} action{pendingActions.length > 1 ? 's' : ''} pending approval
+                            </span>
+                        </div>
+                        <button 
+                            onClick={() => setActiveTab('settings')}
+                            className="text-xs font-medium text-yellow-700 underline hover:text-yellow-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500 focus-visible:ring-offset-2 rounded"
+                        >
+                            Review
+                        </button>
+                    </div>
                 </div>
-              )}
-            </div>
-          </div>
-        ))}
-        {isLoading && (
-          <div className="flex justify-start">
-            <div className="bg-white/10 rounded-2xl px-4 py-3">
-              <div className="flex space-x-2">
-                <div className="w-2 h-2 bg-white/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <div className="w-2 h-2 bg-white/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <div className="w-2 h-2 bg-white/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-              </div>
-            </div>
-          </div>
-        )}
-        <div ref={chatEndRef} />
-      </div>
-
-      {/* Pending Actions */}
-      {pendingActions.length > 0 && (
-        <div className="px-4 py-2 border-t border-white/10">
-          <p className="text-xs text-white/60 mb-2">Pending Actions ({pendingActions.length})</p>
-          <div className="flex gap-2 overflow-x-auto pb-2">
-            {pendingActions.slice(0, 3).map(action => (
-              <AgentActionCard
-                key={action.id}
-                action={action}
-                onApprove={() => handleApproveAction(action.id)}
-                onReject={() => handleRejectAction(action.id)}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* FIX #36: Chat Input with proper focus ring and accessibility */}
-      <div className="p-4 border-t border-white/10">
-        <div className="flex gap-2">
-          <input
-            ref={chatInputRef}
-            type="text"
-            value={chatInput}
-            onChange={(e) => setChatInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
-            placeholder="Ask me anything..."
-            className="flex-1 bg-white/10 text-white placeholder-white/40 rounded-xl px-4 py-3 text-sm
-                       focus:outline-none focus:ring-2 focus:ring-[#3423A6] focus:ring-offset-2 focus:ring-offset-[#171738]
-                       focus:bg-white/15 transition-all duration-200"
-            aria-label="Chat message input"
-            disabled={isLoading}
-          />
-          <button
-            onClick={handleSendMessage}
-            disabled={!chatInput.trim() || isLoading}
-            className="p-3 bg-[#3423A6] text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed
-                       hover:bg-[#3423A6]/80 transition-colors focus:outline-none focus:ring-2 focus:ring-[#3423A6] 
-                       focus:ring-offset-2 focus:ring-offset-[#171738]"
-            aria-label="Send message"
-          >
-            <Icons.Send className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderProductsTab = () => (
-    <div className="p-4 space-y-6">
-      {/* Add Products */}
-      <div className="bg-white/5 rounded-2xl p-4">
-        <h3 className="text-white font-semibold mb-3">Add Products</h3>
-        <p className="text-white/60 text-sm mb-3">
-          Paste product URLs (one per line) to import and optimize
-        </p>
-        <textarea
-          value={productUrls}
-          onChange={(e) => setProductUrls(e.target.value)}
-          placeholder="https://example.com/product-1&#10;https://example.com/product-2"
-          className="w-full bg-white/10 text-white placeholder-white/40 rounded-xl px-4 py-3 text-sm min-h-[100px] resize-none
-                     focus:outline-none focus:ring-2 focus:ring-[#3423A6] focus:ring-offset-2 focus:ring-offset-[#171738]"
-          aria-label="Product URLs input"
-        />
-        <button
-          onClick={handleScrapeProducts}
-          disabled={!productUrls.trim() || isLoading}
-          className="mt-3 w-full py-3 bg-[#3423A6] text-white rounded-xl font-medium disabled:opacity-50
-                     hover:bg-[#3423A6]/80 transition-colors focus:outline-none focus:ring-2 focus:ring-[#3423A6]
-                     focus:ring-offset-2 focus:ring-offset-[#171738]"
-        >
-          {isLoading ? 'Importing...' : 'Import Products'}
-        </button>
-      </div>
-
-      {/* FIX #37: Product Drafts with unified spacing and consistent layout */}
-      <div>
-        <h3 className="text-white font-semibold mb-4">
-          Product Drafts {productDrafts.length > 0 && `(${productDrafts.length})`}
-        </h3>
-        {productDrafts.length === 0 ? (
-          <div className="empty-state bg-white/5 rounded-2xl p-8">
-            <div className="empty-state-icon">
-              <Icons.Shop className="w-8 h-8 text-white/30" />
-            </div>
-            <p className="empty-state-title text-white/70 text-center mt-4">No product drafts</p>
-            <p className="empty-state-description text-white/50 text-sm text-center mt-2">
-              Import products from URLs to get started
-            </p>
-          </div>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {productDrafts.map(product => (
-              <ProductDraftCard
-                key={product.id}
-                product={product}
-                onApprove={() => handleApproveProduct(product.id)}
-                onPublish={() => handlePublishProduct(product.id)}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  const renderAnalyticsTab = () => (
-    <div className="p-4 space-y-6">
-      {/* Period Selector */}
-      <div className="flex gap-2">
-        {(['daily', 'weekly', 'monthly'] as const).map(period => (
-          <button
-            key={period}
-            onClick={() => setAnalyticsPeriod(period)}
-            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all focus:outline-none 
-                       focus:ring-2 focus:ring-[#3423A6] focus:ring-offset-2 focus:ring-offset-[#171738] ${
-              analyticsPeriod === period
-                ? 'bg-[#3423A6] text-white'
-                : 'bg-white/10 text-white/70 hover:bg-white/20'
-            }`}
-          >
-            {period.charAt(0).toUpperCase() + period.slice(1)}
-          </button>
-        ))}
-      </div>
-
-      {isLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} className="skeleton h-24 rounded-2xl bg-white/10 animate-pulse" />
-          ))}
-        </div>
-      ) : analytics ? (
-        <>
-          {/* KPIs */}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <KPICard
-              title="Revenue"
-              value={`$${analytics.revenue.toLocaleString()}`}
-              change={analytics.revenueChange}
-              icon={<Icons.DollarSign className="w-5 h-5" />}
-            />
-            <KPICard
-              title="Orders"
-              value={analytics.orders.toString()}
-              change={analytics.ordersChange}
-              icon={<Icons.Shop className="w-5 h-5" />}
-            />
-            <KPICard
-              title="Visitors"
-              value={analytics.visitors.toLocaleString()}
-              change={analytics.visitorsChange}
-              icon={<Icons.Users className="w-5 h-5" />}
-            />
-            <KPICard
-              title="Conversion"
-              value={`${analytics.conversionRate}%`}
-              change={analytics.conversionChange}
-              icon={<Icons.TrendingUp className="w-5 h-5" />}
-            />
-          </div>
-
-          {/* Insights */}
-          {analytics.insights && analytics.insights.length > 0 && (
-            <div>
-              <h3 className="text-white font-semibold mb-3">AI Insights</h3>
-              <div className="space-y-3">
-                {analytics.insights.map(insight => (
-                  <InsightCard key={insight.id} insight={insight} />
+            )}
+            
+            {/* Chat Messages */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {chatHistory.length === 0 && (
+                    <div className="text-center py-12">
+                        <div className="w-20 h-20 mx-auto mb-4 bg-primary/10 rounded-full flex items-center justify-center">
+                            <EcommerceIcons.Robot className="w-10 h-10 text-primary" aria-hidden="true" />
+                        </div>
+                        <h2 className="text-xl font-bold text-gray-900 mb-2">E-commerce Growth Assistant</h2>
+                        <p className="text-gray-500 mb-6">I can help you set up and grow your Shopify store</p>
+                        <div className="grid grid-cols-2 gap-3 max-w-md mx-auto">
+                            {['Set up my store', 'Add products', 'View analytics', 'Create email campaign'].map((prompt, i) => (
+                                <button
+                                    key={i}
+                                    onClick={() => {
+                                        setChatInput(prompt);
+                                        setTimeout(() => handleSendMessage(), 100);
+                                    }}
+                                    className="p-3 text-sm text-left bg-gray-50 rounded-xl hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 transition-colors"
+                                >
+                                    {prompt}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+                
+                {chatHistory.map((msg, i) => (
+                    <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[85%] ${
+                            msg.role === 'user' 
+                                ? 'bg-primary text-white rounded-2xl rounded-br-sm' 
+                                : 'bg-gray-100 text-gray-900 rounded-2xl rounded-bl-sm'
+                        } p-4`}>
+                            <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
+                            {msg.suggestions && msg.suggestions.length > 0 && (
+                                <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
+                                    <p className="text-xs font-medium text-gray-500">Suggested Actions:</p>
+                                    {msg.suggestions.map((suggestion: any, j: number) => (
+                                        <button
+                                            key={j}
+                                            onClick={() => setChatInput(suggestion.title)}
+                                            className="block w-full text-left p-2 bg-white rounded-lg text-xs hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-colors"
+                                        >
+                                            <span className="font-medium">{suggestion.title}</span>
+                                            <span className={`ml-2 px-1.5 py-0.5 rounded text-[10px] ${
+                                                suggestion.priority === 'high' ? 'bg-red-100 text-red-600' :
+                                                suggestion.priority === 'medium' ? 'bg-yellow-100 text-yellow-600' :
+                                                'bg-gray-100 text-gray-600'
+                                            }`}>
+                                                {suggestion.priority}
+                                            </span>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 ))}
-              </div>
+                
+                {isLoading && (
+                    <div className="flex justify-start">
+                        <div className="bg-gray-100 rounded-2xl rounded-bl-sm p-4">
+                            <div className="flex gap-1" aria-label="Loading response">
+                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                            </div>
+                        </div>
+                    </div>
+                )}
+                <div ref={chatEndRef} />
             </div>
-          )}
-        </>
-      ) : (
-        <div className="empty-state bg-white/5 rounded-2xl p-8 flex flex-col items-center">
-          <Icons.BarChart2 className="w-8 h-8 text-white/30" />
-          <p className="text-white/70 text-center mt-4">No analytics data</p>
-          <p className="text-white/50 text-sm text-center mt-2">
-            Connect your store to see performance metrics
-          </p>
+            
+            {/* FIX #36: Chat Input with proper focus ring */}
+            <div className="p-4 border-t border-gray-100">
+                <div className="flex gap-2">
+                    <input
+                        ref={chatInputRef}
+                        type="text"
+                        value={chatInput}
+                        onChange={(e) => setChatInput(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+                        placeholder="Ask me anything about your store..."
+                        aria-label="Chat message input"
+                        className="flex-1 px-4 py-3 bg-gray-100 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 focus:bg-white"
+                    />
+                    <button
+                        onClick={handleSendMessage}
+                        disabled={isLoading || !chatInput.trim()}
+                        className="px-4 py-3 bg-primary text-white rounded-xl disabled:opacity-50 hover:bg-primary/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                        aria-label="Send message"
+                    >
+                        <Icons.Send className="w-5 h-5" aria-hidden="true" />
+                    </button>
+                </div>
+            </div>
         </div>
-      )}
-    </div>
-  );
+    );
 
-  const renderEmailTab = () => (
-    <div className="p-4 space-y-6">
-      {/* Campaign Types */}
-      <div>
-        <h3 className="text-white font-semibold mb-3">Generate Campaign</h3>
-        <div className="grid grid-cols-2 gap-3">
-          {['Welcome Series', 'Abandoned Cart', 'Product Launch', 'Re-engagement'].map(type => (
-            <button
-              key={type}
-              onClick={() => handleGenerateEmail(type.toLowerCase().replace(' ', '_'))}
-              disabled={isLoading}
-              className="p-4 bg-white/5 rounded-xl text-left hover:bg-white/10 transition-colors
-                         focus:outline-none focus:ring-2 focus:ring-[#3423A6] focus:ring-offset-2 focus:ring-offset-[#171738]"
-            >
-              <p className="text-white font-medium text-sm">{type}</p>
-              <p className="text-white/50 text-xs mt-1">AI-generated</p>
-            </button>
-          ))}
-        </div>
-      </div>
+    const renderProductsTab = () => (
+        <div className="p-4 space-y-6 overflow-y-auto">
+            {/* Add Products */}
+            <div className="bg-white rounded-2xl p-4 border border-gray-100">
+                <h3 className="font-semibold text-gray-900 mb-3">Add Products</h3>
+                <textarea
+                    value={productUrls}
+                    onChange={(e) => setProductUrls(e.target.value)}
+                    placeholder="Paste product URLs (one per line)&#10;Supports: AliExpress, Amazon, Alibaba"
+                    rows={4}
+                    aria-label="Product URLs to scrape"
+                    className="w-full px-4 py-3 bg-gray-50 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 focus:bg-white text-sm"
+                />
+                <button
+                    onClick={handleScrapeProducts}
+                    disabled={isLoading || !productUrls.trim()}
+                    className="mt-3 w-full py-3 bg-primary text-white rounded-xl font-medium disabled:opacity-50 flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                >
+                    {isLoading ? (
+                        <>
+                            <Icons.RefreshCw className="w-4 h-4 animate-spin" aria-hidden="true" />
+                            Scraping...
+                        </>
+                    ) : (
+                        <>
+                            <EcommerceIcons.Link className="w-4 h-4" aria-hidden="true" />
+                            Scrape & Optimize Products
+                        </>
+                    )}
+                </button>
+            </div>
 
-      {/* Email Drafts */}
-      <div>
-        <h3 className="text-white font-semibold mb-3">
-          Email Drafts {emailDrafts.length > 0 && `(${emailDrafts.length})`}
-        </h3>
-        {emailDrafts.length === 0 ? (
-          <div className="bg-white/5 rounded-2xl p-8 flex flex-col items-center">
-            <Icons.Mail className="w-8 h-8 text-white/30" />
-            <p className="text-white/70 text-center mt-4">No email drafts</p>
-            <p className="text-white/50 text-sm text-center mt-2">
-              Generate a campaign to get started
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {emailDrafts.map(draft => (
-              <EmailPreviewCard key={draft.id} draft={draft} />
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  const renderSocialTab = () => (
-    <div className="p-4 space-y-6">
-      {/* Platform Selection */}
-      <div>
-        <h3 className="text-white font-semibold mb-3">Generate Content</h3>
-        <div className="grid grid-cols-2 gap-3">
-          {[
-            { platform: 'instagram', icon: <EcommerceIcons.Instagram className="w-5 h-5" />, label: 'Instagram' },
-            { platform: 'twitter', icon: <EcommerceIcons.Twitter className="w-5 h-5" />, label: 'Twitter/X' },
-            { platform: 'facebook', icon: <EcommerceIcons.Facebook className="w-5 h-5" />, label: 'Facebook' },
-            { platform: 'tiktok', icon: <EcommerceIcons.TikTok className="w-5 h-5" />, label: 'TikTok' }
-          ].map(({ platform, icon, label }) => (
-            <button
-              key={platform}
-              onClick={() => handleGenerateSocial(platform, 'post')}
-              disabled={isLoading}
-              className="p-4 bg-white/5 rounded-xl flex items-center gap-3 hover:bg-white/10 transition-colors
-                         focus:outline-none focus:ring-2 focus:ring-[#3423A6] focus:ring-offset-2 focus:ring-offset-[#171738]"
-            >
-              {icon}
-              <span className="text-white text-sm font-medium">{label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Social Drafts */}
-      <div>
-        <h3 className="text-white font-semibold mb-3">
-          Content Drafts {socialDrafts.length > 0 && `(${socialDrafts.length})`}
-        </h3>
-        {socialDrafts.length === 0 ? (
-          <div className="bg-white/5 rounded-2xl p-8 flex flex-col items-center">
-            <Icons.Globe className="w-8 h-8 text-white/30" />
-            <p className="text-white/70 text-center mt-4">No content drafts</p>
-            <p className="text-white/50 text-sm text-center mt-2">
-              Select a platform to generate content
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {socialDrafts.map(draft => (
-              <SocialContentCard key={draft.id} draft={draft} />
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  const renderSettingsTab = () => (
-    <div className="p-4 space-y-6">
-      {/* Connected Accounts */}
-      <div>
-        <h3 className="text-white font-semibold mb-3">Connected Accounts</h3>
-        <div className="space-y-3">
-          {[
-            { id: 'shopify', name: 'Shopify', icon: <EcommerceIcons.Shopify className="w-6 h-6" />, connected: false },
-            { id: 'stripe', name: 'Stripe', icon: <EcommerceIcons.Stripe className="w-6 h-6" />, connected: false },
-            { id: 'mailchimp', name: 'Mailchimp', icon: <EcommerceIcons.Mailchimp className="w-6 h-6" />, connected: false },
-            { id: 'google_analytics', name: 'Google Analytics', icon: <Icons.BarChart2 className="w-6 h-6" />, connected: false }
-          ].map(service => (
-            <ConnectedAccountCard
-              key={service.id}
-              service={service}
-              onConnect={() => handleConnectService(service.id)}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* Preferences */}
-      <div>
-        <h3 className="text-white font-semibold mb-3">Preferences</h3>
-        <div className="bg-white/5 rounded-2xl p-4 space-y-4">
-          <div className="flex items-center justify-between">
+            {/* FIX #37: Product Drafts with consistent spacing */}
             <div>
-              <p className="text-white text-sm font-medium">Auto-approve suggestions</p>
-              <p className="text-white/50 text-xs">Automatically approve low-risk actions</p>
+                <h3 className="font-semibold text-gray-900 mb-3">Product Drafts ({productDrafts.length})</h3>
+                {productDrafts.length === 0 ? (
+                    <div className="text-center py-8 bg-gray-50 rounded-2xl">
+                        <EcommerceIcons.Package className="w-12 h-12 text-gray-300 mx-auto mb-3" aria-hidden="true" />
+                        <p className="text-gray-500">No products yet. Add some URLs above!</p>
+                    </div>
+                ) : (
+                    /* FIX #37: Unified gap spacing for product grid */
+                    <div className="grid grid-cols-2 gap-4">
+                        {productDrafts.map((draft) => (
+                            <ProductDraftCard
+                                key={draft.id}
+                                draft={draft}
+                                onApprove={() => handleApproveProduct(draft.id, {
+                                    ...draft.optimizedData,
+                                    price: draft.originalData.originalPrice * 2,
+                                    images: draft.originalData.images
+                                })}
+                                onPublish={() => handlePublishProduct(draft.id)}
+                            />
+                        ))}
+                    </div>
+                )}
             </div>
-            <button
-              className="w-12 h-7 rounded-full bg-white/20 relative transition-colors focus:outline-none 
-                         focus:ring-2 focus:ring-[#3423A6] focus:ring-offset-2 focus:ring-offset-[#171738]"
-              role="switch"
-              aria-checked="false"
-              aria-label="Auto-approve suggestions toggle"
-            >
-              <span className="absolute left-1 top-1 w-5 h-5 bg-white rounded-full transition-transform" />
-            </button>
-          </div>
-          <div className="flex items-center justify-between">
+        </div>
+    );
+
+    const renderAnalyticsTab = () => (
+        <div className="p-4 space-y-6 overflow-y-auto">
+            {/* Period Selector */}
+            <div className="flex gap-2" role="tablist" aria-label="Analytics period">
+                {(['daily', 'weekly', 'monthly'] as const).map((period) => (
+                    <button
+                        key={period}
+                        onClick={() => setAnalyticsPeriod(period)}
+                        role="tab"
+                        aria-selected={analyticsPeriod === period}
+                        className={`px-4 py-2 rounded-xl text-sm font-medium capitalize transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
+                            analyticsPeriod === period 
+                                ? 'bg-primary text-white shadow-md' 
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                    >
+                        {period}
+                    </button>
+                ))}
+            </div>
+
+            {isLoading ? (
+                <div className="text-center py-12">
+                    <Icons.RefreshCw className="w-8 h-8 text-primary animate-spin mx-auto mb-3" aria-hidden="true" />
+                    <p className="text-gray-500">Loading analytics...</p>
+                </div>
+            ) : analytics ? (
+                <>
+                    {/* KPIs */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <KPICard
+                            title="Revenue"
+                            value={`$${analytics.revenue?.toFixed(2) || '0'}`}
+                            icon={<Icons.DollarSign className="w-4 h-4" />}
+                            trend="up"
+                            change={12}
+                        />
+                        <KPICard
+                            title="Orders"
+                            value={analytics.orders || 0}
+                            icon={<EcommerceIcons.ShoppingCart className="w-4 h-4" />}
+                            trend="up"
+                            change={8}
+                        />
+                        <KPICard
+                            title="Conversion"
+                            value={`${analytics.conversionRate?.toFixed(1) || '0'}%`}
+                            icon={<EcommerceIcons.TrendingUp className="w-4 h-4" />}
+                            trend="down"
+                            change={-2}
+                        />
+                        <KPICard
+                            title="Avg Order"
+                            value={`$${analytics.averageOrderValue?.toFixed(2) || '0'}`}
+                            icon={<Icons.CreditCard className="w-4 h-4" />}
+                            trend="up"
+                            change={5}
+                        />
+                    </div>
+
+                    {/* Insights */}
+                    {analytics.insights && analytics.insights.length > 0 && (
+                        <div>
+                            <h3 className="font-semibold text-gray-900 mb-3">AI Insights</h3>
+                            <div className="space-y-3">
+                                {analytics.insights.map((insight: any) => (
+                                    <InsightCard
+                                        key={insight.id}
+                                        insight={insight}
+                                        onTakeAction={() => {
+                                            if (insight.suggestedAction?.includes('email')) {
+                                                setActiveTab('email');
+                                            }
+                                        }}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Top Products */}
+                    {analytics.topProducts && analytics.topProducts.length > 0 && (
+                        <div>
+                            <h3 className="font-semibold text-gray-900 mb-3">Top Products</h3>
+                            <div className="space-y-2">
+                                {analytics.topProducts.map((product: any, i: number) => (
+                                    <div key={i} className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100">
+                                        <div className="flex items-center gap-3">
+                                            <span className="w-6 h-6 bg-primary/10 text-primary rounded-full flex items-center justify-center text-xs font-bold">
+                                                {i + 1}
+                                            </span>
+                                            <span className="text-sm font-medium text-gray-900">{product.title}</span>
+                                        </div>
+                                        <span className="text-sm font-bold text-green-600">${product.revenue}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </>
+            ) : (
+                <div className="text-center py-12">
+                    <EcommerceIcons.LineChart className="w-12 h-12 text-gray-300 mx-auto mb-3" aria-hidden="true" />
+                    <p className="text-gray-500">Connect your store to see analytics</p>
+                </div>
+            )}
+        </div>
+    );
+
+    const renderEmailTab = () => (
+        <div className="p-4 space-y-6 overflow-y-auto">
+            {/* Create Email */}
             <div>
-              <p className="text-white text-sm font-medium">Email notifications</p>
-              <p className="text-white/50 text-xs">Receive updates about your store</p>
+                <h3 className="font-semibold text-gray-900 mb-3">Create Email Campaign</h3>
+                <div className="grid grid-cols-2 gap-3">
+                    {[
+                        { type: 'abandoned_cart', label: 'Abandoned Cart', icon: EcommerceIcons.ShoppingCart },
+                        { type: 'promo', label: 'Promotion', icon: Icons.Zap },
+                        { type: 'welcome', label: 'Welcome Series', icon: Icons.Users },
+                        { type: 'win_back', label: 'Win Back', icon: Icons.RefreshCw }
+                    ].map(({ type, label, icon: Icon }) => (
+                        <button
+                            key={type}
+                            onClick={() => handleGenerateEmail(type)}
+                            disabled={isLoading}
+                            className="p-4 bg-white rounded-xl border border-gray-100 hover:border-primary/50 flex flex-col items-center gap-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                            aria-label={`Create ${label} email campaign`}
+                        >
+                            <Icon className="w-6 h-6 text-primary" aria-hidden="true" />
+                            <span className="text-sm font-medium text-gray-700">{label}</span>
+                        </button>
+                    ))}
+                </div>
             </div>
-            <button
-              className="w-12 h-7 rounded-full bg-[#3423A6] relative transition-colors focus:outline-none 
-                         focus:ring-2 focus:ring-[#3423A6] focus:ring-offset-2 focus:ring-offset-[#171738]"
-              role="switch"
-              aria-checked="true"
-              aria-label="Email notifications toggle"
-            >
-              <span className="absolute right-1 top-1 w-5 h-5 bg-white rounded-full transition-transform" />
-            </button>
-          </div>
+
+            {/* Email Drafts */}
+            <div>
+                <h3 className="font-semibold text-gray-900 mb-3">Email Drafts ({emailDrafts.length})</h3>
+                {emailDrafts.length === 0 ? (
+                    <div className="text-center py-8 bg-gray-50 rounded-2xl">
+                        <EcommerceIcons.Mail className="w-12 h-12 text-gray-300 mx-auto mb-3" aria-hidden="true" />
+                        <p className="text-gray-500">No email drafts yet</p>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        {emailDrafts.map((email) => (
+                            <EmailPreviewCard
+                                key={email.id}
+                                email={email}
+                                onApprove={() => {/* handle approve */}}
+                            />
+                        ))}
+                    </div>
+                )}
+            </div>
         </div>
-      </div>
-    </div>
-  );
+    );
 
-  return (
-    <div className="min-h-screen bg-[#171738] flex flex-col pb-safe">
-      {/* Header */}
-      <header className="pt-safe px-4 py-4 flex items-center justify-between border-b border-white/10">
-        <button
-          onClick={() => setView(AppView.CHAT)}
-          className="p-2 -ml-2 hover:bg-white/10 rounded-xl transition-colors focus:outline-none 
-                     focus:ring-2 focus:ring-[#3423A6] focus:ring-offset-2 focus:ring-offset-[#171738]"
-          aria-label="Go back to chat"
-        >
-          <Icons.ArrowLeft className="w-6 h-6 text-white" />
-        </button>
-        <h1 className="text-white text-lg font-semibold">Growth Assistant</h1>
-        <button
-          className="p-2 -mr-2 hover:bg-white/10 rounded-xl transition-colors relative focus:outline-none 
-                     focus:ring-2 focus:ring-[#3423A6] focus:ring-offset-2 focus:ring-offset-[#171738]"
-          aria-label={`Notifications${pendingActions.length > 0 ? `, ${pendingActions.length} pending` : ''}`}
-        >
-          <Icons.Bell className="w-6 h-6 text-white" />
-          {pendingActions.length > 0 && (
-            <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full" />
-          )}
-        </button>
-      </header>
+    const renderSocialTab = () => (
+        <div className="p-4 space-y-6 overflow-y-auto">
+            {/* Create Content */}
+            <div>
+                <h3 className="font-semibold text-gray-900 mb-3">Create Social Content</h3>
+                <div className="grid grid-cols-2 gap-3">
+                    {[
+                        { platform: 'tiktok', type: 'short', label: 'TikTok' },
+                        { platform: 'instagram', type: 'reel', label: 'Instagram Reel' },
+                        { platform: 'facebook', type: 'post', label: 'Facebook Post' },
+                        { platform: 'youtube', type: 'short', label: 'YouTube Short' }
+                    ].map(({ platform, type, label }) => (
+                        <button
+                            key={platform}
+                            onClick={() => handleGenerateSocial(platform, type)}
+                            disabled={isLoading}
+                            className="p-4 bg-white rounded-xl border border-gray-100 hover:border-primary/50 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                            aria-label={`Create ${label} content`}
+                        >
+                            <span className="text-sm font-medium text-gray-700">{label}</span>
+                        </button>
+                    ))}
+                </div>
+            </div>
 
-      {/* FIX #35: Tab Navigation with stronger active state */}
-      <nav className="px-2 py-2 border-b border-white/10 overflow-x-auto scrollbar-hide">
-        <div className="flex gap-1 min-w-max">
-          {tabs.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all duration-200
-                         focus:outline-none focus:ring-2 focus:ring-[#3423A6] focus:ring-offset-2 focus:ring-offset-[#171738]
-                         ${activeTab === tab.id
-                           ? 'bg-[#3423A6] text-white shadow-lg shadow-[#3423A6]/30 ring-2 ring-[#3423A6]/50'
-                           : 'text-white/60 hover:text-white hover:bg-white/10'
-                         }`}
-              aria-selected={activeTab === tab.id}
-              role="tab"
-            >
-              {tab.icon}
-              <span className="text-xs font-medium">{tab.label}</span>
-            </button>
-          ))}
+            {/* Social Drafts */}
+            <div>
+                <h3 className="font-semibold text-gray-900 mb-3">Content Drafts ({socialDrafts.length})</h3>
+                {socialDrafts.length === 0 ? (
+                    <div className="text-center py-8 bg-gray-50 rounded-2xl">
+                        <EcommerceIcons.Share2 className="w-12 h-12 text-gray-300 mx-auto mb-3" aria-hidden="true" />
+                        <p className="text-gray-500">No content drafts yet</p>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        {socialDrafts.map((content) => (
+                            <SocialContentCard
+                                key={content.id}
+                                content={content}
+                                onApprove={() => {/* handle approve */}}
+                            />
+                        ))}
+                    </div>
+                )}
+            </div>
         </div>
-      </nav>
+    );
 
-      {/* Tab Content */}
-      <main className="flex-1 overflow-y-auto">
-        {activeTab === 'chat' && renderChatTab()}
-        {activeTab === 'products' && renderProductsTab()}
-        {activeTab === 'analytics' && renderAnalyticsTab()}
-        {activeTab === 'email' && renderEmailTab()}
-        {activeTab === 'social' && renderSocialTab()}
-        {activeTab === 'settings' && renderSettingsTab()}
-      </main>
-    </div>
-  );
-};
+    const renderSettingsTab = () => (
+        <div className="p-4 space-y-6 overflow-y-auto">
+            {/* Pending Actions */}
+            {pendingActions.length > 0 && (
+                <div>
+                    <h3 className="font-semibold text-gray-900 mb-3">Pending Approvals</h3>
+                    <div className="space-y-3">
+                        {pendingActions.map((action) => (
+                            <AgentActionCard
+                                key={action.id}
+                                action={action}
+                                onApprove={() => handleApproveAction(action.id)}
+                                onReject={() => handleRejectAction(action.id)}
+                            />
+                        ))}
+                    </div>
+                </div>
+            )}
 
-export default EcommerceAgentView;
+            {/* Connected Accounts */}
+            <div>
+                <h3 className="font-semibold text-gray-900 mb-3">Connected Accounts</h3>
+                <div className="space-y-3">
+                    {['shopify', 'klaviyo', 'tiktok', 'instagram', 'facebook'].map((platform) => {
+                        const account = (user.connectedEcommerceAccounts || []).find(
+                            (a: any) => a.platform === platform
+                        );
+                        return (
+                            <ConnectedAccountCard
+                                key={platform}
+                                account={account || { platform, isConnected: false }}
+                                onConnect={async () => {
+                                    const { url } = await ecommerceAgentService.getOAuthUrl(platform);
+                                    if (url) window.open(url, '_blank');
+                                }}
+                            />
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* Agent Preferences */}
+            <div>
+                <h3 className="font-semibold text-gray-900 mb-3">Agent Preferences</h3>
+                <div className="bg-white rounded-2xl p-4 border border-gray-100 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="font-medium text-gray-900">Auto-approve analytics reads</p>
+                            <p className="text-xs text-gray-500">Allow agent to pull data without approval</p>
+                        </div>
+                        <input 
+                            type="checkbox" 
+                            className="w-5 h-5 accent-primary cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded" 
+                            defaultChecked 
+                            aria-label="Auto-approve analytics reads"
+                        />
+                    </div>
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="font-medium text-gray-900">Daily summary notifications</p>
+                            <p className="text-xs text-gray-500">Get a daily digest of store performance</p>
+                        </div>
+                        <input 
+                            type="checkbox" 
+                            className="w-5 h-5 accent-primary cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded" 
+                            defaultChecked 
+                            aria-label="Daily summary notifications"
+                        />
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
+    return (
+        <div className="h-full flex flex-col bg-gray-50">
+            {/* Header */}
+            <div className="bg-white border-b border-gray-100 px-4 py-3">
+                <div className="flex items-center justify-between mb-4">
+                    <button 
+                        onClick={() => setView(AppView.CHAT)}
+                        className="p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-lg hover:bg-gray-100 transition-colors"
+                        aria-label="Back to chat"
+                    >
+                        <Icons.ArrowLeft className="w-5 h-5 text-gray-600" />
+                    </button>
+                    <h1 className="font-bold text-lg text-gray-900">Growth Assistant</h1>
+                    <button 
+                        className="p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-lg hover:bg-gray-100 transition-colors"
+                        aria-label="Notifications"
+                    >
+                        <Icons.Bell className="w-5 h-5 text-gray-600" />
+                    </button>
+                </div>
+                
+                {/* FIX #35: Enhanced tab navigation with stronger active state */}
+                <div 
+                    className="flex gap-1.5 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide"
+                    role="tablist"
+                    aria-label="E-commerce sections"
+                >
+                    {[
+                        { id: 'chat', label: 'Chat', icon: Icons.MessageCircle },
+                        { id: 'products', label: 'Products', icon: EcommerceIcons.Package },
+                        { id: 'analytics', label: 'Analytics', icon: EcommerceIcons.LineChart },
+                        { id: 'email', label: 'Email', icon: EcommerceIcons.Mail },
+                        { id: 'social', label: 'Social', icon: EcommerceIcons.Share2 },
+                        { id: 'settings', label: 'Settings', icon: Icons.Settings }
+                    ].map(({ id, label, icon: Icon }) => (
+                        <button
+                            key={id}
+                            onClick={() => setActiveTab(id as TabType)}
+                            role="tab"
+                            aria-selected={activeTab === id}
+                            aria-controls={`${id}-panel`}
+                            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 ${
+                                activeTab === id 
+                                    /* FIX #35: Stronger active state with shadow and ring */
+                                    ? 'bg-primary text-white shadow-md ring-2 ring-primary/30' 
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                        >
+                            <Icon className="w-4 h-4" aria-hidden="true" />
+                            {label}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* Content */}
+            <div 
+                className="flex-1 overflow-hidden"
+                role="tabpanel"
+                id={`${activeTab}-panel`}
+                aria-labelledby={activeTab}
+            >
+                {activeTab === 'chat' && renderChatTab()}
+                {activeTab === 'products' && renderProductsTab()}
+                {activeTab === 'analytics' && renderAnalyticsTab()}
+                {activeTab === 'email' && renderEmailTab()}
+                {activeTab === 'social' && renderSocialTab()}
+                {activeTab === 'settings' && renderSettingsTab()}
+            </div>
+        </div>
+    );
+}

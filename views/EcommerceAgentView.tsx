@@ -25,6 +25,7 @@ export default function EcommerceAgentView() {
     // Chat state
     const [chatInput, setChatInput] = useState('');
     const [chatHistory, setChatHistory] = useState<{ role: 'user' | 'assistant'; content: string; suggestions?: any[] }[]>([]);
+    const [isInputFocused, setIsInputFocused] = useState(false);
     const chatEndRef = useRef<HTMLDivElement>(null);
     const chatInputRef = useRef<HTMLInputElement>(null);
     
@@ -45,6 +46,12 @@ export default function EcommerceAgentView() {
     // Actions state
     const [pendingActions, setPendingActions] = useState<any[]>([]);
 
+    // Stars animation
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const animationRef = useRef<number | null>(null);
+    const starsRef = useRef<{ x: number; y: number; z: number; brightness: number }[]>([]);
+    const isAnimatingRef = useRef(true);
+
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [chatHistory]);
@@ -64,6 +71,133 @@ export default function EcommerceAgentView() {
             setPendingActions(user.aiActionLogs.filter((a: any) => a.status === 'pending'));
         }
     }, [user]);
+
+    // Initialize stars
+    useEffect(() => {
+        if (starsRef.current.length === 0) {
+            starsRef.current = Array.from({ length: 150 }, () => ({
+                x: Math.random() * 2 - 1,
+                y: Math.random() * 2 - 1,
+                z: Math.random(),
+                brightness: Math.random()
+            }));
+        }
+    }, []);
+
+    // Pause animation when tab is not visible
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.hidden) {
+                isAnimatingRef.current = false;
+                if (animationRef.current) {
+                    cancelAnimationFrame(animationRef.current);
+                    animationRef.current = null;
+                }
+            } else {
+                isAnimatingRef.current = true;
+            }
+        };
+        
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, []);
+
+    // Stars canvas animation
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        let width = 0;
+        let height = 0;
+        let isRunning = true;
+
+        const resize = () => {
+            const rect = canvas.getBoundingClientRect();
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            width = rect.width * dpr;
+            height = rect.height * dpr;
+            canvas.width = width;
+            canvas.height = height;
+        };
+        
+        resize();
+        window.addEventListener('resize', resize);
+
+        if (starsRef.current.length === 0) {
+            starsRef.current = Array.from({ length: 150 }, () => ({
+                x: Math.random() * 2 - 1,
+                y: Math.random() * 2 - 1,
+                z: Math.random(),
+                brightness: Math.random()
+            }));
+        }
+
+        let lastFrameTime = 0;
+        const targetFPS = 30;
+        const frameInterval = 1000 / targetFPS;
+
+        const drawStars = (currentTime: number) => {
+            if (!isRunning || !isAnimatingRef.current) return;
+            
+            const elapsed = currentTime - lastFrameTime;
+            if (elapsed < frameInterval) {
+                animationRef.current = requestAnimationFrame(drawStars);
+                return;
+            }
+            lastFrameTime = currentTime - (elapsed % frameInterval);
+            
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            const w = width / dpr;
+            const h = height / dpr;
+            
+            if (w === 0 || h === 0) {
+                animationRef.current = requestAnimationFrame(drawStars);
+                return;
+            }
+            
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            
+            // Gradient background
+            const gradient = ctx.createLinearGradient(0, 0, 0, h);
+            gradient.addColorStop(0, '#000000');
+            gradient.addColorStop(0.5, '#0a0a15');
+            gradient.addColorStop(1, '#000000');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, w, h);
+
+            // Draw stars with twinkling effect
+            starsRef.current.forEach(star => {
+                const twinkle = 0.3 + Math.sin(currentTime * 0.002 + star.brightness * 10) * 0.5;
+                ctx.fillStyle = `rgba(255, 255, 255, ${star.z * twinkle * 0.6})`;
+                ctx.beginPath();
+                ctx.arc((star.x + 1) * w / 2, (star.y + 1) * h / 2, star.brightness * 1.2 + 0.3, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Subtle nebula glow
+            const nebulaGradient = ctx.createRadialGradient(w * 0.3, h * 0.4, 0, w * 0.3, h * 0.4, w * 0.5);
+            nebulaGradient.addColorStop(0, 'rgba(52, 35, 166, 0.03)');
+            nebulaGradient.addColorStop(1, 'transparent');
+            ctx.fillStyle = nebulaGradient;
+            ctx.fillRect(0, 0, w, h);
+
+            animationRef.current = requestAnimationFrame(drawStars);
+        };
+
+        animationRef.current = requestAnimationFrame(drawStars);
+
+        return () => {
+            isRunning = false;
+            window.removeEventListener('resize', resize);
+            if (animationRef.current) {
+                cancelAnimationFrame(animationRef.current);
+                animationRef.current = null;
+            }
+        };
+    }, []);
 
     const fetchAnalytics = async () => {
         try {
@@ -93,7 +227,6 @@ export default function EcommerceAgentView() {
                 suggestions: response.suggestedActions
             }]);
             
-            // Refresh pending actions
             const actionsResult = await ecommerceAgentService.getActions(user.email, 'pending');
             setPendingActions(actionsResult.actions);
         } catch (error) {
@@ -192,39 +325,81 @@ export default function EcommerceAgentView() {
         }
     };
 
+    // Glassy card component
+    const GlassCard: React.FC<{ children: React.ReactNode; className?: string; style?: React.CSSProperties }> = ({ children, className, style }) => (
+        <div 
+            className={className}
+            style={{
+                background: 'rgba(255, 255, 255, 0.03)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: '16px',
+                boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+                ...style
+            }}
+        >
+            {children}
+        </div>
+    );
+
     // Tab content components
     const renderChatTab = () => (
-        <div className="flex flex-col h-full">
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             {/* Pending Actions Banner */}
             {pendingActions.length > 0 && (
-                <div className="mx-4 mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <Icons.AlertCircle className="w-5 h-5 text-yellow-500" aria-hidden="true" />
-                            <span className="text-sm font-medium text-yellow-800">
-                                {pendingActions.length} action{pendingActions.length > 1 ? 's' : ''} pending approval
-                            </span>
+                <div style={{ margin: '16px 16px 0', padding: '12px 16px' }}>
+                    <GlassCard style={{ 
+                        background: 'rgba(234, 179, 8, 0.1)', 
+                        border: '1px solid rgba(234, 179, 8, 0.2)',
+                        padding: '12px 16px'
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <Icons.AlertCircle style={{ width: 20, height: 20, color: 'rgba(234, 179, 8, 0.8)' }} aria-hidden="true" />
+                                <span style={{ fontSize: '14px', fontWeight: 500, color: 'rgba(234, 179, 8, 0.9)' }}>
+                                    {pendingActions.length} action{pendingActions.length > 1 ? 's' : ''} pending approval
+                                </span>
+                            </div>
+                            <button 
+                                onClick={() => setActiveTab('settings')}
+                                style={{
+                                    fontSize: '12px',
+                                    fontWeight: 500,
+                                    color: 'rgba(234, 179, 8, 0.8)',
+                                    textDecoration: 'underline',
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Review
+                            </button>
                         </div>
-                        <button 
-                            onClick={() => setActiveTab('settings')}
-                            className="text-xs font-medium text-yellow-700 underline hover:text-yellow-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500 focus-visible:ring-offset-2 rounded"
-                        >
-                            Review
-                        </button>
-                    </div>
+                    </GlassCard>
                 </div>
             )}
             
             {/* Chat Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div style={{ flex: 1, overflowY: 'auto', padding: '16px', WebkitOverflowScrolling: 'touch' }}>
                 {chatHistory.length === 0 && (
-                    <div className="text-center py-12">
-                        <div className="w-20 h-20 mx-auto mb-4 bg-primary/10 rounded-full flex items-center justify-center">
-                            <EcommerceIcons.Robot className="w-10 h-10 text-primary" aria-hidden="true" />
+                    <div style={{ textAlign: 'center', paddingTop: '48px', paddingBottom: '48px' }}>
+                        <div style={{ 
+                            width: 80, 
+                            height: 80, 
+                            margin: '0 auto 16px',
+                            background: 'rgba(52, 35, 166, 0.2)',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            border: '1px solid rgba(52, 35, 166, 0.3)'
+                        }}>
+                            <EcommerceIcons.Robot style={{ width: 40, height: 40, color: 'rgba(255, 255, 255, 0.7)' }} aria-hidden="true" />
                         </div>
-                        <h2 className="text-xl font-bold text-gray-900 mb-2">E-commerce Growth Assistant</h2>
-                        <p className="text-gray-500 mb-6">I can help you set up and grow your Shopify store</p>
-                        <div className="grid grid-cols-2 gap-3 max-w-md mx-auto">
+                        <h2 style={{ fontSize: '20px', fontWeight: 'bold', color: '#fff', marginBottom: '8px' }}>E-commerce Growth Assistant</h2>
+                        <p style={{ color: 'rgba(255, 255, 255, 0.5)', marginBottom: '24px' }}>I can help you set up and grow your Shopify store</p>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', maxWidth: '320px', margin: '0 auto' }}>
                             {['Set up my store', 'Add products', 'View analytics', 'Create email campaign'].map((prompt, i) => (
                                 <button
                                     key={i}
@@ -232,7 +407,26 @@ export default function EcommerceAgentView() {
                                         setChatInput(prompt);
                                         setTimeout(() => handleSendMessage(), 100);
                                     }}
-                                    className="p-3 text-sm text-left bg-gray-50 rounded-xl hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 transition-colors"
+                                    style={{
+                                        padding: '12px',
+                                        fontSize: '13px',
+                                        textAlign: 'left',
+                                        background: 'rgba(255, 255, 255, 0.05)',
+                                        backdropFilter: 'blur(8px)',
+                                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                                        borderRadius: '12px',
+                                        color: 'rgba(255, 255, 255, 0.8)',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                                    }}
                                 >
                                     {prompt}
                                 </button>
@@ -242,28 +436,55 @@ export default function EcommerceAgentView() {
                 )}
                 
                 {chatHistory.map((msg, i) => (
-                    <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[85%] ${
-                            msg.role === 'user' 
-                                ? 'bg-primary text-white rounded-2xl rounded-br-sm' 
-                                : 'bg-gray-100 text-gray-900 rounded-2xl rounded-bl-sm'
-                        } p-4`}>
-                            <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
+                    <div key={i} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start', marginBottom: '12px' }}>
+                        <div style={{
+                            maxWidth: '85%',
+                            padding: '12px 16px',
+                            borderRadius: msg.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                            background: msg.role === 'user' 
+                                ? 'rgba(52, 35, 166, 0.8)' 
+                                : 'rgba(255, 255, 255, 0.08)',
+                            backdropFilter: 'blur(8px)',
+                            border: msg.role === 'user' 
+                                ? '1px solid rgba(52, 35, 166, 0.5)' 
+                                : '1px solid rgba(255, 255, 255, 0.1)',
+                            color: '#fff'
+                        }}>
+                            <p style={{ fontSize: '14px', whiteSpace: 'pre-wrap', wordBreak: 'break-word', margin: 0 }}>{msg.content}</p>
                             {msg.suggestions && msg.suggestions.length > 0 && (
-                                <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
-                                    <p className="text-xs font-medium text-gray-500">Suggested Actions:</p>
+                                <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                                    <p style={{ fontSize: '11px', fontWeight: 500, color: 'rgba(255, 255, 255, 0.5)', marginBottom: '8px' }}>Suggested Actions:</p>
                                     {msg.suggestions.map((suggestion: any, j: number) => (
                                         <button
                                             key={j}
                                             onClick={() => setChatInput(suggestion.title)}
-                                            className="block w-full text-left p-2 bg-white rounded-lg text-xs hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-colors"
+                                            style={{
+                                                display: 'block',
+                                                width: '100%',
+                                                textAlign: 'left',
+                                                padding: '8px',
+                                                marginBottom: '4px',
+                                                background: 'rgba(255, 255, 255, 0.05)',
+                                                borderRadius: '8px',
+                                                fontSize: '12px',
+                                                border: 'none',
+                                                color: '#fff',
+                                                cursor: 'pointer'
+                                            }}
                                         >
-                                            <span className="font-medium">{suggestion.title}</span>
-                                            <span className={`ml-2 px-1.5 py-0.5 rounded text-[10px] ${
-                                                suggestion.priority === 'high' ? 'bg-red-100 text-red-600' :
-                                                suggestion.priority === 'medium' ? 'bg-yellow-100 text-yellow-600' :
-                                                'bg-gray-100 text-gray-600'
-                                            }`}>
+                                            <span style={{ fontWeight: 500 }}>{suggestion.title}</span>
+                                            <span style={{
+                                                marginLeft: '8px',
+                                                padding: '2px 6px',
+                                                borderRadius: '4px',
+                                                fontSize: '10px',
+                                                background: suggestion.priority === 'high' ? 'rgba(239, 68, 68, 0.3)' :
+                                                    suggestion.priority === 'medium' ? 'rgba(234, 179, 8, 0.3)' :
+                                                    'rgba(255, 255, 255, 0.1)',
+                                                color: suggestion.priority === 'high' ? 'rgba(252, 165, 165, 1)' :
+                                                    suggestion.priority === 'medium' ? 'rgba(253, 224, 71, 1)' :
+                                                    'rgba(255, 255, 255, 0.6)'
+                                            }}>
                                                 {suggestion.priority}
                                             </span>
                                         </button>
@@ -275,12 +496,17 @@ export default function EcommerceAgentView() {
                 ))}
                 
                 {isLoading && (
-                    <div className="flex justify-start">
-                        <div className="bg-gray-100 rounded-2xl rounded-bl-sm p-4">
-                            <div className="flex gap-1" aria-label="Loading response">
-                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                        <div style={{
+                            padding: '12px 16px',
+                            borderRadius: '16px 16px 16px 4px',
+                            background: 'rgba(255, 255, 255, 0.08)',
+                            border: '1px solid rgba(255, 255, 255, 0.1)'
+                        }}>
+                            <div style={{ display: 'flex', gap: '4px' }} aria-label="Loading response">
+                                <div style={{ width: 8, height: 8, background: 'rgba(255, 255, 255, 0.4)', borderRadius: '50%', animation: 'bounce 1s infinite' }} />
+                                <div style={{ width: 8, height: 8, background: 'rgba(255, 255, 255, 0.4)', borderRadius: '50%', animation: 'bounce 1s infinite 0.15s' }} />
+                                <div style={{ width: 8, height: 8, background: 'rgba(255, 255, 255, 0.4)', borderRadius: '50%', animation: 'bounce 1s infinite 0.3s' }} />
                             </div>
                         </div>
                     </div>
@@ -288,26 +514,56 @@ export default function EcommerceAgentView() {
                 <div ref={chatEndRef} />
             </div>
             
-            {/* FIX #36: Chat Input with proper focus ring */}
-            <div className="p-4 border-t border-gray-100">
-                <div className="flex gap-2">
+            {/* Chat Input */}
+            <div style={{ 
+                padding: '16px', 
+                borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+                paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))'
+            }}>
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    borderRadius: '24px',
+                    padding: '8px 16px',
+                    border: isInputFocused ? '2px solid rgba(255, 255, 255, 0.3)' : '2px solid transparent',
+                    transition: 'border-color 0.2s'
+                }}>
                     <input
                         ref={chatInputRef}
                         type="text"
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}
+                        onFocus={() => setIsInputFocused(true)}
+                        onBlur={() => setIsInputFocused(false)}
                         onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
                         placeholder="Ask me anything about your store..."
                         aria-label="Chat message input"
-                        className="flex-1 px-4 py-3 bg-gray-100 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 focus:bg-white"
+                        style={{
+                            flex: 1,
+                            background: 'transparent',
+                            border: 'none',
+                            outline: 'none',
+                            color: '#fff',
+                            fontSize: '16px'
+                        }}
                     />
                     <button
                         onClick={handleSendMessage}
                         disabled={isLoading || !chatInput.trim()}
-                        className="px-4 py-3 bg-primary text-white rounded-xl disabled:opacity-50 hover:bg-primary/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                        style={{
+                            padding: '8px',
+                            background: chatInput.trim() ? '#3423A6' : 'transparent',
+                            borderRadius: '50%',
+                            border: 'none',
+                            color: chatInput.trim() ? '#fff' : 'rgba(255, 255, 255, 0.3)',
+                            cursor: chatInput.trim() ? 'pointer' : 'default',
+                            transition: 'all 0.2s'
+                        }}
                         aria-label="Send message"
                     >
-                        <Icons.Send className="w-5 h-5" aria-hidden="true" />
+                        <Icons.Send style={{ width: 20, height: 20 }} aria-hidden="true" />
                     </button>
                 </div>
             </div>
@@ -315,59 +571,87 @@ export default function EcommerceAgentView() {
     );
 
     const renderProductsTab = () => (
-        <div className="p-4 space-y-6 overflow-y-auto">
+        <div style={{ padding: '16px', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
             {/* Add Products */}
-            <div className="bg-white rounded-2xl p-4 border border-gray-100">
-                <h3 className="font-semibold text-gray-900 mb-3">Add Products</h3>
+            <GlassCard style={{ padding: '16px', marginBottom: '24px' }}>
+                <h3 style={{ fontWeight: 600, color: '#fff', marginBottom: '12px', fontSize: '15px' }}>Add Products</h3>
                 <textarea
                     value={productUrls}
                     onChange={(e) => setProductUrls(e.target.value)}
                     placeholder="Paste product URLs (one per line)&#10;Supports: AliExpress, Amazon, Alibaba"
                     rows={4}
                     aria-label="Product URLs to scrape"
-                    className="w-full px-4 py-3 bg-gray-50 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 focus:bg-white text-sm"
+                    style={{
+                        width: '100%',
+                        padding: '12px 16px',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        borderRadius: '12px',
+                        color: '#fff',
+                        fontSize: '14px',
+                        resize: 'none',
+                        outline: 'none'
+                    }}
                 />
                 <button
                     onClick={handleScrapeProducts}
                     disabled={isLoading || !productUrls.trim()}
-                    className="mt-3 w-full py-3 bg-primary text-white rounded-xl font-medium disabled:opacity-50 flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                    style={{
+                        marginTop: '12px',
+                        width: '100%',
+                        padding: '12px',
+                        background: '#3423A6',
+                        border: 'none',
+                        borderRadius: '12px',
+                        color: '#fff',
+                        fontWeight: 500,
+                        fontSize: '14px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        opacity: isLoading || !productUrls.trim() ? 0.5 : 1
+                    }}
                 >
                     {isLoading ? (
                         <>
-                            <Icons.RefreshCw className="w-4 h-4 animate-spin" aria-hidden="true" />
+                            <Icons.RefreshCw style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} aria-hidden="true" />
                             Scraping...
                         </>
                     ) : (
                         <>
-                            <EcommerceIcons.Link className="w-4 h-4" aria-hidden="true" />
+                            <EcommerceIcons.Link style={{ width: 16, height: 16 }} aria-hidden="true" />
                             Scrape & Optimize Products
                         </>
                     )}
                 </button>
-            </div>
+            </GlassCard>
 
-            {/* FIX #37: Product Drafts with consistent spacing */}
+            {/* Product Drafts */}
             <div>
-                <h3 className="font-semibold text-gray-900 mb-3">Product Drafts ({productDrafts.length})</h3>
+                <h3 style={{ fontWeight: 600, color: '#fff', marginBottom: '12px', fontSize: '15px' }}>
+                    Product Drafts ({productDrafts.length})
+                </h3>
                 {productDrafts.length === 0 ? (
-                    <div className="text-center py-8 bg-gray-50 rounded-2xl">
-                        <EcommerceIcons.Package className="w-12 h-12 text-gray-300 mx-auto mb-3" aria-hidden="true" />
-                        <p className="text-gray-500">No products yet. Add some URLs above!</p>
-                    </div>
+                    <GlassCard style={{ padding: '32px', textAlign: 'center' }}>
+                        <EcommerceIcons.Package style={{ width: 48, height: 48, color: 'rgba(255, 255, 255, 0.2)', margin: '0 auto 12px' }} aria-hidden="true" />
+                        <p style={{ color: 'rgba(255, 255, 255, 0.5)' }}>No products yet. Add some URLs above!</p>
+                    </GlassCard>
                 ) : (
-                    /* FIX #37: Unified gap spacing for product grid */
-                    <div className="grid grid-cols-2 gap-4">
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                         {productDrafts.map((draft) => (
-                            <ProductDraftCard
-                                key={draft.id}
-                                draft={draft}
-                                onApprove={() => handleApproveProduct(draft.id, {
-                                    ...draft.optimizedData,
-                                    price: draft.originalData.originalPrice * 2,
-                                    images: draft.originalData.images
-                                })}
-                                onPublish={() => handlePublishProduct(draft.id)}
-                            />
+                            <GlassCard key={draft.id} style={{ padding: '12px' }}>
+                                <ProductDraftCard
+                                    draft={draft}
+                                    onApprove={() => handleApproveProduct(draft.id, {
+                                        ...draft.optimizedData,
+                                        price: draft.originalData.originalPrice * 2,
+                                        images: draft.originalData.images
+                                    })}
+                                    onPublish={() => handlePublishProduct(draft.id)}
+                                />
+                            </GlassCard>
                         ))}
                     </div>
                 )}
@@ -376,20 +660,28 @@ export default function EcommerceAgentView() {
     );
 
     const renderAnalyticsTab = () => (
-        <div className="p-4 space-y-6 overflow-y-auto">
+        <div style={{ padding: '16px', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
             {/* Period Selector */}
-            <div className="flex gap-2" role="tablist" aria-label="Analytics period">
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }} role="tablist" aria-label="Analytics period">
                 {(['daily', 'weekly', 'monthly'] as const).map((period) => (
                     <button
                         key={period}
                         onClick={() => setAnalyticsPeriod(period)}
                         role="tab"
                         aria-selected={analyticsPeriod === period}
-                        className={`px-4 py-2 rounded-xl text-sm font-medium capitalize transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
-                            analyticsPeriod === period 
-                                ? 'bg-primary text-white shadow-md' 
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                        }`}
+                        style={{
+                            padding: '8px 16px',
+                            borderRadius: '12px',
+                            fontSize: '13px',
+                            fontWeight: 500,
+                            textTransform: 'capitalize',
+                            border: 'none',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            background: analyticsPeriod === period ? '#3423A6' : 'rgba(255, 255, 255, 0.08)',
+                            color: analyticsPeriod === period ? '#fff' : 'rgba(255, 255, 255, 0.6)',
+                            boxShadow: analyticsPeriod === period ? '0 4px 12px rgba(52, 35, 166, 0.4)' : 'none'
+                        }}
                     >
                         {period}
                     </button>
@@ -397,59 +689,55 @@ export default function EcommerceAgentView() {
             </div>
 
             {isLoading ? (
-                <div className="text-center py-12">
-                    <Icons.RefreshCw className="w-8 h-8 text-primary animate-spin mx-auto mb-3" aria-hidden="true" />
-                    <p className="text-gray-500">Loading analytics...</p>
+                <div style={{ textAlign: 'center', padding: '48px 0' }}>
+                    <Icons.RefreshCw style={{ width: 32, height: 32, color: '#3423A6', animation: 'spin 1s linear infinite', margin: '0 auto 12px' }} aria-hidden="true" />
+                    <p style={{ color: 'rgba(255, 255, 255, 0.5)' }}>Loading analytics...</p>
                 </div>
             ) : analytics ? (
                 <>
                     {/* KPIs */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <KPICard
-                            title="Revenue"
-                            value={`$${analytics.revenue?.toFixed(2) || '0'}`}
-                            icon={<Icons.DollarSign className="w-4 h-4" />}
-                            trend="up"
-                            change={12}
-                        />
-                        <KPICard
-                            title="Orders"
-                            value={analytics.orders || 0}
-                            icon={<EcommerceIcons.ShoppingCart className="w-4 h-4" />}
-                            trend="up"
-                            change={8}
-                        />
-                        <KPICard
-                            title="Conversion"
-                            value={`${analytics.conversionRate?.toFixed(1) || '0'}%`}
-                            icon={<EcommerceIcons.TrendingUp className="w-4 h-4" />}
-                            trend="down"
-                            change={-2}
-                        />
-                        <KPICard
-                            title="Avg Order"
-                            value={`$${analytics.averageOrderValue?.toFixed(2) || '0'}`}
-                            icon={<Icons.CreditCard className="w-4 h-4" />}
-                            trend="up"
-                            change={5}
-                        />
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+                        {[
+                            { title: 'Revenue', value: `$${analytics.revenue?.toFixed(2) || '0'}`, icon: Icons.DollarSign, trend: 'up', change: 12 },
+                            { title: 'Orders', value: analytics.orders || 0, icon: EcommerceIcons.ShoppingCart, trend: 'up', change: 8 },
+                            { title: 'Conversion', value: `${analytics.conversionRate?.toFixed(1) || '0'}%`, icon: EcommerceIcons.TrendingUp, trend: 'down', change: -2 },
+                            { title: 'Avg Order', value: `$${analytics.averageOrderValue?.toFixed(2) || '0'}`, icon: Icons.CreditCard, trend: 'up', change: 5 }
+                        ].map((kpi, i) => (
+                            <GlassCard key={i} style={{ padding: '16px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                    <span style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.5)' }}>{kpi.title}</span>
+                                    <kpi.icon style={{ width: 16, height: 16, color: 'rgba(255, 255, 255, 0.4)' }} />
+                                </div>
+                                <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#fff', marginBottom: '4px' }}>{kpi.value}</div>
+                                <div style={{ 
+                                    fontSize: '12px', 
+                                    color: kpi.trend === 'up' ? 'rgba(34, 197, 94, 0.9)' : 'rgba(239, 68, 68, 0.9)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px'
+                                }}>
+                                    {kpi.trend === 'up' ? '↑' : '↓'} {Math.abs(kpi.change)}%
+                                </div>
+                            </GlassCard>
+                        ))}
                     </div>
 
                     {/* Insights */}
                     {analytics.insights && analytics.insights.length > 0 && (
-                        <div>
-                            <h3 className="font-semibold text-gray-900 mb-3">AI Insights</h3>
-                            <div className="space-y-3">
+                        <div style={{ marginBottom: '24px' }}>
+                            <h3 style={{ fontWeight: 600, color: '#fff', marginBottom: '12px', fontSize: '15px' }}>AI Insights</h3>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                 {analytics.insights.map((insight: any) => (
-                                    <InsightCard
-                                        key={insight.id}
-                                        insight={insight}
-                                        onTakeAction={() => {
-                                            if (insight.suggestedAction?.includes('email')) {
-                                                setActiveTab('email');
-                                            }
-                                        }}
-                                    />
+                                    <GlassCard key={insight.id} style={{ padding: '16px' }}>
+                                        <InsightCard
+                                            insight={insight}
+                                            onTakeAction={() => {
+                                                if (insight.suggestedAction?.includes('email')) {
+                                                    setActiveTab('email');
+                                                }
+                                            }}
+                                        />
+                                    </GlassCard>
                                 ))}
                             </div>
                         </div>
@@ -458,38 +746,51 @@ export default function EcommerceAgentView() {
                     {/* Top Products */}
                     {analytics.topProducts && analytics.topProducts.length > 0 && (
                         <div>
-                            <h3 className="font-semibold text-gray-900 mb-3">Top Products</h3>
-                            <div className="space-y-2">
+                            <h3 style={{ fontWeight: 600, color: '#fff', marginBottom: '12px', fontSize: '15px' }}>Top Products</h3>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                 {analytics.topProducts.map((product: any, i: number) => (
-                                    <div key={i} className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100">
-                                        <div className="flex items-center gap-3">
-                                            <span className="w-6 h-6 bg-primary/10 text-primary rounded-full flex items-center justify-center text-xs font-bold">
-                                                {i + 1}
-                                            </span>
-                                            <span className="text-sm font-medium text-gray-900">{product.title}</span>
+                                    <GlassCard key={i} style={{ padding: '12px 16px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                <span style={{ 
+                                                    width: 24, 
+                                                    height: 24, 
+                                                    background: 'rgba(52, 35, 166, 0.3)', 
+                                                    color: 'rgba(255, 255, 255, 0.9)',
+                                                    borderRadius: '50%',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    fontSize: '12px',
+                                                    fontWeight: 'bold'
+                                                }}>
+                                                    {i + 1}
+                                                </span>
+                                                <span style={{ fontSize: '14px', fontWeight: 500, color: '#fff' }}>{product.title}</span>
+                                            </div>
+                                            <span style={{ fontSize: '14px', fontWeight: 'bold', color: 'rgba(34, 197, 94, 0.9)' }}>${product.revenue}</span>
                                         </div>
-                                        <span className="text-sm font-bold text-green-600">${product.revenue}</span>
-                                    </div>
+                                    </GlassCard>
                                 ))}
                             </div>
                         </div>
                     )}
                 </>
             ) : (
-                <div className="text-center py-12">
-                    <EcommerceIcons.LineChart className="w-12 h-12 text-gray-300 mx-auto mb-3" aria-hidden="true" />
-                    <p className="text-gray-500">Connect your store to see analytics</p>
-                </div>
+                <GlassCard style={{ padding: '48px', textAlign: 'center' }}>
+                    <EcommerceIcons.LineChart style={{ width: 48, height: 48, color: 'rgba(255, 255, 255, 0.2)', margin: '0 auto 12px' }} aria-hidden="true" />
+                    <p style={{ color: 'rgba(255, 255, 255, 0.5)' }}>Connect your store to see analytics</p>
+                </GlassCard>
             )}
         </div>
     );
 
     const renderEmailTab = () => (
-        <div className="p-4 space-y-6 overflow-y-auto">
+        <div style={{ padding: '16px', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
             {/* Create Email */}
-            <div>
-                <h3 className="font-semibold text-gray-900 mb-3">Create Email Campaign</h3>
-                <div className="grid grid-cols-2 gap-3">
+            <div style={{ marginBottom: '24px' }}>
+                <h3 style={{ fontWeight: 600, color: '#fff', marginBottom: '12px', fontSize: '15px' }}>Create Email Campaign</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                     {[
                         { type: 'abandoned_cart', label: 'Abandoned Cart', icon: EcommerceIcons.ShoppingCart },
                         { type: 'promo', label: 'Promotion', icon: Icons.Zap },
@@ -500,11 +801,31 @@ export default function EcommerceAgentView() {
                             key={type}
                             onClick={() => handleGenerateEmail(type)}
                             disabled={isLoading}
-                            className="p-4 bg-white rounded-xl border border-gray-100 hover:border-primary/50 flex flex-col items-center gap-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                            style={{
+                                padding: '16px',
+                                background: 'rgba(255, 255, 255, 0.05)',
+                                backdropFilter: 'blur(8px)',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                borderRadius: '12px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                gap: '8px',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s'
+                            }}
                             aria-label={`Create ${label} email campaign`}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                                e.currentTarget.style.borderColor = 'rgba(52, 35, 166, 0.5)';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                            }}
                         >
-                            <Icon className="w-6 h-6 text-primary" aria-hidden="true" />
-                            <span className="text-sm font-medium text-gray-700">{label}</span>
+                            <Icon style={{ width: 24, height: 24, color: 'rgba(52, 35, 166, 0.8)' }} aria-hidden="true" />
+                            <span style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255, 255, 255, 0.8)' }}>{label}</span>
                         </button>
                     ))}
                 </div>
@@ -512,20 +833,23 @@ export default function EcommerceAgentView() {
 
             {/* Email Drafts */}
             <div>
-                <h3 className="font-semibold text-gray-900 mb-3">Email Drafts ({emailDrafts.length})</h3>
+                <h3 style={{ fontWeight: 600, color: '#fff', marginBottom: '12px', fontSize: '15px' }}>
+                    Email Drafts ({emailDrafts.length})
+                </h3>
                 {emailDrafts.length === 0 ? (
-                    <div className="text-center py-8 bg-gray-50 rounded-2xl">
-                        <EcommerceIcons.Mail className="w-12 h-12 text-gray-300 mx-auto mb-3" aria-hidden="true" />
-                        <p className="text-gray-500">No email drafts yet</p>
-                    </div>
+                    <GlassCard style={{ padding: '32px', textAlign: 'center' }}>
+                        <EcommerceIcons.Mail style={{ width: 48, height: 48, color: 'rgba(255, 255, 255, 0.2)', margin: '0 auto 12px' }} aria-hidden="true" />
+                        <p style={{ color: 'rgba(255, 255, 255, 0.5)' }}>No email drafts yet</p>
+                    </GlassCard>
                 ) : (
-                    <div className="space-y-4">
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                         {emailDrafts.map((email) => (
-                            <EmailPreviewCard
-                                key={email.id}
-                                email={email}
-                                onApprove={() => {/* handle approve */}}
-                            />
+                            <GlassCard key={email.id} style={{ padding: '16px' }}>
+                                <EmailPreviewCard
+                                    email={email}
+                                    onApprove={() => {/* handle approve */}}
+                                />
+                            </GlassCard>
                         ))}
                     </div>
                 )}
@@ -534,11 +858,11 @@ export default function EcommerceAgentView() {
     );
 
     const renderSocialTab = () => (
-        <div className="p-4 space-y-6 overflow-y-auto">
+        <div style={{ padding: '16px', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
             {/* Create Content */}
-            <div>
-                <h3 className="font-semibold text-gray-900 mb-3">Create Social Content</h3>
-                <div className="grid grid-cols-2 gap-3">
+            <div style={{ marginBottom: '24px' }}>
+                <h3 style={{ fontWeight: 600, color: '#fff', marginBottom: '12px', fontSize: '15px' }}>Create Social Content</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                     {[
                         { platform: 'tiktok', type: 'short', label: 'TikTok' },
                         { platform: 'instagram', type: 'reel', label: 'Instagram Reel' },
@@ -549,10 +873,26 @@ export default function EcommerceAgentView() {
                             key={platform}
                             onClick={() => handleGenerateSocial(platform, type)}
                             disabled={isLoading}
-                            className="p-4 bg-white rounded-xl border border-gray-100 hover:border-primary/50 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                            style={{
+                                padding: '16px',
+                                background: 'rgba(255, 255, 255, 0.05)',
+                                backdropFilter: 'blur(8px)',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                borderRadius: '12px',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s'
+                            }}
                             aria-label={`Create ${label} content`}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                                e.currentTarget.style.borderColor = 'rgba(52, 35, 166, 0.5)';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                            }}
                         >
-                            <span className="text-sm font-medium text-gray-700">{label}</span>
+                            <span style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255, 255, 255, 0.8)' }}>{label}</span>
                         </button>
                     ))}
                 </div>
@@ -560,20 +900,23 @@ export default function EcommerceAgentView() {
 
             {/* Social Drafts */}
             <div>
-                <h3 className="font-semibold text-gray-900 mb-3">Content Drafts ({socialDrafts.length})</h3>
+                <h3 style={{ fontWeight: 600, color: '#fff', marginBottom: '12px', fontSize: '15px' }}>
+                    Content Drafts ({socialDrafts.length})
+                </h3>
                 {socialDrafts.length === 0 ? (
-                    <div className="text-center py-8 bg-gray-50 rounded-2xl">
-                        <EcommerceIcons.Share2 className="w-12 h-12 text-gray-300 mx-auto mb-3" aria-hidden="true" />
-                        <p className="text-gray-500">No content drafts yet</p>
-                    </div>
+                    <GlassCard style={{ padding: '32px', textAlign: 'center' }}>
+                        <EcommerceIcons.Share2 style={{ width: 48, height: 48, color: 'rgba(255, 255, 255, 0.2)', margin: '0 auto 12px' }} aria-hidden="true" />
+                        <p style={{ color: 'rgba(255, 255, 255, 0.5)' }}>No content drafts yet</p>
+                    </GlassCard>
                 ) : (
-                    <div className="space-y-4">
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                         {socialDrafts.map((content) => (
-                            <SocialContentCard
-                                key={content.id}
-                                content={content}
-                                onApprove={() => {/* handle approve */}}
-                            />
+                            <GlassCard key={content.id} style={{ padding: '16px' }}>
+                                <SocialContentCard
+                                    content={content}
+                                    onApprove={() => {/* handle approve */}}
+                                />
+                            </GlassCard>
                         ))}
                     </div>
                 )}
@@ -582,41 +925,43 @@ export default function EcommerceAgentView() {
     );
 
     const renderSettingsTab = () => (
-        <div className="p-4 space-y-6 overflow-y-auto">
+        <div style={{ padding: '16px', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
             {/* Pending Actions */}
             {pendingActions.length > 0 && (
-                <div>
-                    <h3 className="font-semibold text-gray-900 mb-3">Pending Approvals</h3>
-                    <div className="space-y-3">
+                <div style={{ marginBottom: '24px' }}>
+                    <h3 style={{ fontWeight: 600, color: '#fff', marginBottom: '12px', fontSize: '15px' }}>Pending Approvals</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                         {pendingActions.map((action) => (
-                            <AgentActionCard
-                                key={action.id}
-                                action={action}
-                                onApprove={() => handleApproveAction(action.id)}
-                                onReject={() => handleRejectAction(action.id)}
-                            />
+                            <GlassCard key={action.id} style={{ padding: '16px' }}>
+                                <AgentActionCard
+                                    action={action}
+                                    onApprove={() => handleApproveAction(action.id)}
+                                    onReject={() => handleRejectAction(action.id)}
+                                />
+                            </GlassCard>
                         ))}
                     </div>
                 </div>
             )}
 
             {/* Connected Accounts */}
-            <div>
-                <h3 className="font-semibold text-gray-900 mb-3">Connected Accounts</h3>
-                <div className="space-y-3">
+            <div style={{ marginBottom: '24px' }}>
+                <h3 style={{ fontWeight: 600, color: '#fff', marginBottom: '12px', fontSize: '15px' }}>Connected Accounts</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     {['shopify', 'klaviyo', 'tiktok', 'instagram', 'facebook'].map((platform) => {
                         const account = (user.connectedEcommerceAccounts || []).find(
                             (a: any) => a.platform === platform
                         );
                         return (
-                            <ConnectedAccountCard
-                                key={platform}
-                                account={account || { platform, isConnected: false }}
-                                onConnect={async () => {
-                                    const { url } = await ecommerceAgentService.getOAuthUrl(platform);
-                                    if (url) window.open(url, '_blank');
-                                }}
-                            />
+                            <GlassCard key={platform} style={{ padding: '16px' }}>
+                                <ConnectedAccountCard
+                                    account={account || { platform, isConnected: false }}
+                                    onConnect={async () => {
+                                        const { url } = await ecommerceAgentService.getOAuthUrl(platform);
+                                        if (url) window.open(url, '_blank');
+                                    }}
+                                />
+                            </GlassCard>
                         );
                     })}
                 </div>
@@ -624,61 +969,106 @@ export default function EcommerceAgentView() {
 
             {/* Agent Preferences */}
             <div>
-                <h3 className="font-semibold text-gray-900 mb-3">Agent Preferences</h3>
-                <div className="bg-white rounded-2xl p-4 border border-gray-100 space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="font-medium text-gray-900">Auto-approve analytics reads</p>
-                            <p className="text-xs text-gray-500">Allow agent to pull data without approval</p>
+                <h3 style={{ fontWeight: 600, color: '#fff', marginBottom: '12px', fontSize: '15px' }}>Agent Preferences</h3>
+                <GlassCard style={{ padding: '16px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div>
+                                <p style={{ fontWeight: 500, color: '#fff', fontSize: '14px' }}>Auto-approve analytics reads</p>
+                                <p style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.5)' }}>Allow agent to pull data without approval</p>
+                            </div>
+                            <input 
+                                type="checkbox" 
+                                defaultChecked 
+                                aria-label="Auto-approve analytics reads"
+                                style={{ width: 20, height: 20, accentColor: '#3423A6', cursor: 'pointer' }}
+                            />
                         </div>
-                        <input 
-                            type="checkbox" 
-                            className="w-5 h-5 accent-primary cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded" 
-                            defaultChecked 
-                            aria-label="Auto-approve analytics reads"
-                        />
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="font-medium text-gray-900">Daily summary notifications</p>
-                            <p className="text-xs text-gray-500">Get a daily digest of store performance</p>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div>
+                                <p style={{ fontWeight: 500, color: '#fff', fontSize: '14px' }}>Daily summary notifications</p>
+                                <p style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.5)' }}>Get a daily digest of store performance</p>
+                            </div>
+                            <input 
+                                type="checkbox" 
+                                defaultChecked 
+                                aria-label="Daily summary notifications"
+                                style={{ width: 20, height: 20, accentColor: '#3423A6', cursor: 'pointer' }}
+                            />
                         </div>
-                        <input 
-                            type="checkbox" 
-                            className="w-5 h-5 accent-primary cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded" 
-                            defaultChecked 
-                            aria-label="Daily summary notifications"
-                        />
                     </div>
-                </div>
+                </GlassCard>
             </div>
         </div>
     );
 
     return (
-        <div className="h-full flex flex-col bg-gray-50">
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: '#000000' }}>
+            {/* Stars Canvas Background */}
+            <canvas 
+                ref={canvasRef} 
+                style={{ 
+                    position: 'absolute', 
+                    inset: 0, 
+                    width: '100%', 
+                    height: '100%',
+                    pointerEvents: 'none'
+                }}
+                aria-hidden="true"
+            />
+            
             {/* Header */}
-            <div className="bg-white border-b border-gray-100 px-4 py-3">
-                <div className="flex items-center justify-between mb-4">
+            <div style={{ 
+                position: 'relative',
+                zIndex: 10,
+                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                padding: '12px 16px',
+                paddingTop: 'calc(12px + env(safe-area-inset-top, 0px))',
+                background: 'rgba(0, 0, 0, 0.5)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)'
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
                     <button 
                         onClick={() => setView(AppView.CHAT)}
-                        className="p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-lg hover:bg-gray-100 transition-colors"
+                        style={{
+                            padding: '8px',
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: 'rgba(255, 255, 255, 0.5)'
+                        }}
                         aria-label="Back to chat"
                     >
-                        <Icons.ArrowLeft className="w-5 h-5 text-gray-600" />
+                        <Icons.ArrowLeft style={{ width: 20, height: 20 }} />
                     </button>
-                    <h1 className="font-bold text-lg text-gray-900">Growth Assistant</h1>
+                    <h1 style={{ fontWeight: 'bold', fontSize: '18px', color: '#fff' }}>Growth Assistant</h1>
                     <button 
-                        className="p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-lg hover:bg-gray-100 transition-colors"
+                        style={{
+                            padding: '8px',
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: 'rgba(255, 255, 255, 0.5)'
+                        }}
                         aria-label="Notifications"
                     >
-                        <Icons.Bell className="w-5 h-5 text-gray-600" />
+                        <Icons.Bell style={{ width: 20, height: 20 }} />
                     </button>
                 </div>
                 
-                {/* FIX #35: Enhanced tab navigation with stronger active state */}
+                {/* Tab Navigation */}
                 <div 
-                    className="flex gap-1.5 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide"
+                    style={{ 
+                        display: 'flex', 
+                        gap: '6px', 
+                        overflowX: 'auto', 
+                        paddingBottom: '4px',
+                        margin: '0 -16px',
+                        padding: '0 16px',
+                        scrollbarWidth: 'none',
+                        msOverflowStyle: 'none'
+                    }}
                     role="tablist"
                     aria-label="E-commerce sections"
                 >
@@ -696,14 +1086,30 @@ export default function EcommerceAgentView() {
                             role="tab"
                             aria-selected={activeTab === id}
                             aria-controls={`${id}-panel`}
-                            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 ${
-                                activeTab === id 
-                                    /* FIX #35: Stronger active state with shadow and ring */
-                                    ? 'bg-primary text-white shadow-md ring-2 ring-primary/30' 
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                            }`}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '8px 12px',
+                                borderRadius: '12px',
+                                fontSize: '13px',
+                                fontWeight: 500,
+                                whiteSpace: 'nowrap',
+                                border: 'none',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                                background: activeTab === id 
+                                    ? '#3423A6' 
+                                    : 'rgba(255, 255, 255, 0.08)',
+                                color: activeTab === id 
+                                    ? '#fff' 
+                                    : 'rgba(255, 255, 255, 0.6)',
+                                boxShadow: activeTab === id 
+                                    ? '0 4px 12px rgba(52, 35, 166, 0.4), 0 0 0 2px rgba(52, 35, 166, 0.3)' 
+                                    : 'none'
+                            }}
                         >
-                            <Icon className="w-4 h-4" aria-hidden="true" />
+                            <Icon style={{ width: 16, height: 16 }} aria-hidden="true" />
                             {label}
                         </button>
                     ))}
@@ -712,7 +1118,12 @@ export default function EcommerceAgentView() {
 
             {/* Content */}
             <div 
-                className="flex-1 overflow-hidden"
+                style={{ 
+                    flex: 1, 
+                    overflow: 'hidden',
+                    position: 'relative',
+                    zIndex: 5
+                }}
                 role="tabpanel"
                 id={`${activeTab}-panel`}
                 aria-labelledby={activeTab}
@@ -724,6 +1135,18 @@ export default function EcommerceAgentView() {
                 {activeTab === 'social' && renderSocialTab()}
                 {activeTab === 'settings' && renderSettingsTab()}
             </div>
+
+            {/* Animations */}
+            <style>{`
+                @keyframes bounce {
+                    0%, 100% { transform: translateY(0); }
+                    50% { transform: translateY(-4px); }
+                }
+                @keyframes spin {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
+                }
+            `}</style>
         </div>
     );
 }

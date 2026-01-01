@@ -1,4 +1,5 @@
 import React from 'react';
+import { AppView } from '../types';
 
 // --- Icons ---
 export const Icons = {
@@ -948,49 +949,84 @@ export const Toggle: React.FC<{ checked: boolean; onChange: (checked: boolean) =
   </button>
 );
 
-// BottomNav Component - FIXED with active indicator and accessibility
+// BottomNav Component - FIX #38: Enhanced Bottom Navigation with better active state
 export const BottomNav: React.FC<{
-  activeTab: string;
-  onTabChange: (tab: string) => void;
-}> = ({ activeTab, onTabChange }) => {
-  const tabs = [
-    { id: 'dashboard', icon: Icons.Home, label: 'Home' },
-    { id: 'social', icon: Icons.BookOpen, label: 'Learn' },
-    { id: 'chat', icon: Icons.MessageCircle, label: 'Guide' },
-    { id: 'stats', icon: Icons.Activity, label: 'Stats' },
-    { id: 'shop', icon: Icons.Shop, label: 'Shop' },
+  currentView: any; // AppView enum
+  setView: (view: any) => void;
+}> = ({ currentView, setView }) => {
+  const navItems = [
+    { view: 'DASHBOARD', icon: Icons.Home, label: 'Home' },
+    { view: 'CHAT', icon: Icons.MessageCircle, label: 'Guide' },
+    { view: 'STATS', icon: Icons.BarChart2, label: 'Stats' },
+    { view: 'SOCIAL', icon: Icons.Users, label: 'Social' },
   ];
 
   return (
-    <div className="flex-shrink-0 bg-primary border-t border-white/10">
-      <div className="flex justify-around items-center h-14 px-4 bg-primary">
-        {tabs.map(tab => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
+    <nav 
+      className="fixed bottom-0 left-0 right-0 z-40 bg-[#171738] border-t border-white/10"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+      aria-label="Main navigation"
+    >
+      <div className="flex items-center justify-around px-2 py-1">
+        {navItems.map(({ view, icon: Icon, label }) => {
+          const isActive = currentView === view;
+          
           return (
             <button
-              key={tab.id}
-              onClick={() => onTabChange(tab.id)}
-              className={`flex flex-col items-center justify-center gap-1 py-2 px-4 rounded-xl transition-all relative focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2 ${
+              key={view}
+              onClick={() => setView(view)}
+              className={`flex flex-col items-center justify-center gap-1 py-2 px-4 rounded-xl transition-all duration-200 relative min-w-[64px] ${
                 isActive 
                   ? 'text-white' 
-                  : 'text-white/40 hover:text-white/60'
+                  : 'text-white/40 hover:text-white/70 active:scale-95'
               }`}
-              aria-label={tab.label}
+              aria-label={label}
               aria-current={isActive ? 'page' : undefined}
             >
+              {/* FIX #38: Background highlight for active tab */}
+              {isActive && (
+                <div 
+                  className="absolute inset-0 bg-white/10 rounded-xl"
+                  style={{ 
+                    animation: 'fadeIn 0.2s ease-out'
+                  }}
+                />
+              )}
+              
+              {/* Icon with glow effect when active */}
+              <div className={`relative z-10 transition-transform duration-200 ${isActive ? 'scale-110' : ''}`}>
+                <Icon className={`w-5 h-5 ${isActive ? 'drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]' : ''}`} />
+              </div>
+              
+              {/* Label */}
+              <span className={`text-[10px] font-bold relative z-10 transition-all duration-200 ${
+                isActive ? 'opacity-100' : 'opacity-70'
+              }`}>
+                {label}
+              </span>
+              
               {/* Active indicator dot */}
               {isActive && (
-                <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-white rounded-full" />
+                <div 
+                  className="absolute -bottom-0.5 w-1 h-1 bg-white rounded-full"
+                  style={{ animation: 'scaleIn 0.2s ease-out' }}
+                />
               )}
-              <Icon className={`w-5 h-5 transition-transform ${isActive ? 'scale-110' : ''}`} />
-              <span className={`text-[9px] font-bold uppercase tracking-wider ${isActive ? 'opacity-100' : 'opacity-60'}`}>
-                {tab.label}
-              </span>
             </button>
           );
         })}
       </div>
-    </div>
+      
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes scaleIn {
+          from { transform: scale(0); }
+          to { transform: scale(1); }
+        }
+      `}</style>
+    </nav>
   );
 };

@@ -113,34 +113,10 @@ function AppContent() {
             )}
 
             {showNav && (
-                <div style={{
-                    position: 'fixed',
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    height: 'calc(56px + env(safe-area-inset-bottom))',
-                    paddingBottom: 'env(safe-area-inset-bottom)',
-                    zIndex: 9999,
-                    backgroundColor: '#171738',
-                    borderTop: '1px solid rgba(255,255,255,0.1)'
-                }}>
-                    <BottomNav 
-                        activeTab={
-                            view === AppView.DASHBOARD ? 'dashboard' :
-                            view === AppView.SOCIAL ? 'social' :
-                            view === AppView.CHAT ? 'chat' :
-                            view === AppView.STATS ? 'stats' :
-                            view === AppView.SHOP ? 'shop' : ''
-                        } 
-                        onTabChange={(tab) => {
-                            if (tab === 'dashboard') setView(AppView.DASHBOARD);
-                            if (tab === 'social') setView(AppView.SOCIAL);
-                            if (tab === 'chat') setView(AppView.CHAT);
-                            if (tab === 'stats') setView(AppView.STATS);
-                            if (tab === 'shop') setView(AppView.SHOP);
-                        }} 
-                    />
-                </div>
+                <BottomNav 
+                    currentView={view}
+                    setView={setView}
+                />
             )}
         </div>
     );

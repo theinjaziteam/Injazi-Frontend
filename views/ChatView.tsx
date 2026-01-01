@@ -42,7 +42,7 @@ export default function ChatView() {
     const [isChatLoading, setIsChatLoading] = useState(false);
     const [isInputFocused, setIsInputFocused] = useState(false);
     
-    // Welcome/Tour state - split into phases
+    // Welcome/Tour state
     const [welcomePhase, setWelcomePhase] = useState<'intro' | 'tour' | 'complete'>(() => {
         const hasSeenWelcome = localStorage.getItem('guideWelcomeSeen');
         return hasSeenWelcome ? 'complete' : 'intro';
@@ -75,6 +75,9 @@ export default function ChatView() {
     const dragRef = useRef({ isDragging: false, lastX: 0 });
     const starsRef = useRef<{ x: number; y: number; z: number; brightness: number }[]>([]);
     
+    // FIX #8: Track if canvas should be animating
+    const isAnimatingRef = useRef(true);
+    
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     // Load conversations from user
@@ -91,6 +94,26 @@ export default function ChatView() {
             setUser(prev => ({ ...prev, guideConversations: conversations } as any));
         }
     }, [conversations]);
+
+    // FIX #8: Pause animation when tab is not visible
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.hidden) {
+                isAnimatingRef.current = false;
+                if (animationRef.current) {
+                    cancelAnimationFrame(animationRef.current);
+                    animationRef.current = null;
+                }
+            } else {
+                isAnimatingRef.current = true;
+                // Canvas will restart on next render cycle
+                setCanvasKey(prev => prev + 1);
+            }
+        };
+        
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, []);
 
     // Welcome/Tour handlers
     const handleStartTour = () => {
@@ -170,23 +193,22 @@ export default function ChatView() {
 
     // Force canvas re-render when returning from journeys list
     useEffect(() => {
-    if ((!showJourneysList && viewMode === 'planet') || welcomePhase === 'tour') {
-        setTimeout(() => {
-            setCanvasKey(prev => prev + 1);
-        }, 50);
-    }
-}, [showJourneysList, viewMode, welcomePhase]);
-
-    // Canvas rendering
-   useEffect(() => {
-    // Only skip if we're in the intro phase (full screen overlay)
-    if (viewMode !== 'planet' || showJourneysList || welcomePhase === 'intro') {
-        if (animationRef.current) {
-            cancelAnimationFrame(animationRef.current);
-            animationRef.current = null;
+        if ((!showJourneysList && viewMode === 'planet') || welcomePhase === 'tour') {
+            setTimeout(() => {
+                setCanvasKey(prev => prev + 1);
+            }, 50);
         }
-        return;
-    }
+    }, [showJourneysList, viewMode, welcomePhase]);
+
+    // FIX #8: Canvas rendering with visibility check
+    useEffect(() => {
+        if (viewMode !== 'planet' || showJourneysList || welcomePhase === 'intro' || !isAnimatingRef.current) {
+            if (animationRef.current) {
+                cancelAnimationFrame(animationRef.current);
+                animationRef.current = null;
+            }
+            return;
+        }
         
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -200,7 +222,7 @@ export default function ChatView() {
 
         const resize = () => {
             const rect = canvas.getBoundingClientRect();
-            const dpr = window.devicePixelRatio || 1;
+            const dpr = Math.min(window.devicePixelRatio || 1, 2); // FIX #8: Cap DPR for performance
             width = rect.width * dpr;
             height = rect.height * dpr;
             canvas.width = width;
@@ -219,10 +241,23 @@ export default function ChatView() {
             }));
         }
 
-        const drawPlanet = () => {
-            if (!isRunning) return;
+        // FIX #8: Throttle animation for better performance
+        let lastFrameTime = 0;
+        const targetFPS = 30;
+        const frameInterval = 1000 / targetFPS;
+
+        const drawPlanet = (currentTime: number) => {
+            if (!isRunning || !isAnimatingRef.current) return;
             
-            const dpr = window.devicePixelRatio || 1;
+            // Throttle frame rate
+            const elapsed = currentTime - lastFrameTime;
+            if (elapsed < frameInterval) {
+                animationRef.current = requestAnimationFrame(drawPlanet);
+                return;
+            }
+            lastFrameTime = currentTime - (elapsed % frameInterval);
+            
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
             const w = width / dpr;
             const h = height / dpr;
             
@@ -237,7 +272,7 @@ export default function ChatView() {
 
             // Draw stars
             starsRef.current.forEach(star => {
-                const twinkle = 0.3 + Math.sin(Date.now() * 0.002 + star.brightness * 10) * 0.5;
+                const twinkle = 0.3 + Math.sin(currentTime * 0.002 + star.brightness * 10) * 0.5;
                 ctx.fillStyle = `rgba(255, 255, 255, ${star.z * twinkle * 0.8})`;
                 ctx.beginPath();
                 ctx.arc((star.x + 1) * w / 2, (star.y + 1) * h / 2, star.brightness * 1.5 + 0.5, 0, Math.PI * 2);
@@ -353,7 +388,7 @@ export default function ChatView() {
                 const isCompleted = index < currentStepIndex;
 
                 if (isActive) {
-                    const pulseSize = markerSize * (2.5 + Math.sin(Date.now() * 0.004) * 0.8);
+                    const pulseSize = markerSize * (2.5 + Math.sin(currentTime * 0.004) * 0.8);
                     const glowGrad = ctx.createRadialGradient(x, y, 0, x, y, pulseSize * 2);
                     glowGrad.addColorStop(0, 'rgba(255, 255, 255, 0.5)');
                     glowGrad.addColorStop(1, 'transparent');
@@ -385,7 +420,7 @@ export default function ChatView() {
             animationRef.current = requestAnimationFrame(drawPlanet);
         };
 
-        drawPlanet();
+        animationRef.current = requestAnimationFrame(drawPlanet);
 
         return () => {
             isRunning = false;
@@ -399,11 +434,10 @@ export default function ChatView() {
 
     // Canvas pointer handlers
     useEffect(() => {
-    // Add welcomePhase check here too
-    if (viewMode !== 'planet' || showJourneysList || welcomePhase === 'intro') return;
-    
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+        if (viewMode !== 'planet' || showJourneysList || welcomePhase === 'intro') return;
+        
+        const canvas = canvasRef.current;
+        if (!canvas) return;
 
         const handlePointerDown = (e: PointerEvent) => {
             dragRef.current.isDragging = true;
@@ -810,13 +844,14 @@ export default function ChatView() {
 
     const activeConvo = conversations.find(c => c.id === activeConversationId);
 
-    // ========== MASTER AGENT FLOATING BUTTON (for Planet Mode) ==========
+    // FIX #10: Master Agent Button with responsive positioning
     const MasterAgentButton = () => (
         <button
             onClick={() => setView(AppView.ECOMMERCE_AGENT)}
+            aria-label="Open Master Agent"
             style={{
                 position: 'absolute',
-                bottom: 190,
+                bottom: 'calc(env(safe-area-inset-bottom, 0px) + 200px)',
                 left: '50%',
                 transform: 'translateX(-50%)',
                 zIndex: 10,
@@ -858,10 +893,11 @@ export default function ChatView() {
         </button>
     );
 
-    // ========== MASTER AGENT QUICK ACTION CARD (for Chat Mode) ==========
+    // Master Agent Quick Action Card (for Chat Mode)
     const MasterAgentQuickActionCard = () => (
         <button
             onClick={() => setView(AppView.ECOMMERCE_AGENT)}
+            aria-label="Open Master Agent - AI-powered automation"
             onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
             onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
             style={{
@@ -920,12 +956,12 @@ export default function ChatView() {
         </button>
     );
 
-    // ========== WELCOME INTRO (full screen overlay) ==========
+    // Welcome Intro
     if (welcomePhase === 'intro') {
         return <WelcomeIntro onStartTour={handleStartTour} onSkip={handleSkipWelcome} />;
     }
 
-    // ========== JOURNEYS LIST VIEW ==========
+    // Journeys List View
     if (showJourneysList) {
         return (
             <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: '#000000' }}>
@@ -933,7 +969,8 @@ export default function ChatView() {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
                     <button 
                         onClick={() => setShowJourneysList(false)} 
-                        style={{ padding: '8px', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none' }}
+                        style={{ padding: '8px', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer' }}
+                        aria-label="Close journeys list"
                     >
                         <Icons.ArrowLeft style={{ width: 20, height: 20 }} />
                     </button>
@@ -943,17 +980,19 @@ export default function ChatView() {
                     </div>
                     <button 
                         onClick={createConversation} 
-                        style={{ padding: '8px', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none' }}
+                        style={{ padding: '8px', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer' }}
+                        aria-label="Create new journey"
                     >
                         <Icons.Plus style={{ width: 20, height: 20 }} />
                     </button>
                 </div>
 
                 {/* List */}
-                <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
+                <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', WebkitOverflowScrolling: 'touch' }}>
                     <button
                         onClick={createConversation}
-                        style={{ width: '100%', padding: '20px', marginBottom: '20px', borderRadius: '16px', border: '2px dashed rgba(255,255,255,0.2)', background: 'transparent', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}
+                        style={{ width: '100%', padding: '20px', marginBottom: '20px', borderRadius: '16px', border: '2px dashed rgba(255,255,255,0.2)', background: 'transparent', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
+                        aria-label="Start new journey"
                     >
                         <div style={{ width: 56, height: 56, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <Icons.Plus style={{ width: 28, height: 28, color: 'rgba(255,255,255,0.5)' }} />
@@ -965,12 +1004,12 @@ export default function ChatView() {
                     </button>
 
                     {conversations.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: '48px 0' }}>
-                            <div style={{ width: 80, height: 80, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-                                <Icons.Globe style={{ width: 40, height: 40, color: 'rgba(255,255,255,0.2)' }} />
+                        <div className="empty-state">
+                            <div className="empty-state-icon" style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}>
+                                <Icons.Globe style={{ width: 28, height: 28, color: 'rgba(255,255,255,0.2)' }} />
                             </div>
-                            <p style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 500, margin: '0 0 4px' }}>No journeys yet</p>
-                            <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '14px', margin: 0 }}>Start exploring above</p>
+                            <h3 className="empty-state-title" style={{ color: 'rgba(255,255,255,0.5)' }}>No journeys yet</h3>
+                            <p className="empty-state-description" style={{ color: 'rgba(255,255,255,0.3)' }}>Start exploring above</p>
                         </div>
                     ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -998,17 +1037,18 @@ export default function ChatView() {
                                                         if (e.key === 'Escape') setEditingJourneyId(null); 
                                                     }}
                                                     placeholder="Journey name..."
+                                                    aria-label="Journey name"
                                                 />
                                                 <div style={{ display: 'flex', gap: '8px' }}>
                                                     <button 
                                                         onClick={() => setEditingJourneyId(null)} 
-                                                        style={{ flex: 1, padding: '10px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.2)', backgroundColor: 'transparent', color: 'rgba(255,255,255,0.6)', fontSize: '14px' }}
+                                                        style={{ flex: 1, padding: '10px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.2)', backgroundColor: 'transparent', color: 'rgba(255,255,255,0.6)', fontSize: '14px', cursor: 'pointer' }}
                                                     >
                                                         Cancel
                                                     </button>
                                                     <button 
                                                         onClick={saveRename} 
-                                                        style={{ flex: 1, padding: '10px', borderRadius: '12px', backgroundColor: '#fff', color: '#000', fontSize: '14px', fontWeight: 'bold', border: 'none' }}
+                                                        style={{ flex: 1, padding: '10px', borderRadius: '12px', backgroundColor: '#fff', color: '#000', fontSize: '14px', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}
                                                     >
                                                         Save
                                                     </button>
@@ -1027,6 +1067,7 @@ export default function ChatView() {
                                                         justifyContent: 'center',
                                                         background: `radial-gradient(circle at 30% 30%, hsl(${hue}, 40%, 25%), #0a0a12)`
                                                     }}
+                                                    aria-hidden="true"
                                                 >
                                                     <span style={{ color: '#fff', fontWeight: 'bold', fontSize: '12px' }}>
                                                         {stepsCount || messagesCount}
@@ -1038,7 +1079,8 @@ export default function ChatView() {
                                                         setActiveConversationId(convo.id); 
                                                         setShowJourneysList(false); 
                                                     }}
-                                                    style={{ flex: 1, textAlign: 'left', minWidth: 0, background: 'none', border: 'none', padding: 0 }}
+                                                    style={{ flex: 1, textAlign: 'left', minWidth: 0, background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                                                    aria-label={`Open journey: ${convo.name || 'Untitled'}`}
                                                 >
                                                     <h3 style={{ color: '#fff', fontWeight: 600, fontSize: '14px', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{convo.name || 'Untitled'}</h3>
                                                     <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px', margin: '4px 0 0' }}>
@@ -1051,7 +1093,8 @@ export default function ChatView() {
                                                         setEditingJourneyId(convo.id);
                                                         setEditingName(convo.name || '');
                                                     }} 
-                                                    style={{ padding: '8px', color: 'rgba(255,255,255,0.3)', background: 'none', border: 'none' }}
+                                                    style={{ padding: '8px', color: 'rgba(255,255,255,0.3)', background: 'none', border: 'none', cursor: 'pointer' }}
+                                                    aria-label={`Rename journey: ${convo.name || 'Untitled'}`}
                                                 >
                                                     <Icons.Edit style={{ width: 16, height: 16 }} />
                                                 </button>
@@ -1061,7 +1104,8 @@ export default function ChatView() {
                                                             deleteConversation(convo.id);
                                                         }
                                                     }} 
-                                                    style={{ padding: '8px', color: 'rgba(255,255,255,0.3)', background: 'none', border: 'none' }}
+                                                    style={{ padding: '8px', color: 'rgba(255,255,255,0.3)', background: 'none', border: 'none', cursor: 'pointer' }}
+                                                    aria-label={`Delete journey: ${convo.name || 'Untitled'}`}
                                                 >
                                                     <Icons.Trash style={{ width: 16, height: 16 }} />
                                                 </button>
@@ -1077,7 +1121,7 @@ export default function ChatView() {
         );
     }
 
-    // ========== CHAT VIEW ==========
+    // Chat View
     if (viewMode === 'chat') {
         return (
             <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: '#000000' }}>
@@ -1085,137 +1129,168 @@ export default function ChatView() {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
                     <button 
                         onClick={() => setView(AppView.DASHBOARD)} 
-                        style={{ padding: '8px', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none' }}
+                        style={{ padding: '8px', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer' }}
+                        aria-label="Go back to dashboard"
                     >
                         <Icons.ArrowLeft style={{ width: 20, height: 20 }} />
                     </button>
-                    <button 
-                        onClick={() => setShowJourneysList(true)} 
-                        style={{ textAlign: 'center', padding: '4px 12px', borderRadius: '12px', background: 'none', border: 'none' }}
-                    >
-                        <h1 style={{ color: '#fff', fontWeight: 'bold', fontSize: '14px', margin: 0 }}>{activeConvo?.name || 'THE GUIDE'}</h1>
-                        <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px', margin: 0 }}>Tap to see journeys</p>
-                    </button>
-                    <button 
-                        onClick={() => setViewMode('planet')} 
-                        style={{ padding: '8px', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none' }}
-                    >
-                        <Icons.Globe style={{ width: 20, height: 20 }} />
-                    </button>
+                    <div style={{ textAlign: 'center', flex: 1 }}>
+                        <h1 style={{ color: '#fff', fontWeight: 'bold', fontSize: '16px', margin: 0 }}>
+                            {activeConvo?.name || 'The Guide'}
+                        </h1>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <button 
+                            onClick={() => setViewMode('planet')} 
+                            style={{ padding: '8px', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer' }}
+                            aria-label="Switch to planet view"
+                        >
+                            <Icons.Globe style={{ width: 20, height: 20 }} />
+                        </button>
+                        <button 
+                            onClick={() => setShowJourneysList(true)} 
+                            style={{ padding: '8px', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer' }}
+                            aria-label="View all journeys"
+                        >
+                            <Icons.List style={{ width: 20, height: 20 }} />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Messages */}
-                <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
-                    {(!activeConvo || activeConvo.messages.length === 0) && (
-                        <>
-                            <MasterAgentQuickActionCard />
-                            <div style={{ textAlign: 'center', padding: '32px 0' }}>
-                                <div style={{ width: 64, height: 64, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-                                    <Icons.Zap style={{ width: 32, height: 32, color: 'rgba(255,255,255,0.3)' }} />
-                                </div>
-                                <h2 style={{ color: '#fff', fontWeight: 'bold', fontSize: '18px', margin: '0 0 8px' }}>Ask Your Guide</h2>
-                                <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '14px', margin: 0 }}>What do you need help with?</p>
-                            </div>
-                        </>
-                    )}
-
-                    {activeConvo?.messages.map((msg) => (
-                        <div key={msg.id} style={{ display: 'flex', marginBottom: '16px', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
-                            <div style={{ maxWidth: '85%' }}>
-                                {msg.role !== 'user' && (
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                                        <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.05))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                            <Icons.Zap style={{ width: 12, height: 12, color: 'rgba(255,255,255,0.6)' }} />
-                                        </div>
-                                        <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px' }}>Guide</span>
-                                    </div>
-                                )}
-                                
-                                {msg.attachment && msg.attachment.type === 'image' && (
-                                    <img 
-                                        src={`data:${msg.attachment.mimeType};base64,${msg.attachment.data}`}
-                                        alt="Attachment"
-                                        style={{ maxWidth: '100%', borderRadius: '12px', marginBottom: '8px' }}
-                                    />
-                                )}
-                                {msg.attachment && msg.attachment.type === 'pdf' && (
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '12px', padding: '8px 12px', marginBottom: '8px' }}>
-                                        <Icons.FileText style={{ width: 20, height: 20, color: 'rgba(255,255,255,0.6)' }} />
-                                        <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '14px' }}>PDF Document</span>
-                                    </div>
-                                )}
-                                
-                                <div style={{ 
-                                    borderRadius: '16px', 
-                                    padding: '12px 16px',
-                                    backgroundColor: msg.role === 'user' ? '#fff' : 'rgba(255,255,255,0.1)',
-                                    color: msg.role === 'user' ? '#111' : 'rgba(255,255,255,0.9)',
-                                    border: msg.role === 'user' ? 'none' : '1px solid rgba(255,255,255,0.1)',
-                                    borderBottomRightRadius: msg.role === 'user' ? '4px' : '16px',
-                                    borderBottomLeftRadius: msg.role === 'user' ? '16px' : '4px'
+                <div style={{ flex: 1, overflowY: 'auto', padding: '16px', WebkitOverflowScrolling: 'touch' }}>
+                    <MasterAgentQuickActionCard />
+                    
+                    {activeConvo?.messages.map((msg, i) => (
+                        <div 
+                            key={msg.id || i} 
+                            style={{
+                                display: 'flex',
+                                justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                                marginBottom: '12px'
+                            }}
+                        >
+                            <div style={{
+                                maxWidth: '80%',
+                                padding: '12px 16px',
+                                borderRadius: msg.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                                backgroundColor: msg.role === 'user' ? 'rgba(52, 35, 166, 0.8)' : 'rgba(255,255,255,0.1)',
+                                color: '#fff'
+                            }}>
+                                {/* FIX #9: Proper text wrapping */}
+                                <p style={{ 
+                                    margin: 0, 
+                                    fontSize: '14px', 
+                                    lineHeight: 1.5,
+                                    wordBreak: 'break-word',
+                                    overflowWrap: 'break-word',
+                                    whiteSpace: 'pre-wrap'
                                 }}>
-                                    <p style={{ fontSize: '14px', lineHeight: 1.5, margin: 0, whiteSpace: 'pre-wrap' }}>{msg.text}</p>
-                                </div>
-                                <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', margin: '4px 0 0', textAlign: msg.role === 'user' ? 'right' : 'left' }}>
-                                    {msg.timestamp ? formatTime(msg.timestamp) : ''}
+                                    {msg.text}
                                 </p>
+                                <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', marginTop: '4px', display: 'block' }}>
+                                    {formatTime(msg.timestamp)}
+                                </span>
                             </div>
                         </div>
                     ))}
                     
                     {isChatLoading && (
-                        <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '16px' }}>
-                            <div style={{ backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '16px', borderBottomLeftRadius: '4px', padding: '12px 16px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                                <div style={{ display: 'flex', gap: '6px' }}>
-                                    {[0, 1, 2].map(i => (
-                                        <div key={i} className="animate-bounce" style={{ width: 8, height: 8, backgroundColor: 'rgba(255,255,255,0.6)', borderRadius: '50%', animationDelay: `${i * 150}ms` }} />
-                                    ))}
+                        <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '12px' }}>
+                            <div style={{
+                                padding: '12px 16px',
+                                borderRadius: '16px 16px 16px 4px',
+                                backgroundColor: 'rgba(255,255,255,0.1)'
+                            }}>
+                                <div className="loading-dots" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                                    <span></span>
+                                    <span></span>
+                                    <span></span>
                                 </div>
                             </div>
                         </div>
                     )}
+                    
                     <div ref={messagesEndRef} />
                 </div>
 
-                {/* Input */}
-                <div style={{ padding: '16px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                    {attachment && (
-                        <div style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '8px' }}>
-                            {attachment.type === 'image' && attachmentPreview && (
-                                <img src={attachmentPreview} alt="Preview" style={{ width: 48, height: 48, borderRadius: '8px', objectFit: 'cover' }} />
-                            )}
-                            {attachment.type === 'pdf' && (
-                                <div style={{ width: 48, height: 48, borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    <Icons.FileText style={{ width: 24, height: 24, color: 'rgba(255,255,255,0.6)' }} />
-                                </div>
-                            )}
-                            <span style={{ flex: 1, color: 'rgba(255,255,255,0.6)', fontSize: '14px' }}>{attachment.type} attached</span>
-                            <button onClick={removeAttachment} style={{ padding: '4px', color: 'rgba(255,255,255,0.4)', background: 'none', border: 'none' }}>
-                                <Icons.X style={{ width: 16, height: 16 }} />
+                {/* FIX #11: Chat Input with proper focus state */}
+                <div style={{ 
+                    padding: '12px 16px', 
+                    borderTop: '1px solid rgba(255,255,255,0.1)',
+                    paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))'
+                }}>
+                    {/* Attachment Preview */}
+                    {attachmentPreview && (
+                        <div style={{ marginBottom: '8px', position: 'relative', display: 'inline-block' }}>
+                            <img 
+                                src={attachmentPreview} 
+                                alt="Attachment preview" 
+                                style={{ height: '60px', borderRadius: '8px' }}
+                            />
+                            <button 
+                                onClick={removeAttachment}
+                                style={{
+                                    position: 'absolute',
+                                    top: '-8px',
+                                    right: '-8px',
+                                    width: '24px',
+                                    height: '24px',
+                                    borderRadius: '50%',
+                                    backgroundColor: 'rgba(255,0,0,0.8)',
+                                    border: 'none',
+                                    color: '#fff',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    cursor: 'pointer'
+                                }}
+                                aria-label="Remove attachment"
+                            >
+                                <Icons.X style={{ width: 14, height: 14 }} />
                             </button>
                         </div>
                     )}
                     
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: '24px', padding: '8px 16px' }}>
-                        <input
-                            type="file"
-                            ref={fileInputRef}
-                            onChange={handleFileSelect}
-                            accept="image/*,.pdf,audio/*"
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        backgroundColor: 'rgba(255,255,255,0.08)',
+                        borderRadius: '24px',
+                        padding: '8px 16px',
+                        border: isInputFocused ? '2px solid rgba(255,255,255,0.3)' : '2px solid transparent',
+                        transition: 'border-color 0.2s'
+                    }}>
+                        <input 
+                            type="file" 
+                            ref={fileInputRef} 
+                            onChange={handleFileSelect} 
+                            accept="image/*,audio/*,.pdf" 
                             style={{ display: 'none' }}
+                            aria-hidden="true"
                         />
                         <button 
-                            onClick={() => fileInputRef.current?.click()} 
-                            style={{ padding: '8px', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none' }}
+                            onClick={() => fileInputRef.current?.click()}
+                            style={{ padding: '4px', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer' }}
+                            aria-label="Attach file"
                         >
                             <Icons.Paperclip style={{ width: 20, height: 20 }} />
                         </button>
+                        
                         <input
                             type="text"
                             value={chatInput}
                             onChange={(e) => setChatInput(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
-                            placeholder="Ask anything..."
+                            onFocus={() => setIsInputFocused(true)}
+                            onBlur={() => setIsInputFocused(false)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
+                                    handleSendMessage();
+                                }
+                            }}
+                            placeholder="Ask your guide..."
                             style={{
                                 flex: 1,
                                 backgroundColor: 'transparent',
@@ -1224,220 +1299,307 @@ export default function ChatView() {
                                 color: '#FFFFFF',
                                 fontSize: '16px'
                             }}
+                            aria-label="Message input"
                         />
-                        <button 
+                        
+                        <button
                             onClick={handleSendMessage}
                             disabled={isChatLoading || (!chatInput.trim() && !attachment)}
-                            style={{ 
-                                padding: '8px', 
-                                color: (chatInput.trim() || attachment) ? '#FFFFFF' : 'rgba(255,255,255,0.3)',
-                                background: 'none', 
-                                border: 'none'
+                            style={{
+                                padding: '8px',
+                                backgroundColor: (chatInput.trim() || attachment) ? '#3423A6' : 'transparent',
+                                borderRadius: '50%',
+                                border: 'none',
+                                color: (chatInput.trim() || attachment) ? '#fff' : 'rgba(255,255,255,0.3)',
+                                cursor: (chatInput.trim() || attachment) ? 'pointer' : 'default',
+                                transition: 'all 0.2s'
                             }}
+                            aria-label="Send message"
                         >
                             <Icons.Send style={{ width: 20, height: 20 }} />
                         </button>
                     </div>
                 </div>
-
-                {/* Tour overlay for chat view */}
-                {welcomePhase === 'tour' && (
-                    <TourOverlay
-                        step={tourStep}
-                        onNext={handleTourNext}
-                        onBack={handleTourBack}
-                        onSkip={handleSkipWelcome}
-                    />
-                )}
             </div>
         );
     }
 
-    // ========== PLANET VIEW ==========
+    // Planet View (Default)
     return (
         <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: '#000000' }}>
-            {/* Canvas - Full screen */}
-            <canvas
-                key={canvasKey}
-                ref={canvasRef}
-                style={{
-                    position: 'absolute',
-                    inset: 0,
-                    width: '100%',
-                    height: '100%',
-                    touchAction: 'none'
-                }}
-            />
+            {/* Tour Overlay */}
+            {welcomePhase === 'tour' && (
+                <TourOverlay 
+                    step={tourStep} 
+                    onNext={handleTourNext} 
+                    onBack={handleTourBack}
+                    onSkip={handleSkipWelcome}
+                />
+            )}
             
             {/* Header */}
             <div style={{ 
-                position: 'relative',
-                zIndex: 10,
                 display: 'flex', 
                 alignItems: 'center', 
                 justifyContent: 'space-between', 
                 padding: '12px 16px',
-                pointerEvents: 'auto'
+                paddingTop: 'calc(12px + env(safe-area-inset-top, 0px))'
             }}>
                 <button 
                     onClick={() => setView(AppView.DASHBOARD)} 
-                    style={{ padding: '8px', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none' }}
+                    style={{ padding: '8px', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer' }}
+                    aria-label="Go back to dashboard"
                 >
                     <Icons.ArrowLeft style={{ width: 20, height: 20 }} />
                 </button>
+                <div style={{ textAlign: 'center' }}>
+                    <h1 style={{ color: '#fff', fontWeight: 'bold', fontSize: '16px', margin: 0 }}>The Guide</h1>
+                    <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px', margin: 0 }}>
+                        {activeConvo ? activeConvo.name : 'Your AI Companion'}
+                    </p>
+                </div>
                 <button 
                     onClick={() => setShowJourneysList(true)} 
-                    style={{ textAlign: 'center', padding: '4px 12px', borderRadius: '12px', background: 'none', border: 'none' }}
+                    style={{ padding: '8px', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer' }}
+                    aria-label="View all journeys"
                 >
-                    <h1 style={{ color: '#fff', fontWeight: 'bold', fontSize: '14px', margin: 0 }}>THE GUIDE</h1>
-                    <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px', margin: 0 }}>Tap to see journeys</p>
-                </button>
-                <button 
-                    onClick={() => setViewMode('chat')} 
-                    style={{ padding: '8px', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none' }}
-                >
-                    <Icons.MessageCircle style={{ width: 20, height: 20 }} />
+                    <Icons.List style={{ width: 20, height: 20 }} />
                 </button>
             </div>
 
-            {/* Master Agent Floating Button */}
-            {!isJourneyActive && !isChatLoading && <MasterAgentButton />}
-
-            {/* Welcome Panel or Journey Steps */}
-            <div style={{ position: 'relative', zIndex: 10, padding: '0 16px', pointerEvents: 'none' }}>
-                {!isJourneyActive && !isChatLoading && (
-                    <div style={{ pointerEvents: 'auto' }}>
-                        <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 8px' }}>WELCOME</p>
-                        <h2 style={{ color: '#fff', fontSize: '24px', fontWeight: 'bold', margin: '0 0 8px' }}>What would you like guidance on?</h2>
-                        <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px', margin: 0 }}>Share your challenges or goals.</p>
-                    </div>
-                )}
-
+            {/* Canvas Container */}
+            <div style={{ flex: 1, position: 'relative' }}>
+                <canvas 
+                    key={canvasKey}
+                    ref={canvasRef} 
+                    style={{ 
+                        position: 'absolute', 
+                        inset: 0, 
+                        width: '100%', 
+                        height: '100%',
+                        touchAction: 'none'
+                    }}
+                    aria-hidden="true"
+                />
+                
+                {/* Journey Step Panel - FIX #9 */}
                 {isJourneyActive && journeySteps.length > 0 && currentStepIndex >= 0 && (
-                    <div style={{ pointerEvents: 'auto' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                            <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <span style={{ color: '#000', fontWeight: 'bold', fontSize: '14px' }}>{currentStepIndex + 1}</span>
-                            </div>
-                            <div>
-                                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px', margin: 0 }}>Step {currentStepIndex + 1} of {journeySteps.length}</p>
-                                <h3 style={{ color: '#fff', fontSize: '16px', fontWeight: 'bold', margin: 0 }}>{journeySteps[currentStepIndex]?.title || 'Guidance'}</h3>
-                            </div>
-                        </div>
-                        <div style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: '16px', padding: '16px', border: '1px solid rgba(255,255,255,0.1)', maxHeight: '120px', overflowY: 'auto' }}>
-                            <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '14px', lineHeight: 1.6, margin: 0 }}>
-                                {displayedText}
-                                {isTyping && <span style={{ opacity: 0.5 }}>|</span>}
-                            </p>
-                        </div>
-                        
-                        {/* Navigation Buttons */}
-                        <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
-                            <button
-                                onClick={goToPrevStep}
-                                disabled={currentStepIndex === 0}
-                                style={{
-                                    flex: 1,
-                                    padding: '12px',
-                                    borderRadius: '12px',
-                                    border: '1px solid rgba(255,255,255,0.2)',
-                                    backgroundColor: 'transparent',
-                                    color: currentStepIndex === 0 ? 'rgba(255,255,255,0.3)' : '#fff',
-                                    fontSize: '14px',
-                                    fontWeight: '600'
-                                }}
-                            >
-                                Previous
-                            </button>
-                            <button
-                                onClick={currentStepIndex === journeySteps.length - 1 ? handleDone : goToNextStep}
-                                style={{
-                                    flex: 1,
-                                    padding: '12px',
-                                    borderRadius: '12px',
-                                    border: 'none',
-                                    backgroundColor: '#fff',
-                                    color: '#000',
-                                    fontSize: '14px',
-                                    fontWeight: '600'
-                                }}
-                            >
-                                {currentStepIndex === journeySteps.length - 1 ? 'Done' : 'Next'}
-                            </button>
-                        </div>
-                    </div>
-                )}
-
-                {isChatLoading && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: '16px', padding: '16px', border: '1px solid rgba(255,255,255,0.1)', pointerEvents: 'auto' }}>
-                        <div style={{ display: 'flex', gap: '4px' }}>
-                            {[0, 1, 2].map(i => (
-                                <div key={i} className="animate-bounce" style={{ width: 8, height: 8, backgroundColor: '#fff', borderRadius: '50%', animationDelay: `${i * 150}ms` }} />
+                    <div style={{
+                        position: 'absolute',
+                        top: '16px',
+                        left: '16px',
+                        right: '16px',
+                        zIndex: 5
+                    }}>
+                        {/* Step indicator */}
+                        <div style={{ 
+                            display: 'flex', 
+                            justifyContent: 'center', 
+                            gap: '6px', 
+                            marginBottom: '12px' 
+                        }}>
+                            {journeySteps.map((_, i) => (
+                                <button
+                                    key={i}
+                                    onClick={() => navigateToStep(i)}
+                                    style={{
+                                        width: i === currentStepIndex ? '24px' : '8px',
+                                        height: '8px',
+                                        borderRadius: '4px',
+                                        backgroundColor: i === currentStepIndex 
+                                            ? '#fff' 
+                                            : i < currentStepIndex 
+                                                ? 'rgba(255,255,255,0.5)' 
+                                                : 'rgba(255,255,255,0.2)',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.3s'
+                                    }}
+                                    aria-label={`Go to step ${i + 1}`}
+                                    aria-current={i === currentStepIndex ? 'step' : undefined}
+                                />
                             ))}
                         </div>
-                        <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px' }}>Preparing your journey...</span>
-                    </div>
-                )}
-            </div>
-
-            {/* Spacer */}
-            <div style={{ flex: 1 }} />
-
-            {/* Input at bottom */}
-            <div style={{
-                position: 'relative',
-                zIndex: 10,
-                padding: '16px 20px',
-                paddingBottom: '32px',
-                pointerEvents: 'auto'
-            }}>
-                {attachment && (
-                    <div style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '12px', padding: '8px' }}>
-                        {attachment.type === 'image' && attachmentPreview && (
-                            <img src={attachmentPreview} alt="Preview" style={{ width: 40, height: 40, borderRadius: '8px', objectFit: 'cover' }} />
-                        )}
-                        {attachment.type === 'pdf' && (
-                            <div style={{ width: 40, height: 40, borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <Icons.FileText style={{ width: 20, height: 20, color: 'rgba(255,255,255,0.6)' }} />
-                            </div>
-                        )}
-                        <span style={{ flex: 1, color: 'rgba(255,255,255,0.6)', fontSize: '12px' }}>{attachment.type} attached</span>
-                        <button onClick={removeAttachment} style={{ padding: '4px', color: 'rgba(255,255,255,0.4)', background: 'none', border: 'none' }}>
-                            <Icons.X style={{ width: 16, height: 16 }} />
-                        </button>
+                        
+                        {/* Content Card - FIX #9: Proper text overflow */}
+                        <div style={{ 
+                            backgroundColor: 'rgba(255,255,255,0.08)', 
+                            borderRadius: '16px', 
+                            padding: '16px', 
+                            border: '1px solid rgba(255,255,255,0.1)', 
+                            maxHeight: '120px', 
+                            overflowY: 'auto'
+                        }}>
+                            <p style={{ 
+                                color: 'rgba(255,255,255,0.9)', 
+                                fontSize: '14px', 
+                                lineHeight: 1.6, 
+                                margin: 0,
+                                wordBreak: 'break-word',
+                                overflowWrap: 'break-word',
+                                whiteSpace: 'pre-wrap'
+                            }}>
+                                {displayedText}
+                                {isTyping && <span style={{ animation: 'blink 1s infinite' }}>|</span>}
+                            </p>
+                        </div>
                     </div>
                 )}
                 
-                <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '8px', 
-                    backgroundColor: 'rgba(255,255,255,0.08)', 
-                    borderRadius: '24px', 
+                {/* Navigation Buttons */}
+                {isJourneyActive && journeySteps.length > 1 && (
+                    <div style={{
+                        position: 'absolute',
+                        bottom: 'calc(260px + env(safe-area-inset-bottom, 0px))',
+                        left: '16px',
+                        right: '16px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        zIndex: 5
+                    }}>
+                        <button
+                            onClick={goToPrevStep}
+                            disabled={currentStepIndex <= 0}
+                            style={{
+                                padding: '10px 16px',
+                                borderRadius: '20px',
+                                backgroundColor: currentStepIndex > 0 ? 'rgba(255,255,255,0.1)' : 'transparent',
+                                border: 'none',
+                                color: currentStepIndex > 0 ? '#fff' : 'rgba(255,255,255,0.2)',
+                                fontSize: '13px',
+                                fontWeight: 500,
+                                cursor: currentStepIndex > 0 ? 'pointer' : 'default',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px'
+                            }}
+                            aria-label="Previous step"
+                        >
+                            <Icons.ChevronLeft style={{ width: 16, height: 16 }} />
+                            Previous
+                        </button>
+                        
+                        {currentStepIndex < journeySteps.length - 1 ? (
+                            <button
+                                onClick={goToNextStep}
+                                style={{
+                                    padding: '10px 16px',
+                                    borderRadius: '20px',
+                                    backgroundColor: 'rgba(255,255,255,0.1)',
+                                    border: 'none',
+                                    color: '#fff',
+                                    fontSize: '13px',
+                                    fontWeight: 500,
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px'
+                                }}
+                                aria-label="Next step"
+                            >
+                                Next
+                                <Icons.ChevronRight style={{ width: 16, height: 16 }} />
+                            </button>
+                        ) : (
+                            <button
+                                onClick={handleDone}
+                                style={{
+                                    padding: '10px 20px',
+                                    borderRadius: '20px',
+                                    backgroundColor: '#3423A6',
+                                    border: 'none',
+                                    color: '#fff',
+                                    fontSize: '13px',
+                                    fontWeight: 600,
+                                    cursor: 'pointer'
+                                }}
+                                aria-label="Complete journey"
+                            >
+                                Done
+                            </button>
+                        )}
+                    </div>
+                )}
+                
+                {/* FIX #10: Master Agent Button with responsive positioning */}
+                <MasterAgentButton />
+            </div>
+
+            {/* Bottom Input Area */}
+            <div style={{ 
+                padding: '16px', 
+                paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)'
+            }}>
+                {/* Mode Toggle */}
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
+                    <div style={{
+                        display: 'flex',
+                        backgroundColor: 'rgba(255,255,255,0.1)',
+                        borderRadius: '20px',
+                        padding: '4px'
+                    }}>
+                        <button
+                            onClick={() => setViewMode('planet')}
+                            style={{
+                                padding: '6px 16px',
+                                borderRadius: '16px',
+                                backgroundColor: viewMode === 'planet' ? 'rgba(255,255,255,0.2)' : 'transparent',
+                                border: 'none',
+                                color: viewMode === 'planet' ? '#fff' : 'rgba(255,255,255,0.5)',
+                                fontSize: '12px',
+                                fontWeight: 600,
+                                cursor: 'pointer'
+                            }}
+                            aria-pressed={viewMode === 'planet'}
+                        >
+                            Planet
+                        </button>
+                        <button
+                            onClick={() => setViewMode('chat')}
+                            style={{
+                                padding: '6px 16px',
+                                borderRadius: '16px',
+                                backgroundColor: viewMode === 'chat' ? 'rgba(255,255,255,0.2)' : 'transparent',
+                                border: 'none',
+                                color: viewMode === 'chat' ? '#fff' : 'rgba(255,255,255,0.5)',
+                                fontSize: '12px',
+                                fontWeight: 600,
+                                cursor: 'pointer'
+                            }}
+                            aria-pressed={viewMode === 'chat'}
+                        >
+                            Chat
+                        </button>
+                    </div>
+                </div>
+                
+                {/* FIX #11: Input with proper focus state */}
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    backgroundColor: 'rgba(255,255,255,0.08)',
+                    borderRadius: '24px',
                     padding: '8px 16px',
-                    border: '1px solid rgba(255,255,255,0.15)'
+                    border: isInputFocused ? '2px solid rgba(255,255,255,0.3)' : '2px solid transparent',
+                    transition: 'border-color 0.2s'
                 }}>
-                    <input
-                        type="file"
-                        ref={fileInputRef}
-                        onChange={handleFileSelect}
-                        accept="image/*,.pdf,audio/*"
-                        style={{ display: 'none' }}
-                    />
-                    <button 
-                        onClick={() => fileInputRef.current?.click()} 
-                        style={{ padding: '8px', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none' }}
-                    >
-                        <Icons.Paperclip style={{ width: 20, height: 20 }} />
-                    </button>
                     <input
                         type="text"
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}
                         onFocus={() => setIsInputFocused(true)}
                         onBlur={() => setIsInputFocused(false)}
-                        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
-                        placeholder="Ask anything..."
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSendMessage();
+                            }
+                        }}
+                        placeholder="Ask your guide anything..."
                         style={{
                             flex: 1,
                             backgroundColor: 'transparent',
@@ -1446,31 +1608,38 @@ export default function ChatView() {
                             color: '#FFFFFF',
                             fontSize: '16px'
                         }}
+                        aria-label="Message input"
                     />
-                    <button 
+                    
+                    <button
                         onClick={handleSendMessage}
-                        disabled={isChatLoading || (!chatInput.trim() && !attachment)}
-                        style={{ 
-                            padding: '8px', 
-                            color: (chatInput.trim() || attachment) ? '#FFFFFF' : 'rgba(255,255,255,0.3)',
-                            background: 'none', 
-                            border: 'none'
+                        disabled={isChatLoading || !chatInput.trim()}
+                        style={{
+                            padding: '8px',
+                            backgroundColor: chatInput.trim() ? '#3423A6' : 'transparent',
+                            borderRadius: '50%',
+                            border: 'none',
+                            color: chatInput.trim() ? '#fff' : 'rgba(255,255,255,0.3)',
+                            cursor: chatInput.trim() ? 'pointer' : 'default',
+                            transition: 'all 0.2s'
                         }}
+                        aria-label="Send message"
                     >
-                        <Icons.Send style={{ width: 20, height: 20 }} />
+                        {isChatLoading ? (
+                            <div className="loading-spinner loading-spinner-sm" />
+                        ) : (
+                            <Icons.Send style={{ width: 20, height: 20 }} />
+                        )}
                     </button>
                 </div>
             </div>
-
-            {/* Tour overlay for planet view - renders on TOP of everything */}
-            {welcomePhase === 'tour' && (
-                <TourOverlay
-                    step={tourStep}
-                    onNext={handleTourNext}
-                    onBack={handleTourBack}
-                    onSkip={handleSkipWelcome}
-                />
-            )}
+            
+            <style>{`
+                @keyframes blink {
+                    0%, 50% { opacity: 1; }
+                    51%, 100% { opacity: 0; }
+                }
+            `}</style>
         </div>
     );
 }

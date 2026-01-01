@@ -959,6 +959,7 @@ export const BottomNav: React.FC<{
     { view: 'CHAT', icon: Icons.MessageCircle, label: 'Guide' },
     { view: 'STATS', icon: Icons.BarChart2, label: 'Stats' },
     { view: 'SOCIAL', icon: Icons.Users, label: 'Social' },
+    { view: 'SHOP', icon: Icons.Shop, label: 'Shop' },
   ];
 
   return (

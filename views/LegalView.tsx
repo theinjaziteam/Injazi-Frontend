@@ -466,10 +466,10 @@ export default function LegalView() {
                 </div>
                 
                 {/* FIX #33: Improved tabs with sliding indicator */}
-                <div className="relative flex border-t border-gray-100">
+                <div className="relative flex border-t border-gray-100" role="tablist">
                     <button
                         onClick={() => setActiveTab('terms')}
-                        className={`flex-1 py-3 text-sm font-semibold transition-colors relative z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset ${
+                        className={`flex-1 py-3.5 text-sm font-semibold transition-colors relative z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset ${
                             activeTab === 'terms'
                                 ? 'text-primary'
                                 : 'text-gray-400 hover:text-gray-600'
@@ -477,12 +477,13 @@ export default function LegalView() {
                         role="tab"
                         aria-selected={activeTab === 'terms'}
                         aria-controls="terms-panel"
+                        id="terms-tab"
                     >
                         Terms of Service
                     </button>
                     <button
                         onClick={() => setActiveTab('privacy')}
-                        className={`flex-1 py-3 text-sm font-semibold transition-colors relative z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset ${
+                        className={`flex-1 py-3.5 text-sm font-semibold transition-colors relative z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset ${
                             activeTab === 'privacy'
                                 ? 'text-primary'
                                 : 'text-gray-400 hover:text-gray-600'
@@ -490,31 +491,32 @@ export default function LegalView() {
                         role="tab"
                         aria-selected={activeTab === 'privacy'}
                         aria-controls="privacy-panel"
+                        id="privacy-tab"
                     >
                         Privacy Policy
                     </button>
                     
-                    {/* FIX #33: Sliding indicator that doesn't cause layout shift */}
+                    {/* FIX #33: Sliding indicator - absolute positioned to prevent layout shift */}
                     <div 
-                        className="absolute bottom-0 h-0.5 bg-primary transition-transform duration-300 ease-out"
+                        className="absolute bottom-0 h-0.5 bg-primary transition-all duration-300 ease-out"
                         style={{
                             width: '50%',
-                            transform: activeTab === 'terms' ? 'translateX(0)' : 'translateX(100%)'
+                            left: activeTab === 'terms' ? '0%' : '50%'
                         }}
                         aria-hidden="true"
                     />
                 </div>
                 
                 {/* FIX #34: Scroll progress indicator */}
-                <div className="h-0.5 bg-gray-100 relative">
+                <div className="h-1 bg-gray-100 relative overflow-hidden">
                     <div 
-                        className="h-full bg-primary/60 transition-all duration-150 ease-out"
+                        className="h-full bg-gradient-to-r from-primary to-secondary transition-all duration-150 ease-out"
                         style={{ width: `${scrollProgress}%` }}
                         role="progressbar"
                         aria-valuenow={Math.round(scrollProgress)}
                         aria-valuemin={0}
                         aria-valuemax={100}
-                        aria-label="Scroll progress"
+                        aria-label="Reading progress"
                     />
                 </div>
             </div>
@@ -523,24 +525,25 @@ export default function LegalView() {
             <div 
                 ref={contentRef}
                 onScroll={handleScroll}
-                className="flex-1 overflow-y-auto p-5 pb-10 relative"
+                className="flex-1 overflow-y-auto p-5 pb-20 relative scroll-smooth"
+                style={{ WebkitOverflowScrolling: 'touch' }}
                 role="tabpanel"
                 id={activeTab === 'terms' ? 'terms-panel' : 'privacy-panel'}
                 aria-labelledby={activeTab === 'terms' ? 'terms-tab' : 'privacy-tab'}
             >
                 {activeTab === 'terms' ? <TermsOfService /> : <PrivacyPolicy />}
-                
-                {/* FIX #34: Scroll hint at bottom */}
-                {showScrollHint && (
-                    <div 
-                        className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-gray-900/80 text-white text-xs px-3 py-2 rounded-full flex items-center gap-2 animate-bounce shadow-lg"
-                        aria-hidden="true"
-                    >
-                        <Icons.ChevronDown className="w-4 h-4" />
-                        Scroll to read more
-                    </div>
-                )}
             </div>
+            
+            {/* FIX #34: Scroll hint at bottom - only shows initially */}
+            {showScrollHint && scrollProgress < 10 && (
+                <div 
+                    className="absolute bottom-24 left-1/2 -translate-x-1/2 bg-gray-900/80 backdrop-blur-sm text-white text-xs px-4 py-2 rounded-full flex items-center gap-2 shadow-lg animate-bounce pointer-events-none"
+                    aria-hidden="true"
+                >
+                    <Icons.ChevronDown className="w-4 h-4" />
+                    <span>Scroll to read more</span>
+                </div>
+            )}
         </div>
     );
 }

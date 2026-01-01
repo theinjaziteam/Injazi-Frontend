@@ -42,17 +42,17 @@ export default function TaskHistoryView() {
 
                 <div className="flex-1 p-6">
                     {historyTasks.length === 0 ? (
-                        /* FIX #26: Improved empty state alignment with flex centering */
-                        <div className="flex flex-col items-center justify-center text-center py-20 text-gray-400 min-h-[400px]">
+                        /* FIX #26: Improved empty state with proper flex centering */
+                        <div className="flex flex-col items-center justify-center text-center py-20 min-h-[60vh]">
                             <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <Icons.Check className="w-10 h-10 text-gray-400" />
+                                <Icons.Check className="w-10 h-10 text-gray-400" aria-hidden="true" />
                             </div>
-                            <p className="font-medium">No completed tasks yet</p>
-                            <p className="text-sm mt-1 mb-6">Complete your first mission!</p>
-                            {/* FIX #26: Button centered with proper margin and flex alignment */}
+                            <p className="font-medium text-gray-500 text-lg">No completed tasks yet</p>
+                            <p className="text-sm text-gray-400 mt-1 mb-6">Complete your first mission!</p>
+                            {/* FIX #26: Button properly centered with consistent spacing */}
                             <button 
                                 onClick={() => setView(AppView.TASK_SELECTION)} 
-                                className="px-6 py-3 bg-primary text-white rounded-full text-sm font-bold hover:bg-primary/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                                className="px-8 py-3 bg-primary text-white rounded-full text-sm font-bold hover:bg-primary/90 transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 shadow-lg shadow-primary/20"
                                 aria-label="View available missions"
                             >
                                 View Missions
@@ -67,15 +67,18 @@ export default function TaskHistoryView() {
                                     style={{ animationDelay: `${index * 50}ms` }}
                                 >
                                     <div className="flex items-center gap-4">
-                                        {/* Simple solid icon */}
-                                        <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                                            task.status === TaskStatus.APPROVED || task.status === TaskStatus.COMPLETED 
-                                                ? 'bg-green-500 text-white' 
-                                                : 'bg-red-500 text-white'
-                                        }`}>
+                                        {/* Status icon */}
+                                        <div 
+                                            className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                                                task.status === TaskStatus.APPROVED || task.status === TaskStatus.COMPLETED 
+                                                    ? 'bg-green-500 text-white' 
+                                                    : 'bg-red-500 text-white'
+                                            }`}
+                                            aria-hidden="true"
+                                        >
                                             {task.status === TaskStatus.REJECTED 
-                                                ? <Icons.X className="w-5 h-5" aria-hidden="true"/> 
-                                                : <Icons.Check className="w-5 h-5" aria-hidden="true"/>
+                                                ? <Icons.X className="w-5 h-5"/> 
+                                                : <Icons.Check className="w-5 h-5"/>
                                             }
                                         </div>
                                         
@@ -93,12 +96,13 @@ export default function TaskHistoryView() {
                                         </div>
                                         
                                         <span 
-                                            className={`text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wide ${
+                                            className={`text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wide flex-shrink-0 ${
                                                 task.status === TaskStatus.APPROVED || task.status === TaskStatus.COMPLETED
                                                     ? 'bg-green-100 text-green-700 border border-green-200' 
                                                     : 'bg-red-100 text-red-700 border border-red-200'
                                             }`}
                                             role="status"
+                                            aria-label={`Status: ${formatStatus(task.status)}`}
                                         >
                                             {formatStatus(task.status)}
                                         </span>

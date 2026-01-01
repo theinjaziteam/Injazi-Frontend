@@ -851,7 +851,7 @@ export default function ChatView() {
             aria-label="Open Master Agent"
             style={{
                 position: 'absolute',
-                bottom: 'calc(env(safe-area-inset-bottom, 0px) + 200px)',
+                bottom: 'calc(env(safe-area-inset-bottom, 0px) + 100px)',
                 left: '50%',
                 transform: 'translateX(-50%)',
                 zIndex: 10,

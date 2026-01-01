@@ -2,7 +2,7 @@
 // FIXES: #35 (Tab navigation active state), #36 (Chat input focus), #37 (Product drafts spacing)
 
 import React, { useState, useRef, useEffect } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../contexts/AppContext';
 import { AppView } from '../types';
 import { 
   Icons, 
@@ -429,8 +429,8 @@ const EcommerceAgentView: React.FC = () => {
             <div className="empty-state-icon">
               <Icons.Shop className="w-8 h-8 text-white/30" />
             </div>
-            <p className="empty-state-title">No product drafts</p>
-            <p className="empty-state-description">
+            <p className="empty-state-title text-white/70 text-center mt-4">No product drafts</p>
+            <p className="empty-state-description text-white/50 text-sm text-center mt-2">
               Import products from URLs to get started
             </p>
           </div>
@@ -473,7 +473,7 @@ const EcommerceAgentView: React.FC = () => {
       {isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2">
           {[1, 2, 3, 4].map(i => (
-            <div key={i} className="skeleton h-24 rounded-2xl" />
+            <div key={i} className="skeleton h-24 rounded-2xl bg-white/10 animate-pulse" />
           ))}
         </div>
       ) : analytics ? (
@@ -519,12 +519,10 @@ const EcommerceAgentView: React.FC = () => {
           )}
         </>
       ) : (
-        <div className="empty-state bg-white/5 rounded-2xl p-8">
-          <div className="empty-state-icon">
-            <Icons.BarChart2 className="w-8 h-8 text-white/30" />
-          </div>
-          <p className="empty-state-title">No analytics data</p>
-          <p className="empty-state-description">
+        <div className="empty-state bg-white/5 rounded-2xl p-8 flex flex-col items-center">
+          <Icons.BarChart2 className="w-8 h-8 text-white/30" />
+          <p className="text-white/70 text-center mt-4">No analytics data</p>
+          <p className="text-white/50 text-sm text-center mt-2">
             Connect your store to see performance metrics
           </p>
         </div>
@@ -559,12 +557,10 @@ const EcommerceAgentView: React.FC = () => {
           Email Drafts {emailDrafts.length > 0 && `(${emailDrafts.length})`}
         </h3>
         {emailDrafts.length === 0 ? (
-          <div className="empty-state bg-white/5 rounded-2xl p-8">
-            <div className="empty-state-icon">
-              <Icons.Mail className="w-8 h-8 text-white/30" />
-            </div>
-            <p className="empty-state-title">No email drafts</p>
-            <p className="empty-state-description">
+          <div className="bg-white/5 rounded-2xl p-8 flex flex-col items-center">
+            <Icons.Mail className="w-8 h-8 text-white/30" />
+            <p className="text-white/70 text-center mt-4">No email drafts</p>
+            <p className="text-white/50 text-sm text-center mt-2">
               Generate a campaign to get started
             </p>
           </div>
@@ -611,12 +607,10 @@ const EcommerceAgentView: React.FC = () => {
           Content Drafts {socialDrafts.length > 0 && `(${socialDrafts.length})`}
         </h3>
         {socialDrafts.length === 0 ? (
-          <div className="empty-state bg-white/5 rounded-2xl p-8">
-            <div className="empty-state-icon">
-              <Icons.Globe className="w-8 h-8 text-white/30" />
-            </div>
-            <p className="empty-state-title">No content drafts</p>
-            <p className="empty-state-description">
+          <div className="bg-white/5 rounded-2xl p-8 flex flex-col items-center">
+            <Icons.Globe className="w-8 h-8 text-white/30" />
+            <p className="text-white/70 text-center mt-4">No content drafts</p>
+            <p className="text-white/50 text-sm text-center mt-2">
               Select a platform to generate content
             </p>
           </div>

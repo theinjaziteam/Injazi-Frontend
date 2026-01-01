@@ -285,9 +285,14 @@ export default function TaskExecutionView() {
             </div>
 
             <div className="p-6 pt-safe flex justify-between items-center relative z-10">
-                <button onClick={handleBack} className="p-2 bg-white/10 rounded-full hover:bg-white/20 active:scale-95 transition-all">
-                    <Icons.ChevronLeft className="w-6 h-6"/>
-                </button>
+              <button 
+    onClick={handleBack} 
+    className="p-2 bg-white/10 rounded-full hover:bg-white/20 active:scale-95 transition-all"
+    aria-label="Go back to dashboard"
+>
+    <Icons.ChevronLeft className="w-6 h-6"/>
+</button>
+
                 <div className="flex flex-col items-end">
                     <span className="text-[10px] font-bold uppercase tracking-widest text-white/50">Focus Mode</span>
                 </div>
@@ -300,9 +305,9 @@ export default function TaskExecutionView() {
                 </div>
 
                 <div className="relative mb-12">
-                    <div className="text-8xl font-black tracking-tighter tabular-nums">
-                        {formatTime(timeLeft)}
-                    </div>
+                    <div className="text-6xl sm:text-7xl md:text-8xl font-black tracking-tighter tabular-nums">
+    {formatTime(timeLeft)}
+</div>
                     <div className="text-center text-[10px] font-bold uppercase tracking-[0.3em] text-white/40 mt-2">
                         {isTimerRunning ? 'Focus Mode Active' : (timeLeft > 0 ? 'Tap to Start' : 'Timer Finished')}
                     </div>
@@ -336,31 +341,47 @@ export default function TaskExecutionView() {
             </div>
 
             {showCompleteModal && (
-                <div className="fixed inset-0 z-50 bg-primary/90 backdrop-blur-xl flex items-center justify-center p-6 animate-fade-in">
-                    <Card className="w-full max-w-sm bg-white p-8 text-center rounded-[2rem]">
-                        <h3 className="text-2xl font-black text-primary uppercase tracking-tight mb-2">
-                            {timeLeft <= 0 ? 'Timer Finished!' : 'Finish Task?'}
-                        </h3>
-                        <p className="text-gray-500 text-sm mb-8">Did you complete the objective?</p>
-                        
-                        <div className="space-y-3">
-                            <Button onClick={handleCompleteTask} className="py-5 text-sm font-black uppercase tracking-widest">
-                                Yes, Task Complete
-                            </Button>
-                            <div className="grid grid-cols-2 gap-3">
-                                <Button variant="outline" onClick={() => handleAddTime(5)}>+5 Mins</Button>
-                                <Button variant="outline" onClick={() => handleAddTime(15)}>+15 Mins</Button>
-                            </div>
-                            <button 
-                                onClick={() => setShowCompleteModal(false)} 
-                                className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-4"
-                            >
-                                Cancel
-                            </button>
-                        </div>
-                    </Card>
+    <div className="fixed inset-0 z-50 bg-primary/90 backdrop-blur-xl flex items-center justify-center p-6 animate-fade-in">
+        <Card className="w-full max-w-sm bg-white p-8 text-center rounded-[2rem]">
+            <h3 className="text-2xl font-black text-primary uppercase tracking-tight mb-2">
+                {timeLeft <= 0 ? 'Timer Finished!' : 'Finish Task?'}
+            </h3>
+            <p className="text-gray-500 text-sm mb-8">Did you complete the objective?</p>
+            
+            <div className="space-y-3">
+                <Button 
+                    onClick={handleCompleteTask} 
+                    className="w-full py-5 text-sm font-black uppercase tracking-widest"
+                >
+                    Yes, Task Complete
+                </Button>
+                <div className="grid grid-cols-2 gap-3">
+                    <Button 
+                        variant="outline" 
+                        onClick={() => handleAddTime(5)}
+                        className="py-4"
+                    >
+                        +5 Mins
+                    </Button>
+                    <Button 
+                        variant="outline" 
+                        onClick={() => handleAddTime(15)}
+                        className="py-4"
+                    >
+                        +15 Mins
+                    </Button>
                 </div>
-            )}
+                <button 
+                    onClick={() => setShowCompleteModal(false)} 
+                    className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-4 py-2 w-full hover:text-gray-600 transition-colors"
+                    aria-label="Cancel and continue timer"
+                >
+                    Cancel
+                </button>
+            </div>
+        </Card>
+    </div>
+)}
         </div>
     );
 }

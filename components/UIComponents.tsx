@@ -1195,6 +1195,10 @@ export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({
   </div>
 );
 
+// Alias for backward compatibility
+export const Toggle = ToggleSwitch;
+
+
 // ============================================
 // EMPTY STATE COMPONENT
 // ============================================
@@ -2284,6 +2288,8 @@ export default {
   Button,
   Card,
   CardHeader,
+  ToggleSwitch,
+  Toggle,
   CardTitle,
   CardDescription,
   CardContent,

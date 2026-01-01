@@ -18,6 +18,25 @@ export default function SettingsView() {
     const [isSaving, setIsSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
 
+    // FIX #12: Add proper state for preferences
+    const [preferences, setPreferences] = useState({
+        pushNotifications: true,
+        darkMode: false,
+        soundEffects: true,
+    });
+
+    // Load preferences from localStorage on mount
+    useEffect(() => {
+        const savedPrefs = localStorage.getItem('injazi_preferences');
+        if (savedPrefs) {
+            try {
+                setPreferences(JSON.parse(savedPrefs));
+            } catch (e) {
+                console.error('Failed to load preferences:', e);
+            }
+        }
+    }, []);
+
     useEffect(() => {
         if (user) {
             setName(user.name || '');
@@ -44,6 +63,25 @@ export default function SettingsView() {
             alert("Could not save settings. Check connection.");
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    // FIX #12: Handle preference changes with persistence
+    const handlePreferenceChange = async (key: keyof typeof preferences, value: boolean) => {
+        const newPreferences = { ...preferences, [key]: value };
+        setPreferences(newPreferences);
+        
+        // Persist to localStorage
+        localStorage.setItem('injazi_preferences', JSON.stringify(newPreferences));
+        
+        // Optional: Also save to user profile in backend
+        try {
+            await updateAndSave({ preferences: newPreferences } as any);
+        } catch (e) {
+            console.error('Failed to save preference:', e);
+            // Revert on error
+            setPreferences(preferences);
+            localStorage.setItem('injazi_preferences', JSON.stringify(preferences));
         }
     };
 
@@ -76,6 +114,18 @@ export default function SettingsView() {
             app.id === appId ? { ...app, isConnected: !app.isConnected } : app
         );
         updateAndSave({ connectedApps: updatedApps });
+    };
+
+    // FIX #15: Get platform-specific icon for connected apps
+    const getAppIcon = (appName: string) => {
+        const name = appName.toLowerCase();
+        if (name.includes('calendar') || name.includes('google')) return Icons.Calendar;
+        if (name.includes('health') || name.includes('apple')) return Icons.Activity;
+        if (name.includes('notion')) return Icons.FileText;
+        if (name.includes('todoist') || name.includes('task')) return Icons.CheckCircle;
+        if (name.includes('slack')) return Icons.MessageCircle;
+        if (name.includes('fitness') || name.includes('workout')) return Icons.Zap;
+        return Icons.Link;
     };
 
     const handleLogout = () => {
@@ -123,6 +173,7 @@ export default function SettingsView() {
                         <button 
                             onClick={() => setView(AppView.DASHBOARD)} 
                             className="p-2.5 hover:bg-gray-100 rounded-2xl transition-all duration-200 active:scale-95"
+                            aria-label="Go back to dashboard"
                         >
                             <Icons.ChevronLeft className="w-6 h-6 text-primary"/>
                         </button>
@@ -244,6 +295,7 @@ export default function SettingsView() {
                                 <button 
                                     onClick={() => setEditMode(true)} 
                                     className="px-4 py-2 bg-secondary/10 rounded-xl text-xs font-black text-secondary uppercase tracking-wider transition-all hover:bg-secondary/20 active:scale-95"
+                                    aria-label="Edit profile"
                                 >
                                     Edit
                                 </button>
@@ -252,6 +304,7 @@ export default function SettingsView() {
                                     <button 
                                         onClick={handleCancelEdit} 
                                         className="px-4 py-2 bg-gray-100 rounded-xl text-xs font-black text-gray-500 uppercase tracking-wider transition-all hover:bg-gray-200 active:scale-95"
+                                        aria-label="Cancel editing"
                                     >
                                         Cancel
                                     </button>
@@ -259,6 +312,7 @@ export default function SettingsView() {
                                         onClick={handleSaveProfile}
                                         disabled={isSaving}
                                         className="px-4 py-2 bg-secondary rounded-xl text-xs font-black text-white uppercase tracking-wider transition-all hover:bg-secondary/90 active:scale-95 disabled:opacity-50 flex items-center gap-2"
+                                        aria-label="Save profile changes"
                                     >
                                         {isSaving ? (
                                             <>
@@ -283,8 +337,9 @@ export default function SettingsView() {
                                     <input 
                                         value={name} 
                                         onChange={e => setName(e.target.value)} 
-                                        className="w-full p-3.5 bg-gray-50 rounded-xl border-2 border-gray-100 font-bold text-primary text-base focus:border-secondary focus:outline-none transition-colors"
+                                        className="w-full p-3.5 bg-gray-50 rounded-xl border-2 border-gray-100 font-bold text-primary text-base focus:border-secondary focus:outline-none transition-colors focus-visible:ring-2 focus-visible:ring-secondary/50"
                                         placeholder="Enter your name"
+                                        aria-label="Full name"
                                     />
                                 ) : (
                                     <div className="text-primary font-black text-lg">{user.name || 'Not set'}</div>
@@ -301,8 +356,9 @@ export default function SettingsView() {
                                         type="email"
                                         value={email} 
                                         onChange={e => setEmail(e.target.value)} 
-                                        className="w-full p-3.5 bg-gray-50 rounded-xl border-2 border-gray-100 font-bold text-primary text-base focus:border-secondary focus:outline-none transition-colors"
+                                        className="w-full p-3.5 bg-gray-50 rounded-xl border-2 border-gray-100 font-bold text-primary text-base focus:border-secondary focus:outline-none transition-colors focus-visible:ring-2 focus-visible:ring-secondary/50"
                                         placeholder="Enter your email"
+                                        aria-label="Email address"
                                     />
                                 ) : (
                                     <div className="text-primary font-bold">{user.email || 'Not set'}</div>
@@ -319,6 +375,7 @@ export default function SettingsView() {
                                         <button 
                                             onClick={() => setShowPwd(!showPwd)} 
                                             className="text-[9px] font-black text-secondary uppercase tracking-widest flex items-center gap-1 hover:text-secondary/80 transition-colors"
+                                            aria-label={showPwd ? "Hide password" : "Show password"}
                                         >
                                             {showPwd ? (
                                                 <><Icons.EyeOff className="w-3 h-3" /> Hide</>
@@ -333,8 +390,9 @@ export default function SettingsView() {
                                         type={showPwd ? "text" : "password"} 
                                         value={pwd} 
                                         onChange={e => setPwd(e.target.value)} 
-                                        className="w-full p-3.5 bg-gray-50 rounded-xl border-2 border-gray-100 font-bold text-primary text-base focus:border-secondary focus:outline-none transition-colors"
+                                        className="w-full p-3.5 bg-gray-50 rounded-xl border-2 border-gray-100 font-bold text-primary text-base focus:border-secondary focus:outline-none transition-colors focus-visible:ring-2 focus-visible:ring-secondary/50"
                                         placeholder="Enter password"
+                                        aria-label="Password"
                                     />
                                 ) : (
                                     <div className="text-primary font-bold">••••••••</div>
@@ -349,7 +407,8 @@ export default function SettingsView() {
                                 {editMode ? (
                                     <button
                                         onClick={() => setShowCountryPicker(true)}
-                                        className="w-full p-3.5 bg-gray-50 rounded-xl border-2 border-gray-100 font-bold text-primary text-base text-left flex items-center justify-between hover:border-secondary transition-colors"
+                                        className="w-full p-3.5 bg-gray-50 rounded-xl border-2 border-gray-100 font-bold text-primary text-base text-left flex items-center justify-between hover:border-secondary transition-colors focus-visible:ring-2 focus-visible:ring-secondary/50"
+                                        aria-label="Select country"
                                     >
                                         <span>{country || 'Select country'}</span>
                                         <Icons.ChevronDown className="w-5 h-5 text-gray-400" />
@@ -387,7 +446,7 @@ export default function SettingsView() {
                         </div>
                     </section>
 
-                    {/* ============ CONNECTED APPS ============ */}
+                    {/* ============ CONNECTED APPS - FIX #15 ============ */}
                     {user.connectedApps && user.connectedApps.length > 0 && (
                         <section>
                             <div className="flex items-center gap-2 mb-4">
@@ -398,39 +457,42 @@ export default function SettingsView() {
                             </div>
                             
                             <div className="space-y-3">
-                                {user.connectedApps.map(app => (
-                                    <div 
-                                        key={app.id} 
-                                        className="bg-white rounded-2xl border border-gray-100 p-4 flex items-center justify-between shadow-sm"
-                                    >
-                                        <div className="flex items-center gap-4">
-                                            <div className={`p-3 rounded-2xl transition-all duration-300 ${
-                                                app.isConnected 
-                                                    ? 'bg-primary text-white shadow-lg shadow-primary/20' 
-                                                    : 'bg-gray-100 text-gray-400'
-                                            }`}>
-                                                <Icons.Activity className="w-5 h-5"/>
-                                            </div>
-                                            <div>
-                                                <span className="font-bold text-primary block">{app.name}</span>
-                                                <span className={`text-[10px] font-bold uppercase tracking-widest ${
-                                                    app.isConnected ? 'text-emerald-500' : 'text-gray-400'
+                                {user.connectedApps.map(app => {
+                                    const AppIcon = getAppIcon(app.name);
+                                    return (
+                                        <div 
+                                            key={app.id} 
+                                            className="bg-white rounded-2xl border border-gray-100 p-4 flex items-center justify-between shadow-sm"
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className={`p-3 rounded-2xl transition-all duration-300 ${
+                                                    app.isConnected 
+                                                        ? 'bg-primary text-white shadow-lg shadow-primary/20' 
+                                                        : 'bg-gray-100 text-gray-400'
                                                 }`}>
-                                                    {app.isConnected ? '● Connected' : '○ Disconnected'}
-                                                </span>
+                                                    <AppIcon className="w-5 h-5"/>
+                                                </div>
+                                                <div>
+                                                    <span className="font-bold text-primary block">{app.name}</span>
+                                                    <span className={`text-[10px] font-bold uppercase tracking-widest ${
+                                                        app.isConnected ? 'text-emerald-500' : 'text-gray-400'
+                                                    }`}>
+                                                        {app.isConnected ? '● Connected' : '○ Disconnected'}
+                                                    </span>
+                                                </div>
                                             </div>
+                                            <Toggle 
+                                                checked={app.isConnected} 
+                                                onChange={() => toggleAppConnection(app.id)} 
+                                            />
                                         </div>
-                                        <Toggle 
-                                            checked={app.isConnected} 
-                                            onChange={() => toggleAppConnection(app.id)} 
-                                        />
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </section>
                     )}
 
-                    {/* ============ PREFERENCES ============ */}
+                    {/* ============ PREFERENCES - FIX #12 ============ */}
                     <section>
                         <div className="flex items-center gap-2 mb-4">
                             <div className="p-2 bg-primary/10 rounded-xl">
@@ -445,7 +507,10 @@ export default function SettingsView() {
                                     <Icons.Bell className="w-5 h-5 text-gray-400" />
                                     <span className="font-medium text-primary">Push Notifications</span>
                                 </div>
-                                <Toggle checked={true} onChange={() => {}} />
+                                <Toggle 
+                                    checked={preferences.pushNotifications} 
+                                    onChange={(value) => handlePreferenceChange('pushNotifications', value)} 
+                                />
                             </div>
                             
                             <div className="h-px bg-gray-100" />
@@ -455,7 +520,10 @@ export default function SettingsView() {
                                     <Icons.Sun className="w-5 h-5 text-gray-400" />
                                     <span className="font-medium text-primary">Dark Mode</span>
                                 </div>
-                                <Toggle checked={false} onChange={() => {}} />
+                                <Toggle 
+                                    checked={preferences.darkMode} 
+                                    onChange={(value) => handlePreferenceChange('darkMode', value)} 
+                                />
                             </div>
                             
                             <div className="h-px bg-gray-100" />
@@ -465,7 +533,10 @@ export default function SettingsView() {
                                     <Icons.Mic className="w-5 h-5 text-gray-400" />
                                     <span className="font-medium text-primary">Sound Effects</span>
                                 </div>
-                                <Toggle checked={true} onChange={() => {}} />
+                                <Toggle 
+                                    checked={preferences.soundEffects} 
+                                    onChange={(value) => handlePreferenceChange('soundEffects', value)} 
+                                />
                             </div>
                         </div>
                     </section>
@@ -483,6 +554,7 @@ export default function SettingsView() {
                             <button
                                 onClick={() => setView(AppView.LEGAL)}
                                 className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors active:bg-gray-100"
+                                aria-label="View Terms of Service"
                             >
                                 <div className="flex items-center gap-3">
                                     <Icons.FileText className="w-5 h-5 text-gray-400" />
@@ -496,6 +568,7 @@ export default function SettingsView() {
                             <button
                                 onClick={() => setView(AppView.LEGAL)}
                                 className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors active:bg-gray-100"
+                                aria-label="View Privacy Policy"
                             >
                                 <div className="flex items-center gap-3">
                                     <Icons.Lock className="w-5 h-5 text-gray-400" />
@@ -509,6 +582,7 @@ export default function SettingsView() {
                             <button
                                 onClick={() => window.open('mailto:support@injazi.app', '_blank')}
                                 className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors active:bg-gray-100"
+                                aria-label="Contact Help and Support"
                             >
                                 <div className="flex items-center gap-3">
                                     <Icons.HelpCircle className="w-5 h-5 text-gray-400" />
@@ -522,6 +596,7 @@ export default function SettingsView() {
                             <button
                                 onClick={() => window.open('mailto:feedback@injazi.app', '_blank')}
                                 className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors active:bg-gray-100"
+                                aria-label="Send feedback"
                             >
                                 <div className="flex items-center gap-3">
                                     <Icons.MessageCircle className="w-5 h-5 text-gray-400" />
@@ -538,6 +613,7 @@ export default function SettingsView() {
                             <button 
                                 onClick={handleLogout}
                                 className="w-full p-4 bg-white border-2 border-gray-200 rounded-2xl text-primary font-bold flex items-center justify-center gap-3 hover:bg-gray-50 transition-all duration-200 active:scale-[0.98]"
+                                aria-label="Log out of your account"
                             >
                                 <Icons.LogOut className="w-5 h-5" />
                                 <span>Log Out</span>
@@ -546,6 +622,7 @@ export default function SettingsView() {
                             <button 
                                 onClick={handleDeleteAccount}
                                 className="w-full p-4 bg-red-50 border-2 border-red-100 rounded-2xl text-red-500 font-bold flex items-center justify-center gap-3 hover:bg-red-100 hover:border-red-200 transition-all duration-200 active:scale-[0.98]"
+                                aria-label="Delete your account permanently"
                             >
                                 <Icons.Trash className="w-5 h-5" />
                                 <span>Delete Account</span>
@@ -564,7 +641,7 @@ export default function SettingsView() {
                 </div>
             </div>
 
-            {/* ============ PLANS MODAL ============ */}
+            {/* ============ PLANS MODAL - FIX #14 ============ */}
             {showPlans && (
                 <div 
                     className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4"
@@ -579,6 +656,7 @@ export default function SettingsView() {
                             <button 
                                 onClick={() => setShowPlans(false)} 
                                 className="p-2.5 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
+                                aria-label="Close plans modal"
                             >
                                 <Icons.X className="w-5 h-5 text-primary"/>
                             </button>
@@ -679,7 +757,11 @@ export default function SettingsView() {
                             })}
                         </div>
                         
-                        <div className="p-4 border-t border-gray-100 bg-gray-50 flex-shrink-0">
+                        {/* FIX #14: Safe area bottom padding */}
+                        <div 
+                            className="p-4 border-t border-gray-100 bg-gray-50 flex-shrink-0"
+                            style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}
+                        >
                             <p className="text-[10px] text-gray-400 text-center">
                                 Plans renew automatically. Cancel anytime in settings.
                             </p>
@@ -688,43 +770,50 @@ export default function SettingsView() {
                 </div>
             )}
 
-            {/* ============ COUNTRY PICKER MODAL ============ */}
+            {/* ============ COUNTRY PICKER MODAL - FIX #13 ============ */}
             {showCountryPicker && (
                 <div 
                     className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4"
                     onClick={(e) => e.target === e.currentTarget && setShowCountryPicker(false)}
                 >
-                    <div className="w-full max-w-md bg-white rounded-t-[2rem] sm:rounded-[2rem] max-h-[70vh] overflow-hidden flex flex-col">
+                    <div 
+                        className="w-full max-w-md bg-white rounded-t-[2rem] sm:rounded-[2rem] max-h-[70vh] overflow-hidden flex flex-col"
+                        style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}
+                    >
                         <div className="p-6 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
                             <h2 className="text-xl font-black text-primary">Select Country</h2>
                             <button 
                                 onClick={() => setShowCountryPicker(false)} 
                                 className="p-2.5 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
+                                aria-label="Close country picker"
                             >
                                 <Icons.X className="w-5 h-5 text-primary"/>
                             </button>
                         </div>
                         
                         <div className="flex-1 overflow-y-auto">
-                            {(COUNTRIES || ['United States', 'United Kingdom', 'Canada', 'Australia', 'Germany', 'France', 'Saudi Arabia', 'UAE', 'Egypt', 'Other']).map((c: string) => (
-                                <button
-                                    key={c}
-                                    onClick={() => {
-                                        setCountry(c);
-                                        setShowCountryPicker(false);
-                                    }}
-                                    className={`w-full p-4 text-left flex items-center justify-between hover:bg-gray-50 transition-colors ${
-                                        country === c ? 'bg-secondary/5' : ''
-                                    }`}
-                                >
-                                    <span className={`font-medium ${country === c ? 'text-secondary' : 'text-primary'}`}>
-                                        {c}
-                                    </span>
-                                    {country === c && (
-                                        <Icons.Check className="w-5 h-5 text-secondary" />
-                                    )}
-                                </button>
-                            ))}
+                            {(COUNTRIES || ['United States', 'United Kingdom', 'Canada', 'Australia', 'Germany', 'France', 'Saudi Arabia', 'UAE', 'Egypt', 'Other']).map((c: string | { name: string; code: string }) => {
+                                const countryName = typeof c === 'string' ? c : c.name;
+                                return (
+                                    <button
+                                        key={countryName}
+                                        onClick={() => {
+                                            setCountry(countryName);
+                                            setShowCountryPicker(false);
+                                        }}
+                                        className={`w-full p-4 text-left flex items-center justify-between hover:bg-gray-50 transition-colors ${
+                                            country === countryName ? 'bg-secondary/5' : ''
+                                        }`}
+                                    >
+                                        <span className={`font-medium ${country === countryName ? 'text-secondary' : 'text-primary'}`}>
+                                            {countryName}
+                                        </span>
+                                        {country === countryName && (
+                                            <Icons.Check className="w-5 h-5 text-secondary" />
+                                        )}
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
                 </div>

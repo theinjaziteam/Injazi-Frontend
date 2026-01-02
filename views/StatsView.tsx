@@ -4,6 +4,7 @@ import { useApp } from '../contexts/AppContext';
 import { AppView } from '../types';
 import { Icons, Card, CoinIcon } from '../components/UIComponents';
 import { calculateBudgetSplit, generateDeepInsights } from '../services/geminiService';
+import BridgeHub from '../components/BridgeHub';
 
 interface CalendarEvent {
     id: string;
@@ -72,6 +73,9 @@ export default function StatsView() {
     const [animatedValues, setAnimatedValues] = useState<Record<string, number>>({});
     const [dismissedAlerts, setDismissedAlerts] = useState<string[]>([]);
     const [prevStats, setPrevStats] = useState<Record<string, number>>({});
+    
+    // Bridge Hub state
+    const [showBridgeHub, setShowBridgeHub] = useState(false);
     
     // Calendar states
     const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -1101,8 +1105,8 @@ export default function StatsView() {
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="font-bold text-primary">Connected Apps</h3>
                             <button 
-                                onClick={() => setView(AppView.SETTINGS)}
-                                className="text-xs text-primary font-bold"
+                                onClick={() => setShowBridgeHub(true)}
+                                className="text-xs text-primary font-bold hover:underline"
                             >
                                 Manage
                             </button>
@@ -1172,8 +1176,8 @@ export default function StatsView() {
                                         </div>
                                         <p className="text-sm text-gray-500 mb-3">Connect {connectedApp.name} to see metrics</p>
                                         <button 
-                                            onClick={() => setView(AppView.SETTINGS)}
-                                            className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-lg"
+                                            onClick={() => setShowBridgeHub(true)}
+                                            className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-lg hover:bg-primary/90 transition-colors"
                                         >
                                             Connect App
                                         </button>
@@ -1182,6 +1186,25 @@ export default function StatsView() {
                             </div>
                         )}
                     </Card>
+
+                    {/* Bridge Hub Quick Access Card */}
+                    <button
+                        onClick={() => setShowBridgeHub(true)}
+                        className="w-full p-4 bg-gradient-to-r from-[#171738] to-[#3423A6] rounded-2xl text-left hover:shadow-lg transition-all group"
+                    >
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                                    <Icons.Link className="w-5 h-5 text-white" />
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-white text-sm">Bridge Hub</h3>
+                                    <p className="text-[10px] text-white/60">Connect 40+ platforms</p>
+                                </div>
+                            </div>
+                            <Icons.ChevronRight className="w-5 h-5 text-white/40 group-hover:text-white group-hover:translate-x-1 transition-all" />
+                        </div>
+                    </button>
 
                     {/* Quick Actions */}
                     <div className="grid grid-cols-2 gap-3">
@@ -1205,6 +1228,12 @@ export default function StatsView() {
                     </div>
                 </div>
             </div>
+
+            {/* Bridge Hub Modal */}
+            <BridgeHub 
+                isOpen={showBridgeHub} 
+                onClose={() => setShowBridgeHub(false)} 
+            />
         </div>
     );
 }

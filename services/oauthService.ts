@@ -7,15 +7,18 @@ export interface ConnectedAccount {
     platform: string;
     platformUsername?: string;
     platformEmail?: string;
+    platformAvatar?: string;
     isConnected: boolean;
     connectedAt?: number;
     expiresAt?: number;
     isExpired?: boolean;
+    type?: 'oauth' | 'api_key';
 }
 
 export interface PlatformInfo {
     id: string;
     name: string;
+    type: 'oauth' | 'api_key';
     configured: boolean;
 }
 
@@ -37,30 +40,43 @@ export const oauthService = {
     /**
      * Get OAuth URL for a platform
      */
-    getAuthUrl: async (platform: string, email: string, additionalParams?: Record<string, string>): Promise<string | null> => {
+    getAuthUrl: async (platform: string, email: string, additionalParams?: Record<string, string>): Promise<{ success: boolean; url?: string; error?: string; type?: string }> => {
         try {
             const params = new URLSearchParams({ email, ...additionalParams });
             const response = await fetch(`${API_URL}/api/oauth/${platform}/url?${params}`);
             const data = await response.json();
             
-            if (!data.success) {
-                throw new Error(data.error);
+            if (!response.ok || !data.success) {
+                return { 
+                    success: false, 
+                    error: data.error,
+                    type: data.type 
+                };
             }
             
-            return data.url;
+            return { success: true, url: data.url };
         } catch (error) {
             console.error(`Error getting auth URL for ${platform}:`, error);
-            return null;
+            return { success: false, error: 'Failed to get auth URL' };
         }
     },
 
     /**
-     * Connect to a platform (opens OAuth popup/redirect)
+     * Connect to an OAuth platform (opens popup/redirect)
      */
     connect: async (platform: string, email: string, usePopup: boolean = true): Promise<boolean> => {
-        const url = await oauthService.getAuthUrl(platform, email);
+        const result = await oauthService.getAuthUrl(platform, email);
         
-        if (!url) {
+        if (!result.success) {
+            if (result.type === 'api_key') {
+                console.log(`${platform} uses API keys, not OAuth`);
+                return false;
+            }
+            console.error('OAuth error:', result.error);
+            return false;
+        }
+
+        if (!result.url) {
             return false;
         }
 
@@ -72,40 +88,64 @@ export const oauthService = {
             const top = window.screenY + (window.outerHeight - height) / 2;
             
             const popup = window.open(
-                url,
+                result.url,
                 `oauth_${platform}`,
                 `width=${width},height=${height},left=${left},top=${top},popup=1`
             );
 
             if (!popup) {
                 // Popup blocked, fall back to redirect
-                window.location.href = url;
+                window.location.href = result.url;
                 return true;
             }
 
-            // Return promise that resolves when popup closes or auth completes
+            // Return promise that resolves when popup closes
             return new Promise((resolve) => {
                 const checkPopup = setInterval(() => {
                     if (popup.closed) {
                         clearInterval(checkPopup);
-                        // Check if connected successfully
-                        oauthService.isConnected(email, platform).then(resolve);
+                        // Check if connected successfully after a short delay
+                        setTimeout(async () => {
+                            const connected = await oauthService.isConnected(email, platform);
+                            resolve(connected);
+                        }, 1000);
                     }
                 }, 500);
 
-                // Also listen for message from popup
-                window.addEventListener('message', function handler(event) {
-                    if (event.data?.type === 'oauth_complete' && event.data?.platform === platform) {
-                        clearInterval(checkPopup);
-                        window.removeEventListener('message', handler);
-                        resolve(event.data.success);
-                    }
-                });
+                // Timeout after 5 minutes
+                setTimeout(() => {
+                    clearInterval(checkPopup);
+                    resolve(false);
+                }, 5 * 60 * 1000);
             });
         } else {
             // Redirect to OAuth URL
-            window.location.href = url;
+            window.location.href = result.url;
             return true;
+        }
+    },
+
+    /**
+     * Connect Klaviyo using API keys
+     */
+    connectKlaviyo: async (email: string, apiKey?: string, publicKey?: string): Promise<{ success: boolean; error?: string; account?: any }> => {
+        try {
+            const response = await fetch(`${API_URL}/api/oauth/klaviyo/connect`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, apiKey, publicKey })
+            });
+            
+            const data = await response.json();
+            
+            if (!response.ok) {
+                return { success: false, error: data.error };
+            }
+            
+            return { success: true, account: data.account };
+        } catch (error) {
+            console.error('Klaviyo connection error:', error);
+            return { success: false, error: 'Failed to connect Klaviyo' };
         }
     },
 
@@ -129,7 +169,7 @@ export const oauthService = {
     isConnected: async (email: string, platform: string): Promise<boolean> => {
         const accounts = await oauthService.getConnectedAccounts(email);
         const account = accounts.find(a => a.platform === platform);
-        return account?.isConnected && !account?.isExpired || false;
+        return (account?.isConnected && !account?.isExpired) || false;
     },
 
     /**
@@ -193,57 +233,40 @@ export const oauthService = {
 };
 
 // ============================================
-// PLATFORM CATEGORIES FOR UI
+// PLATFORM METADATA FOR UI
 // ============================================
+
+export const PLATFORM_INFO: Record<string, {
+    name: string;
+    icon: string;
+    color: string;
+    description: string;
+    category: 'ecommerce' | 'social' | 'productivity' | 'health' | 'developer' | 'marketing' | 'finance';
+}> = {
+    shopify: { name: 'Shopify', icon: '🛒', color: '#96bf48', description: 'E-commerce platform', category: 'ecommerce' },
+    klaviyo: { name: 'Klaviyo', icon: '📧', color: '#000000', description: 'Email marketing', category: 'marketing' },
+    google: { name: 'Google', icon: '🔍', color: '#4285f4', description: 'YouTube & Analytics', category: 'marketing' },
+    tiktok: { name: 'TikTok', icon: '🎵', color: '#000000', description: 'Short-form video', category: 'social' },
+    meta: { name: 'Meta', icon: '📘', color: '#1877f2', description: 'Facebook & Instagram', category: 'social' },
+    twitter: { name: 'Twitter/X', icon: '🐦', color: '#1da1f2', description: 'Social media', category: 'social' },
+    spotify: { name: 'Spotify', icon: '🎧', color: '#1db954', description: 'Music streaming', category: 'social' },
+    github: { name: 'GitHub', icon: '💻', color: '#333333', description: 'Code repository', category: 'developer' },
+    discord: { name: 'Discord', icon: '💬', color: '#5865f2', description: 'Community chat', category: 'social' },
+    notion: { name: 'Notion', icon: '📝', color: '#000000', description: 'Notes & docs', category: 'productivity' },
+    slack: { name: 'Slack', icon: '💼', color: '#4a154b', description: 'Team communication', category: 'productivity' },
+    fitbit: { name: 'Fitbit', icon: '⌚', color: '#00b0b9', description: 'Fitness tracking', category: 'health' },
+    strava: { name: 'Strava', icon: '🚴', color: '#fc4c02', description: 'Activity tracking', category: 'health' },
+    stripe: { name: 'Stripe', icon: '💳', color: '#635bff', description: 'Payments', category: 'finance' },
+};
 
 export const PLATFORM_CATEGORIES = {
     'E-commerce': ['shopify'],
-    'Email Marketing': ['klaviyo', 'mailchimp'],
-    'Social Media': ['tiktok', 'meta', 'twitter', 'pinterest', 'linkedin'],
-    'Video & Content': ['google', 'spotify'],
-    'Productivity': ['notion', 'slack', 'discord', 'trello', 'asana', 'todoist'],
-    'Fitness & Health': ['fitbit', 'strava', 'withings', 'oura', 'whoop', 'google_fit'],
-    'Finance & Payments': ['stripe', 'paypal', 'quickbooks', 'xero', 'coinbase'],
-    'CRM & Sales': ['hubspot', 'salesforce'],
-    'Other': ['github', 'amazon', 'dropbox', 'zoom', 'calendly']
-};
-
-export const PLATFORM_ICONS: Record<string, string> = {
-    shopify: '🛒',
-    klaviyo: '📧',
-    mailchimp: '🐵',
-    tiktok: '🎵',
-    meta: '📘',
-    google: '🔍',
-    youtube: '📺',
-    twitter: '🐦',
-    pinterest: '📌',
-    linkedin: '💼',
-    spotify: '🎧',
-    notion: '📝',
-    slack: '💬',
-    discord: '🎮',
-    stripe: '💳',
-    paypal: '💰',
-    github: '🐙',
-    trello: '📋',
-    asana: '✅',
-    todoist: '☑️',
-    fitbit: '⌚',
-    strava: '🚴',
-    withings: '⚖️',
-    oura: '💍',
-    whoop: '🏋️',
-    google_fit: '❤️',
-    amazon: '📦',
-    dropbox: '📁',
-    zoom: '📹',
-    calendly: '📅',
-    hubspot: '🧲',
-    salesforce: '☁️',
-    quickbooks: '📊',
-    xero: '📈',
-    coinbase: '₿'
+    'Marketing': ['klaviyo', 'google'],
+    'Social Media': ['tiktok', 'meta', 'twitter', 'spotify', 'discord'],
+    'Productivity': ['notion', 'slack'],
+    'Health & Fitness': ['fitbit', 'strava'],
+    'Developer': ['github'],
+    'Finance': ['stripe']
 };
 
 export default oauthService;

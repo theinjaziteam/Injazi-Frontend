@@ -19,11 +19,10 @@ export interface PlatformInfo {
     category: string;
     icon: string;
     description: string;
-    type: 'oauth' | 'api_key';
+    type: 'oauth' | 'api_key' | 'shopify';
     configured: boolean;
 }
 
-// Category display names and order
 export const CATEGORIES = [
     { id: 'all', name: 'All Apps', icon: '🌐' },
     { id: 'ecommerce', name: 'E-commerce', icon: '🛒' },
@@ -40,7 +39,6 @@ export const CATEGORIES = [
 ];
 
 export const oauthService = {
-    // Get available/configured platforms
     getAvailablePlatforms: async (): Promise<PlatformInfo[]> => {
         try {
             const response = await fetch(`${API_URL}/api/oauth/platforms`);
@@ -52,7 +50,6 @@ export const oauthService = {
         }
     },
 
-    // Get ALL platforms (including unconfigured) - for display purposes
     getAllPlatforms: async (): Promise<PlatformInfo[]> => {
         try {
             const response = await fetch(`${API_URL}/api/oauth/platforms/all`);
@@ -64,14 +61,13 @@ export const oauthService = {
         }
     },
 
-    // Get OAuth URL
-    getAuthUrl: async (platform: string, email: string): Promise<{ success: boolean; url?: string; error?: string; type?: string }> => {
+    getAuthUrl: async (platform: string, email: string): Promise<{ success: boolean; url?: string; error?: string; type?: string; requiresShop?: boolean }> => {
         try {
             const response = await fetch(`${API_URL}/api/oauth/${platform}/url?email=${encodeURIComponent(email)}`);
             const data = await response.json();
             
             if (!response.ok) {
-                return { success: false, error: data.error, type: data.type };
+                return { success: false, error: data.error, type: data.type, requiresShop: data.requiresShop };
             }
             
             return { success: true, url: data.url };
@@ -80,7 +76,6 @@ export const oauthService = {
         }
     },
 
-    // Connect via OAuth
     connect: async (platform: string, email: string): Promise<boolean> => {
         const result = await oauthService.getAuthUrl(platform, email);
         
@@ -101,7 +96,37 @@ export const oauthService = {
         return false;
     },
 
-    // Connect Klaviyo with API keys
+    connectShopify: async (email: string, shopDomain: string): Promise<{ success: boolean; url?: string; error?: string }> => {
+        try {
+            const response = await fetch(
+                `${API_URL}/api/oauth/shopify/url?email=${encodeURIComponent(email)}&shop=${encodeURIComponent(shopDomain)}`
+            );
+            const data = await response.json();
+            
+            if (!response.ok) {
+                return { success: false, error: data.error };
+            }
+            
+            if (data.url) {
+                const width = 600;
+                const height = 700;
+                const left = window.screen.width / 2 - width / 2;
+                const top = window.screen.height / 2 - height / 2;
+                
+                window.open(
+                    data.url,
+                    'Connect Shopify',
+                    `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no`
+                );
+                return { success: true, url: data.url };
+            }
+            
+            return { success: false, error: 'No URL returned' };
+        } catch (error) {
+            return { success: false, error: 'Failed to connect Shopify' };
+        }
+    },
+
     connectKlaviyo: async (email: string, apiKey?: string, publicKey?: string): Promise<{ success: boolean; error?: string; account?: any }> => {
         try {
             const response = await fetch(`${API_URL}/api/oauth/klaviyo/connect`, {
@@ -122,7 +147,6 @@ export const oauthService = {
         }
     },
 
-    // Get connected accounts
     getConnectedAccounts: async (email: string): Promise<ConnectedAccount[]> => {
         try {
             const response = await fetch(`${API_URL}/api/oauth/connected/${encodeURIComponent(email)}`);
@@ -134,14 +158,12 @@ export const oauthService = {
         }
     },
 
-    // Check if connected
     isConnected: async (email: string, platform: string): Promise<boolean> => {
         const accounts = await oauthService.getConnectedAccounts(email);
         const account = accounts.find(a => a.platform === platform);
         return account?.isConnected && !account?.isExpired || false;
     },
 
-    // Disconnect
     disconnect: async (email: string, platform: string): Promise<boolean> => {
         try {
             const response = await fetch(`${API_URL}/api/oauth/disconnect`, {
@@ -156,7 +178,6 @@ export const oauthService = {
         }
     },
 
-    // Refresh token
     refreshToken: async (email: string, platform: string): Promise<boolean> => {
         try {
             const response = await fetch(`${API_URL}/api/oauth/refresh`, {
@@ -171,7 +192,6 @@ export const oauthService = {
         }
     },
 
-    // Handle OAuth callback
     handleCallback: (): { success: boolean; platform?: string; error?: string } | null => {
         const params = new URLSearchParams(window.location.search);
         const oauth = params.get('oauth');

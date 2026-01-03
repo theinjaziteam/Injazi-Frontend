@@ -72,10 +72,10 @@ export default function EcommerceAgentView() {
         }
     }, [user]);
 
-    // Initialize stars
+    // Initialize stars (same as ChatView - 200 stars)
     useEffect(() => {
         if (starsRef.current.length === 0) {
-            starsRef.current = Array.from({ length: 150 }, () => ({
+            starsRef.current = Array.from({ length: 200 }, () => ({
                 x: Math.random() * 2 - 1,
                 y: Math.random() * 2 - 1,
                 z: Math.random(),
@@ -127,7 +127,7 @@ export default function EcommerceAgentView() {
         window.addEventListener('resize', resize);
 
         if (starsRef.current.length === 0) {
-            starsRef.current = Array.from({ length: 150 }, () => ({
+            starsRef.current = Array.from({ length: 200 }, () => ({
                 x: Math.random() * 2 - 1,
                 y: Math.random() * 2 - 1,
                 z: Math.random(),
@@ -160,26 +160,22 @@ export default function EcommerceAgentView() {
             
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
             
-            // Gradient background
-            const gradient = ctx.createLinearGradient(0, 0, 0, h);
-            gradient.addColorStop(0, '#000000');
-            gradient.addColorStop(0.5, '#0a0a15');
-            gradient.addColorStop(1, '#000000');
-            ctx.fillStyle = gradient;
+            // Black background (same as ChatView)
+            ctx.fillStyle = '#000000';
             ctx.fillRect(0, 0, w, h);
 
-            // Draw stars with twinkling effect
+            // Draw stars with twinkling effect (same as ChatView)
             starsRef.current.forEach(star => {
                 const twinkle = 0.3 + Math.sin(currentTime * 0.002 + star.brightness * 10) * 0.5;
-                ctx.fillStyle = `rgba(255, 255, 255, ${star.z * twinkle * 0.6})`;
+                ctx.fillStyle = `rgba(255, 255, 255, ${star.z * twinkle * 0.8})`;
                 ctx.beginPath();
-                ctx.arc((star.x + 1) * w / 2, (star.y + 1) * h / 2, star.brightness * 1.2 + 0.3, 0, Math.PI * 2);
+                ctx.arc((star.x + 1) * w / 2, (star.y + 1) * h / 2, star.brightness * 1.5 + 0.5, 0, Math.PI * 2);
                 ctx.fill();
             });
 
-            // Subtle nebula glow
+            // Subtle nebula glow (same as ChatView)
             const nebulaGradient = ctx.createRadialGradient(w * 0.3, h * 0.4, 0, w * 0.3, h * 0.4, w * 0.5);
-            nebulaGradient.addColorStop(0, 'rgba(52, 35, 166, 0.03)');
+            nebulaGradient.addColorStop(0, 'rgba(100, 120, 255, 0.08)');
             nebulaGradient.addColorStop(1, 'transparent');
             ctx.fillStyle = nebulaGradient;
             ctx.fillRect(0, 0, w, h);
@@ -325,7 +321,7 @@ export default function EcommerceAgentView() {
         }
     };
 
-    // Glassy card component
+    // Glassy card component (exact same as ChatView)
     const GlassCard: React.FC<{ children: React.ReactNode; className?: string; style?: React.CSSProperties }> = ({ children, className, style }) => (
         <div 
             className={className}
@@ -356,8 +352,8 @@ export default function EcommerceAgentView() {
                     }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <Icons.AlertCircle style={{ width: 20, height: 20, color: 'rgba(234, 179, 8, 0.8)' }} aria-hidden="true" />
-                                <span style={{ fontSize: '14px', fontWeight: 500, color: 'rgba(234, 179, 8, 0.9)' }}>
+                                <Icons.AlertCircle style={{ width: 20, height: 20, color: 'rgba(255, 255, 255, 0.7)' }} aria-hidden="true" />
+                                <span style={{ fontSize: '14px', fontWeight: 500, color: 'rgba(255, 255, 255, 0.9)' }}>
                                     {pendingActions.length} action{pendingActions.length > 1 ? 's' : ''} pending approval
                                 </span>
                             </div>
@@ -366,7 +362,7 @@ export default function EcommerceAgentView() {
                                 style={{
                                     fontSize: '12px',
                                     fontWeight: 500,
-                                    color: 'rgba(234, 179, 8, 0.8)',
+                                    color: 'rgba(255, 255, 255, 0.7)',
                                     textDecoration: 'underline',
                                     background: 'none',
                                     border: 'none',
@@ -411,21 +407,23 @@ export default function EcommerceAgentView() {
                                         padding: '12px',
                                         fontSize: '13px',
                                         textAlign: 'left',
-                                        background: 'rgba(255, 255, 255, 0.05)',
-                                        backdropFilter: 'blur(8px)',
-                                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                                        background: 'rgba(255, 255, 255, 0.03)',
+                                        backdropFilter: 'blur(12px)',
+                                        WebkitBackdropFilter: 'blur(12px)',
+                                        border: '1px solid rgba(255, 255, 255, 0.08)',
                                         borderRadius: '12px',
-                                        color: 'rgba(255, 255, 255, 0.8)',
+                                        boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+                                        color: 'rgba(255, 255, 255, 0.7)',
                                         cursor: 'pointer',
                                         transition: 'all 0.2s'
                                     }}
                                     onMouseEnter={(e) => {
-                                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-                                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
+                                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
                                     }}
                                     onMouseLeave={(e) => {
-                                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+                                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
                                     }}
                                 >
                                     {prompt}
@@ -441,13 +439,9 @@ export default function EcommerceAgentView() {
                             maxWidth: '85%',
                             padding: '12px 16px',
                             borderRadius: msg.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                            background: msg.role === 'user' 
+                            backgroundColor: msg.role === 'user' 
                                 ? 'rgba(52, 35, 166, 0.8)' 
-                                : 'rgba(255, 255, 255, 0.08)',
-                            backdropFilter: 'blur(8px)',
-                            border: msg.role === 'user' 
-                                ? '1px solid rgba(52, 35, 166, 0.5)' 
-                                : '1px solid rgba(255, 255, 255, 0.1)',
+                                : 'rgba(255,255,255,0.1)',
                             color: '#fff'
                         }}>
                             <p style={{ fontSize: '14px', whiteSpace: 'pre-wrap', wordBreak: 'break-word', margin: 0 }}>{msg.content}</p>
@@ -464,12 +458,23 @@ export default function EcommerceAgentView() {
                                                 textAlign: 'left',
                                                 padding: '8px',
                                                 marginBottom: '4px',
-                                                background: 'rgba(255, 255, 255, 0.05)',
+                                                background: 'rgba(255, 255, 255, 0.03)',
+                                                backdropFilter: 'blur(12px)',
+                                                WebkitBackdropFilter: 'blur(12px)',
+                                                border: '1px solid rgba(255, 255, 255, 0.08)',
                                                 borderRadius: '8px',
                                                 fontSize: '12px',
-                                                border: 'none',
-                                                color: '#fff',
-                                                cursor: 'pointer'
+                                                color: 'rgba(255, 255, 255, 0.7)',
+                                                cursor: 'pointer',
+                                                transition: 'all 0.2s'
+                                            }}
+                                            onMouseEnter={(e) => {
+                                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
+                                                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+                                                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
                                             }}
                                         >
                                             <span style={{ fontWeight: 500 }}>{suggestion.title}</span>
@@ -496,17 +501,16 @@ export default function EcommerceAgentView() {
                 ))}
                 
                 {isLoading && (
-                    <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '12px' }}>
                         <div style={{
                             padding: '12px 16px',
                             borderRadius: '16px 16px 16px 4px',
-                            background: 'rgba(255, 255, 255, 0.08)',
-                            border: '1px solid rgba(255, 255, 255, 0.1)'
+                            backgroundColor: 'rgba(255,255,255,0.1)'
                         }}>
-                            <div style={{ display: 'flex', gap: '4px' }} aria-label="Loading response">
-                                <div style={{ width: 8, height: 8, background: 'rgba(255, 255, 255, 0.4)', borderRadius: '50%', animation: 'bounce 1s infinite' }} />
-                                <div style={{ width: 8, height: 8, background: 'rgba(255, 255, 255, 0.4)', borderRadius: '50%', animation: 'bounce 1s infinite 0.15s' }} />
-                                <div style={{ width: 8, height: 8, background: 'rgba(255, 255, 255, 0.4)', borderRadius: '50%', animation: 'bounce 1s infinite 0.3s' }} />
+                            <div className="loading-dots" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                                <span></span>
+                                <span></span>
+                                <span></span>
                             </div>
                         </div>
                     </div>
@@ -516,18 +520,18 @@ export default function EcommerceAgentView() {
             
             {/* Chat Input */}
             <div style={{ 
-                padding: '16px', 
-                borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-                paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))'
+                padding: '12px 16px', 
+                borderTop: '1px solid rgba(255,255,255,0.1)',
+                paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))'
             }}>
                 <div style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: '12px',
-                    background: 'rgba(255, 255, 255, 0.08)',
+                    backgroundColor: 'rgba(255,255,255,0.08)',
                     borderRadius: '24px',
                     padding: '8px 16px',
-                    border: isInputFocused ? '2px solid rgba(255, 255, 255, 0.3)' : '2px solid transparent',
+                    border: isInputFocused ? '2px solid rgba(255,255,255,0.3)' : '2px solid transparent',
                     transition: 'border-color 0.2s'
                 }}>
                     <input
@@ -542,11 +546,11 @@ export default function EcommerceAgentView() {
                         aria-label="Chat message input"
                         style={{
                             flex: 1,
-                            background: 'transparent',
+                            backgroundColor: 'transparent',
                             border: 'none',
                             outline: 'none',
-                            color: '#fff',
-                            fontSize: '16px'
+                            color: '#FFFFFF',
+                            fontSize: '14px'
                         }}
                     />
                     <button
@@ -584,13 +588,19 @@ export default function EcommerceAgentView() {
                     style={{
                         width: '100%',
                         padding: '12px 16px',
-                        background: 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        backgroundColor: 'rgba(255,255,255,0.1)',
+                        border: '1px solid rgba(255,255,255,0.1)',
                         borderRadius: '12px',
                         color: '#fff',
                         fontSize: '14px',
                         resize: 'none',
                         outline: 'none'
+                    }}
+                    onFocus={(e) => {
+                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)';
+                    }}
+                    onBlur={(e) => {
+                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
                     }}
                 />
                 <button
@@ -675,12 +685,26 @@ export default function EcommerceAgentView() {
                             fontSize: '13px',
                             fontWeight: 500,
                             textTransform: 'capitalize',
-                            border: 'none',
+                            border: analyticsPeriod !== period ? '1px solid rgba(255, 255, 255, 0.08)' : 'none',
                             cursor: 'pointer',
                             transition: 'all 0.2s',
-                            background: analyticsPeriod === period ? '#3423A6' : 'rgba(255, 255, 255, 0.08)',
-                            color: analyticsPeriod === period ? '#fff' : 'rgba(255, 255, 255, 0.6)',
-                            boxShadow: analyticsPeriod === period ? '0 4px 12px rgba(52, 35, 166, 0.4)' : 'none'
+                            background: analyticsPeriod === period ? '#3423A6' : 'rgba(255, 255, 255, 0.03)',
+                            backdropFilter: analyticsPeriod !== period ? 'blur(12px)' : 'none',
+                            WebkitBackdropFilter: analyticsPeriod !== period ? 'blur(12px)' : 'none',
+                            boxShadow: analyticsPeriod !== period ? 'inset 0 1px 0 rgba(255, 255, 255, 0.05)' : '0 4px 12px rgba(52, 35, 166, 0.4)',
+                            color: analyticsPeriod === period ? '#fff' : 'rgba(255, 255, 255, 0.7)'
+                        }}
+                        onMouseEnter={(e) => {
+                            if (analyticsPeriod !== period) {
+                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
+                                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+                            }
+                        }}
+                        onMouseLeave={(e) => {
+                            if (analyticsPeriod !== period) {
+                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+                                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                            }
                         }}
                     >
                         {period}
@@ -690,7 +714,7 @@ export default function EcommerceAgentView() {
 
             {isLoading ? (
                 <div style={{ textAlign: 'center', padding: '48px 0' }}>
-                    <Icons.RefreshCw style={{ width: 32, height: 32, color: '#3423A6', animation: 'spin 1s linear infinite', margin: '0 auto 12px' }} aria-hidden="true" />
+                    <Icons.RefreshCw style={{ width: 32, height: 32, color: 'rgba(255, 255, 255, 0.7)', animation: 'spin 1s linear infinite', margin: '0 auto 12px' }} aria-hidden="true" />
                     <p style={{ color: 'rgba(255, 255, 255, 0.5)' }}>Loading analytics...</p>
                 </div>
             ) : analytics ? (
@@ -708,7 +732,7 @@ export default function EcommerceAgentView() {
                                     <span style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.5)' }}>{kpi.title}</span>
                                     <kpi.icon style={{ width: 16, height: 16, color: 'rgba(255, 255, 255, 0.4)' }} />
                                 </div>
-                                <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#fff', marginBottom: '4px' }}>{kpi.value}</div>
+                                <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'rgba(255, 255, 255, 0.9)', marginBottom: '4px' }}>{kpi.value}</div>
                                 <div style={{ 
                                     fontSize: '12px', 
                                     color: kpi.trend === 'up' ? 'rgba(34, 197, 94, 0.9)' : 'rgba(239, 68, 68, 0.9)',
@@ -803,10 +827,12 @@ export default function EcommerceAgentView() {
                             disabled={isLoading}
                             style={{
                                 padding: '16px',
-                                background: 'rgba(255, 255, 255, 0.05)',
-                                backdropFilter: 'blur(8px)',
-                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                background: 'rgba(255, 255, 255, 0.03)',
+                                backdropFilter: 'blur(12px)',
+                                WebkitBackdropFilter: 'blur(12px)',
+                                border: '1px solid rgba(255, 255, 255, 0.08)',
                                 borderRadius: '12px',
+                                boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.05)',
                                 display: 'flex',
                                 flexDirection: 'column',
                                 alignItems: 'center',
@@ -816,16 +842,16 @@ export default function EcommerceAgentView() {
                             }}
                             aria-label={`Create ${label} email campaign`}
                             onMouseEnter={(e) => {
-                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-                                e.currentTarget.style.borderColor = 'rgba(52, 35, 166, 0.5)';
+                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
+                                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
                             }}
                             onMouseLeave={(e) => {
-                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+                                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
                             }}
                         >
-                            <Icon style={{ width: 24, height: 24, color: 'rgba(52, 35, 166, 0.8)' }} aria-hidden="true" />
-                            <span style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255, 255, 255, 0.8)' }}>{label}</span>
+                            <Icon style={{ width: 24, height: 24, color: 'rgba(255, 255, 255, 0.7)' }} aria-hidden="true" />
+                            <span style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255, 255, 255, 0.7)' }}>{label}</span>
                         </button>
                     ))}
                 </div>
@@ -875,24 +901,26 @@ export default function EcommerceAgentView() {
                             disabled={isLoading}
                             style={{
                                 padding: '16px',
-                                background: 'rgba(255, 255, 255, 0.05)',
-                                backdropFilter: 'blur(8px)',
-                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                background: 'rgba(255, 255, 255, 0.03)',
+                                backdropFilter: 'blur(12px)',
+                                WebkitBackdropFilter: 'blur(12px)',
+                                border: '1px solid rgba(255, 255, 255, 0.08)',
                                 borderRadius: '12px',
+                                boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.05)',
                                 cursor: 'pointer',
                                 transition: 'all 0.2s'
                             }}
                             aria-label={`Create ${label} content`}
                             onMouseEnter={(e) => {
-                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-                                e.currentTarget.style.borderColor = 'rgba(52, 35, 166, 0.5)';
+                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
+                                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
                             }}
                             onMouseLeave={(e) => {
-                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+                                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
                             }}
                         >
-                            <span style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255, 255, 255, 0.8)' }}>{label}</span>
+                            <span style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255, 255, 255, 0.7)' }}>{label}</span>
                         </button>
                     ))}
                 </div>
@@ -1021,35 +1049,33 @@ export default function EcommerceAgentView() {
             <div style={{ 
                 position: 'relative',
                 zIndex: 10,
-                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                borderBottom: '1px solid rgba(255,255,255,0.1)',
                 padding: '12px 16px',
                 paddingTop: 'calc(12px + env(safe-area-inset-top, 0px))',
-                background: 'rgba(0, 0, 0, 0.5)',
-                backdropFilter: 'blur(12px)',
-                WebkitBackdropFilter: 'blur(12px)'
+                background: 'transparent'
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
                     <button 
                         onClick={() => setView(AppView.CHAT)}
                         style={{
                             padding: '8px',
+                            color: 'rgba(255,255,255,0.5)',
                             background: 'none',
                             border: 'none',
-                            cursor: 'pointer',
-                            color: 'rgba(255, 255, 255, 0.5)'
+                            cursor: 'pointer'
                         }}
                         aria-label="Back to chat"
                     >
                         <Icons.ArrowLeft style={{ width: 20, height: 20 }} />
                     </button>
-                    <h1 style={{ fontWeight: 'bold', fontSize: '18px', color: '#fff' }}>Growth Assistant</h1>
+                    <h1 style={{ fontWeight: 'bold', fontSize: '18px', color: '#fff', margin: 0 }}>Growth Assistant</h1>
                     <button 
                         style={{
                             padding: '8px',
+                            color: 'rgba(255,255,255,0.5)',
                             background: 'none',
                             border: 'none',
-                            cursor: 'pointer',
-                            color: 'rgba(255, 255, 255, 0.5)'
+                            cursor: 'pointer'
                         }}
                         aria-label="Notifications"
                     >
@@ -1086,28 +1112,40 @@ export default function EcommerceAgentView() {
                             role="tab"
                             aria-selected={activeTab === id}
                             aria-controls={`${id}-panel`}
-                            style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                padding: '8px 12px',
-                                borderRadius: '12px',
-                                fontSize: '13px',
-                                fontWeight: 500,
-                                whiteSpace: 'nowrap',
-                                border: 'none',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s',
-                                background: activeTab === id 
-                                    ? '#3423A6' 
-                                    : 'rgba(255, 255, 255, 0.08)',
-                                color: activeTab === id 
-                                    ? '#fff' 
-                                    : 'rgba(255, 255, 255, 0.6)',
-                                boxShadow: activeTab === id 
-                                    ? '0 4px 12px rgba(52, 35, 166, 0.4), 0 0 0 2px rgba(52, 35, 166, 0.3)' 
-                                    : 'none'
-                            }}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '8px 12px',
+                            borderRadius: '12px',
+                            fontSize: '13px',
+                            fontWeight: 500,
+                            whiteSpace: 'nowrap',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            background: activeTab === id 
+                                ? '#3423A6' 
+                                : 'rgba(255, 255, 255, 0.03)',
+                            backdropFilter: activeTab !== id ? 'blur(12px)' : 'none',
+                            WebkitBackdropFilter: activeTab !== id ? 'blur(12px)' : 'none',
+                            border: activeTab !== id ? '1px solid rgba(255, 255, 255, 0.08)' : 'none',
+                            boxShadow: activeTab !== id ? 'inset 0 1px 0 rgba(255, 255, 255, 0.05)' : '0 4px 12px rgba(52, 35, 166, 0.4)',
+                            color: activeTab === id 
+                                ? '#fff' 
+                                : 'rgba(255, 255, 255, 0.7)'
+                        }}
+                        onMouseEnter={(e) => {
+                            if (activeTab !== id) {
+                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
+                                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+                            }
+                        }}
+                        onMouseLeave={(e) => {
+                            if (activeTab !== id) {
+                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+                                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                            }
+                        }}
                         >
                             <Icon style={{ width: 16, height: 16 }} aria-hidden="true" />
                             {label}
@@ -1145,6 +1183,23 @@ export default function EcommerceAgentView() {
                 @keyframes spin {
                     from { transform: rotate(0deg); }
                     to { transform: rotate(360deg); }
+                }
+                .loading-dots {
+                    display: flex;
+                    gap: 4px;
+                }
+                .loading-dots span {
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 50%;
+                    background: currentColor;
+                    animation: bounce 1s infinite;
+                }
+                .loading-dots span:nth-child(2) {
+                    animation-delay: 0.15s;
+                }
+                .loading-dots span:nth-child(3) {
+                    animation-delay: 0.3s;
                 }
             `}</style>
         </div>

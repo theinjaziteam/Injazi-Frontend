@@ -5,7 +5,7 @@ import { AppView } from '../types';
 import { Icons, Card, CoinIcon } from '../components/UIComponents';
 import { calculateBudgetSplit, generateDeepInsights } from '../services/geminiService';
 import BridgeHub from '../components/BridgeHub';
-import { oauthService, ConnectedAccount, PlatformInfo, CATEGORIES } from '../services/oauthService';
+import { oauthService, ConnectedAccount } from '../services/oauthService';
 
 interface CalendarEvent {
     id: string;
@@ -27,27 +27,40 @@ interface Alert {
     actionView?: AppView;
 }
 
-// Platform icon mapping
-const PLATFORM_ICONS: Record<string, { icon: string; color: string; bgColor: string }> = {
-    discord: { icon: '🎮', color: '#5865F2', bgColor: 'rgba(88, 101, 242, 0.15)' },
-    slack: { icon: '💬', color: '#4A154B', bgColor: 'rgba(74, 21, 75, 0.15)' },
-    github: { icon: '🐙', color: '#24292F', bgColor: 'rgba(36, 41, 47, 0.15)' },
-    google: { icon: '🔍', color: '#4285F4', bgColor: 'rgba(66, 133, 244, 0.15)' },
-    spotify: { icon: '🎵', color: '#1DB954', bgColor: 'rgba(29, 185, 84, 0.15)' },
-    twitter: { icon: '🐦', color: '#1DA1F2', bgColor: 'rgba(29, 161, 242, 0.15)' },
-    linkedin: { icon: '💼', color: '#0A66C2', bgColor: 'rgba(10, 102, 194, 0.15)' },
-    shopify: { icon: '🛒', color: '#96BF48', bgColor: 'rgba(150, 191, 72, 0.15)' },
-    mailchimp: { icon: '📧', color: '#FFE01B', bgColor: 'rgba(255, 224, 27, 0.15)' },
-    klaviyo: { icon: '📊', color: '#000000', bgColor: 'rgba(100, 100, 100, 0.15)' },
-    notion: { icon: '📝', color: '#000000', bgColor: 'rgba(100, 100, 100, 0.15)' },
-    airtable: { icon: '📋', color: '#18BFFF', bgColor: 'rgba(24, 191, 255, 0.15)' },
-    stripe: { icon: '💳', color: '#635BFF', bgColor: 'rgba(99, 91, 255, 0.15)' },
-    tiktok: { icon: '🎬', color: '#000000', bgColor: 'rgba(100, 100, 100, 0.15)' },
-    instagram: { icon: '📷', color: '#E4405F', bgColor: 'rgba(228, 64, 95, 0.15)' },
-    facebook: { icon: '👤', color: '#1877F2', bgColor: 'rgba(24, 119, 242, 0.15)' },
-    youtube: { icon: '▶️', color: '#FF0000', bgColor: 'rgba(255, 0, 0, 0.15)' },
-    twitch: { icon: '🎮', color: '#9146FF', bgColor: 'rgba(145, 70, 255, 0.15)' },
-    default: { icon: '🔗', color: '#6B7280', bgColor: 'rgba(107, 114, 128, 0.15)' }
+// SVG Icons for Connected Apps
+const AppIcons = {
+    Shopify: (props: any) => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <path d="M16 10a4 4 0 0 1-8 0"/>
+        </svg>
+    ),
+    TikTok: (props: any) => (
+        <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+            <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+        </svg>
+    ),
+    Instagram: (props: any) => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+            <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+            <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+        </svg>
+    ),
+    Google: (props: any) => (
+        <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+        </svg>
+    ),
+    Meta: (props: any) => (
+        <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+            <path d="M12 2.04c-5.5 0-10 4.49-10 10.02 0 5 3.66 9.15 8.44 9.9v-7H7.9v-2.9h2.54V9.85c0-2.51 1.49-3.89 3.78-3.89 1.09 0 2.23.19 2.23.19v2.47h-1.26c-1.24 0-1.63.77-1.63 1.56v1.88h2.78l-.45 2.9h-2.33v7a10 10 0 0 0 8.44-9.9c0-5.53-4.5-10.02-10-10.02z"/>
+        </svg>
+    )
 };
 
 export default function StatsView() {
@@ -65,11 +78,8 @@ export default function StatsView() {
     // Bridge Hub state
     const [showBridgeHub, setShowBridgeHub] = useState(false);
     
-    // Connected accounts state from OAuth service
+    // Connected accounts state
     const [connectedAccounts, setConnectedAccounts] = useState<ConnectedAccount[]>([]);
-    const [allPlatforms, setAllPlatforms] = useState<PlatformInfo[]>([]);
-    const [isLoadingAccounts, setIsLoadingAccounts] = useState(true);
-    const [refreshingPlatform, setRefreshingPlatform] = useState<string | null>(null);
     
     // Calendar states
     const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -79,179 +89,16 @@ export default function StatsView() {
     const [newEvent, setNewEvent] = useState({ title: '', description: '' });
     const [showDayEvents, setShowDayEvents] = useState(false);
     
-    // Calendar refs
+    // FIX #19: Improved scrollable calendar refs
     const calendarStripRef = useRef<HTMLDivElement>(null);
     const [calendarDays, setCalendarDays] = useState<Date[]>([]);
     const isScrollingRef = useRef(false);
     const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const isUserScrollingRef = useRef(false);
 
-    // Touch support refs
+    // FIX #20: Track hovered/touched point for charts
+    const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
     const touchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-    // Stars animation
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const animationRef = useRef<number | null>(null);
-    const starsRef = useRef<{ x: number; y: number; z: number; brightness: number }[]>([]);
-    const isAnimatingRef = useRef(true);
-
-    // Load connected accounts from OAuth service
-    useEffect(() => {
-        const loadConnectedAccounts = async () => {
-            if (!user?.email) {
-                setIsLoadingAccounts(false);
-                return;
-            }
-            
-            try {
-                setIsLoadingAccounts(true);
-                const [accountsRes, platformsRes] = await Promise.all([
-                    oauthService.getConnectedAccounts(user.email),
-                    oauthService.getAllPlatforms()
-                ]);
-                
-                if (accountsRes.success && accountsRes.accounts) {
-                    setConnectedAccounts(accountsRes.accounts);
-                }
-                if (platformsRes.success && platformsRes.platforms) {
-                    setAllPlatforms(platformsRes.platforms);
-                }
-            } catch (error) {
-                console.error('Failed to load connected accounts:', error);
-            } finally {
-                setIsLoadingAccounts(false);
-            }
-        };
-
-        loadConnectedAccounts();
-    }, [user?.email]);
-
-    // Initialize stars
-    useEffect(() => {
-        if (starsRef.current.length === 0) {
-            starsRef.current = Array.from({ length: 120 }, () => ({
-                x: Math.random() * 2 - 1,
-                y: Math.random() * 2 - 1,
-                z: Math.random(),
-                brightness: Math.random()
-            }));
-        }
-    }, []);
-
-    // Pause animation when tab is not visible
-    useEffect(() => {
-        const handleVisibilityChange = () => {
-            if (document.hidden) {
-                isAnimatingRef.current = false;
-                if (animationRef.current) {
-                    cancelAnimationFrame(animationRef.current);
-                    animationRef.current = null;
-                }
-            } else {
-                isAnimatingRef.current = true;
-            }
-        };
-        
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-    }, []);
-
-    // Stars canvas animation
-    useEffect(() => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-
-        let width = 0;
-        let height = 0;
-        let isRunning = true;
-
-        const resize = () => {
-            const rect = canvas.getBoundingClientRect();
-            const dpr = Math.min(window.devicePixelRatio || 1, 2);
-            width = rect.width * dpr;
-            height = rect.height * dpr;
-            canvas.width = width;
-            canvas.height = height;
-        };
-        
-        resize();
-        window.addEventListener('resize', resize);
-
-        if (starsRef.current.length === 0) {
-            starsRef.current = Array.from({ length: 120 }, () => ({
-                x: Math.random() * 2 - 1,
-                y: Math.random() * 2 - 1,
-                z: Math.random(),
-                brightness: Math.random()
-            }));
-        }
-
-        let lastFrameTime = 0;
-        const targetFPS = 30;
-        const frameInterval = 1000 / targetFPS;
-
-        const drawStars = (currentTime: number) => {
-            if (!isRunning || !isAnimatingRef.current) return;
-            
-            const elapsed = currentTime - lastFrameTime;
-            if (elapsed < frameInterval) {
-                animationRef.current = requestAnimationFrame(drawStars);
-                return;
-            }
-            lastFrameTime = currentTime - (elapsed % frameInterval);
-            
-            const dpr = Math.min(window.devicePixelRatio || 1, 2);
-            const w = width / dpr;
-            const h = height / dpr;
-            
-            if (w === 0 || h === 0) {
-                animationRef.current = requestAnimationFrame(drawStars);
-                return;
-            }
-            
-            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-            
-            // Gradient background
-            const gradient = ctx.createLinearGradient(0, 0, 0, h);
-            gradient.addColorStop(0, '#000000');
-            gradient.addColorStop(0.5, '#0a0a15');
-            gradient.addColorStop(1, '#000000');
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, w, h);
-
-            // Draw stars with twinkling effect
-            starsRef.current.forEach(star => {
-                const twinkle = 0.3 + Math.sin(currentTime * 0.002 + star.brightness * 10) * 0.5;
-                ctx.fillStyle = `rgba(255, 255, 255, ${star.z * twinkle * 0.6})`;
-                ctx.beginPath();
-                ctx.arc((star.x + 1) * w / 2, (star.y + 1) * h / 2, star.brightness * 1.2 + 0.3, 0, Math.PI * 2);
-                ctx.fill();
-            });
-
-            // Subtle nebula glow
-            const nebulaGradient = ctx.createRadialGradient(w * 0.3, h * 0.4, 0, w * 0.3, h * 0.4, w * 0.5);
-            nebulaGradient.addColorStop(0, 'rgba(52, 35, 166, 0.03)');
-            nebulaGradient.addColorStop(1, 'transparent');
-            ctx.fillStyle = nebulaGradient;
-            ctx.fillRect(0, 0, w, h);
-
-            animationRef.current = requestAnimationFrame(drawStars);
-        };
-
-        animationRef.current = requestAnimationFrame(drawStars);
-
-        return () => {
-            isRunning = false;
-            window.removeEventListener('resize', resize);
-            if (animationRef.current) {
-                cancelAnimationFrame(animationRef.current);
-                animationRef.current = null;
-            }
-        };
-    }, []);
 
     // Generate calendar days centered on selected date
     useEffect(() => {
@@ -272,11 +119,11 @@ export default function StatsView() {
         setCalendarDays(days);
     }, [viewMode]);
 
-    // Scroll to selected date when it changes
+    // Scroll to selected date when it changes (from click)
     useEffect(() => {
         if (calendarStripRef.current && !isScrollingRef.current && !isUserScrollingRef.current) {
             const container = calendarStripRef.current;
-            const itemWidth = 52;
+            const itemWidth = 52; // width + gap
             
             const selectedIndex = calendarDays.findIndex(d => 
                 d.toDateString() === new Date(selectedDate).toDateString()
@@ -303,7 +150,7 @@ export default function StatsView() {
         }
     }, [calendarDays.length]);
 
-    // Scroll handler with debouncing
+    // FIX #19: Improved scroll handler with debouncing
     const handleCalendarScroll = useCallback(() => {
         if (!calendarStripRef.current) return;
         
@@ -314,6 +161,7 @@ export default function StatsView() {
             clearTimeout(scrollTimeoutRef.current);
         }
         
+        // FIX #19: Increased debounce timeout for smoother experience
         scrollTimeoutRef.current = setTimeout(() => {
             if (!calendarStripRef.current) return;
             
@@ -325,10 +173,12 @@ export default function StatsView() {
             if (calendarDays[nearestIndex]) {
                 const newDate = calendarDays[nearestIndex];
                 
+                // Use requestAnimationFrame for smoother updates
                 requestAnimationFrame(() => {
                     setSelectedDate(newDate.getTime());
                     setCurrentMonth(newDate);
                     
+                    // Smooth snap to center
                     const snapPosition = nearestIndex * itemWidth - container.clientWidth / 2 + itemWidth / 2;
                     container.scrollTo({ left: snapPosition, behavior: 'smooth' });
                 });
@@ -336,6 +186,7 @@ export default function StatsView() {
             
             isScrollingRef.current = false;
             
+            // Reset user scrolling flag after a delay
             setTimeout(() => {
                 isUserScrollingRef.current = false;
             }, 300);
@@ -382,6 +233,21 @@ export default function StatsView() {
             } catch (e) {}
         }
     }, []);
+
+    // Load connected accounts
+    useEffect(() => {
+        const loadConnectedAccounts = async () => {
+            if (user?.email) {
+                try {
+                    const accounts = await oauthService.getConnectedAccounts(user.email);
+                    setConnectedAccounts(accounts);
+                } catch (error) {
+                    console.error('Error loading connected accounts:', error);
+                }
+            }
+        };
+        loadConnectedAccounts();
+    }, [user?.email]);
 
     // Save calendar events
     useEffect(() => {
@@ -723,69 +589,94 @@ export default function StatsView() {
         setCalendarEvents(prev => prev.filter(e => e.id !== eventId));
     };
 
-    // Handle disconnect
-    const handleDisconnect = async (platformId: string) => {
-        if (!user?.email) return;
-        
-        try {
-            const result = await oauthService.disconnect(user.email, platformId);
-            if (result.success) {
-                setConnectedAccounts(prev => prev.filter(a => a.platform !== platformId));
+    // Connected apps data
+    const connectedAppsData = useMemo(() => {
+        const defaultApps = [
+            {
+                id: 'shopify',
+                name: 'Shopify',
+                Icon: AppIcons.Shopify,
+                isConnected: false,
+                color: '#96BF48',
+                accountName: null,
+                metrics: [
+                    { id: 'revenue', name: 'Revenue', value: 0, unit: '$', change: 0, history: [0, 0, 0, 0, 0, 0, 0] },
+                    { id: 'orders', name: 'Orders', value: 0, unit: '', change: 0, history: [0, 0, 0, 0, 0, 0, 0] }
+                ]
+            },
+            {
+                id: 'tiktok',
+                name: 'TikTok',
+                Icon: AppIcons.TikTok,
+                isConnected: false,
+                color: '#000000',
+                accountName: null,
+                metrics: [
+                    { id: 'views', name: 'Views', value: 0, unit: '', change: 0, history: [0, 0, 0, 0, 0, 0, 0] },
+                    { id: 'followers', name: 'Followers', value: 0, unit: '', change: 0, history: [0, 0, 0, 0, 0, 0, 0] }
+                ]
+            },
+            {
+                id: 'instagram',
+                name: 'Instagram',
+                Icon: AppIcons.Instagram,
+                isConnected: false,
+                color: '#E1306C',
+                accountName: null,
+                metrics: [
+                    { id: 'reach', name: 'Reach', value: 0, unit: '', change: 0, history: [0, 0, 0, 0, 0, 0, 0] },
+                    { id: 'engagement', name: 'Engagement', value: 0, unit: '%', change: 0, history: [0, 0, 0, 0, 0, 0, 0] }
+                ]
+            },
+            {
+                id: 'google',
+                name: 'Google Ads',
+                Icon: AppIcons.Google,
+                isConnected: false,
+                color: '#4285F4',
+                accountName: null,
+                metrics: [
+                    { id: 'spend', name: 'Spend', value: 0, unit: '$', change: 0, history: [0, 0, 0, 0, 0, 0, 0] },
+                    { id: 'clicks', name: 'Clicks', value: 0, unit: '', change: 0, history: [0, 0, 0, 0, 0, 0, 0] }
+                ]
+            },
+            {
+                id: 'meta',
+                name: 'Meta',
+                Icon: AppIcons.Meta,
+                isConnected: false,
+                color: '#1877F2',
+                accountName: null,
+                metrics: [
+                    { id: 'reach', name: 'Reach', value: 0, unit: '', change: 0, history: [0, 0, 0, 0, 0, 0, 0] },
+                    { id: 'engagement', name: 'Engagement', value: 0, unit: '%', change: 0, history: [0, 0, 0, 0, 0, 0, 0] }
+                ]
             }
-        } catch (error) {
-            console.error('Failed to disconnect:', error);
-        }
-    };
+        ];
 
-    // Handle refresh token
-    const handleRefreshToken = async (platformId: string) => {
-        if (!user?.email) return;
-        
-        setRefreshingPlatform(platformId);
-        try {
-            const result = await oauthService.refreshToken(user.email, platformId);
-            if (result.success) {
-                const accountsRes = await oauthService.getConnectedAccounts(user.email);
-                if (accountsRes.success && accountsRes.accounts) {
-                    setConnectedAccounts(accountsRes.accounts);
-                }
+        return defaultApps.map(defaultApp => {
+            const connectedAccount = connectedAccounts.find(
+                acc => acc.platform === defaultApp.id && acc.isConnected && !acc.isExpired
+            );
+            
+            if (connectedAccount) {
+                return { 
+                    ...defaultApp, 
+                    isConnected: true,
+                    accountName: connectedAccount.platformUsername || connectedAccount.platformEmail || null
+                };
             }
-        } catch (error) {
-            console.error('Failed to refresh token:', error);
-        } finally {
-            setRefreshingPlatform(null);
-        }
-    };
+            return defaultApp;
+        });
+    }, [connectedAccounts]);
 
-    // Get platform info
-    const getPlatformInfo = (platformId: string): PlatformInfo | undefined => {
-        return allPlatforms.find(p => p.id === platformId);
-    };
-
-    // Glassy card component
-    const GlassCard: React.FC<{ children: React.ReactNode; className?: string; style?: React.CSSProperties }> = ({ children, className, style }) => (
-        <div 
-            className={className}
-            style={{
-                background: 'rgba(255, 255, 255, 0.03)',
-                backdropFilter: 'blur(12px)',
-                WebkitBackdropFilter: 'blur(12px)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '16px',
-                boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.05)',
-                ...style
-            }}
-        >
-            {children}
-        </div>
-    );
-
-    // LineChart with touch support
-    const LineChart = ({ data, color = "#3423A6", height = 100, labels = [] }: { 
+    // FIX #20: LineChart with touch support
+    const LineChart = ({ data, color = "#4F46E5", height = 100, labels = [] }: { 
         data: number[], color?: string, height?: number, labels?: string[]
     }) => {
         const [localHovered, setLocalHovered] = useState<number | null>(null);
         
+        // FIX #20: Handle touch events
         const handleTouchStart = (index: number) => {
             setLocalHovered(index);
             if (touchTimeoutRef.current) clearTimeout(touchTimeoutRef.current);
@@ -799,7 +690,7 @@ export default function StatsView() {
         
         if (!data || data.length === 0) {
             return (
-                <div className="flex items-center justify-center text-white/40 text-sm" style={{ height }}>
+                <div className="flex items-center justify-center text-gray-400 text-sm" style={{ height }}>
                     No data
                 </div>
             );
@@ -824,7 +715,7 @@ export default function StatsView() {
                 <svg viewBox={`0 0 ${width} ${chartHeight}`} className="w-full" style={{ height }} preserveAspectRatio="none">
                     <defs>
                         <linearGradient id={`gradient-${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor={color} stopOpacity="0.3" />
+                            <stop offset="0%" stopColor={color} stopOpacity="0.15" />
                             <stop offset="100%" stopColor={color} stopOpacity="0.02" />
                         </linearGradient>
                     </defs>
@@ -832,6 +723,7 @@ export default function StatsView() {
                     <path d={linePath} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                     {points.map((point, i) => (
                         <g key={i}>
+                            {/* FIX #20: Larger touch target */}
                             <circle 
                                 cx={point.x} 
                                 cy={point.y} 
@@ -847,7 +739,7 @@ export default function StatsView() {
                                 cx={point.x} 
                                 cy={point.y} 
                                 r={localHovered === i ? 6 : 4} 
-                                fill="#000" 
+                                fill="white" 
                                 stroke={color} 
                                 strokeWidth="2"
                                 className="transition-all pointer-events-none"
@@ -864,7 +756,7 @@ export default function StatsView() {
                 {labels.length > 0 && (
                     <div className="flex justify-between px-2 mt-1">
                         {labels.map((label, i) => (
-                            <span key={i} className="text-[9px] text-white/40">{label}</span>
+                            <span key={i} className="text-[9px] text-gray-400">{label}</span>
                         ))}
                     </div>
                 )}
@@ -872,7 +764,7 @@ export default function StatsView() {
         );
     };
 
-    const MiniSparkline = ({ data, color = "#3423A6", height = 32 }: { data: number[], color?: string, height?: number }) => {
+    const MiniSparkline = ({ data, color = "#4F46E5", height = 32 }: { data: number[], color?: string, height?: number }) => {
         if (!data || data.length === 0) return null;
         const max = Math.max(...data, 1);
         const min = Math.min(...data, 0);
@@ -893,7 +785,60 @@ export default function StatsView() {
         );
     };
 
-    const ProgressRing = ({ progress, size = 80, strokeWidth = 8, color = "#3423A6", label, value }: { 
+    // FIX #20: BarChart with touch support
+    const BarChart = ({ data, height = 120 }: { data: { label: string; value: number; color?: string }[], height?: number }) => {
+        const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+        const max = Math.max(...data.map(d => d.value), 1);
+        
+        const handleTouchStart = (index: number) => {
+            setHoveredIndex(index);
+            if (touchTimeoutRef.current) clearTimeout(touchTimeoutRef.current);
+        };
+        
+        const handleTouchEnd = () => {
+            touchTimeoutRef.current = setTimeout(() => {
+                setHoveredIndex(null);
+            }, 2000);
+        };
+
+        return (
+            <div className="flex items-end justify-between gap-1" style={{ height }}>
+                {data.map((item, i) => {
+                    const barHeight = (item.value / max) * 100;
+                    return (
+                        <div 
+                            key={i} 
+                            className="flex-1 flex flex-col items-center gap-1" 
+                            onMouseEnter={() => setHoveredIndex(i)} 
+                            onMouseLeave={() => setHoveredIndex(null)}
+                            onTouchStart={() => handleTouchStart(i)}
+                            onTouchEnd={handleTouchEnd}
+                        >
+                            <div className="relative w-full flex justify-center">
+                                {hoveredIndex === i && (
+                                    <div className="absolute -top-6 bg-gray-800 text-white text-[10px] px-1.5 py-0.5 rounded z-10">
+                                        {item.value}
+                                    </div>
+                                )}
+                                <div 
+                                    className="w-full max-w-[28px] rounded-t transition-all cursor-pointer"
+                                    style={{ 
+                                        height: `${barHeight}%`, 
+                                        minHeight: 4, 
+                                        backgroundColor: item.color || '#4F46E5', 
+                                        opacity: hoveredIndex === i ? 1 : 0.7 
+                                    }} 
+                                />
+                            </div>
+                            <span className="text-[9px] text-gray-400">{item.label}</span>
+                        </div>
+                    );
+                })}
+            </div>
+        );
+    };
+
+    const ProgressRing = ({ progress, size = 80, strokeWidth = 8, color = "#4F46E5", label, value }: { 
         progress: number, size?: number, strokeWidth?: number, color?: string, label?: string, value?: string | number 
     }) => {
         const radius = (size - strokeWidth) / 2;
@@ -903,7 +848,7 @@ export default function StatsView() {
         return (
             <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
                 <svg className="transform -rotate-90" width={size} height={size}>
-                    <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth={strokeWidth} />
+                    <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#F3F4F6" strokeWidth={strokeWidth} />
                     <circle 
                         cx={size / 2} 
                         cy={size / 2} 
@@ -918,14 +863,14 @@ export default function StatsView() {
                     />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    {value !== undefined && <span className="text-base font-black text-white">{value}</span>}
-                    {label && <span className="text-[9px] text-white/50">{label}</span>}
+                    {value !== undefined && <span className="text-base font-black text-gray-800">{value}</span>}
+                    {label && <span className="text-[9px] text-gray-500">{label}</span>}
                 </div>
             </div>
         );
     };
 
-    // Scrollable Calendar Strip
+    // FIX #19: Scrollable Calendar Strip with improved behavior
     const renderCalendarStrip = () => {
         const isToday = (date: Date) => date.toDateString() === new Date().toDateString();
         const isSelected = (date: Date) => date.toDateString() === new Date(selectedDate).toDateString();
@@ -953,15 +898,15 @@ export default function StatsView() {
                             style={{ scrollSnapAlign: 'center' }}
                             className={`flex flex-col items-center justify-center min-w-[48px] w-12 h-16 rounded-xl transition-all flex-shrink-0 ${
                                 selected 
-                                    ? 'bg-[#3423A6] text-white shadow-lg shadow-[#3423A6]/30' 
+                                    ? 'bg-primary text-white shadow-lg shadow-primary/20' 
                                     : today 
-                                        ? 'bg-[#3423A6]/20 text-[#3423A6] border border-[#3423A6]/30' 
-                                        : 'bg-white/5 text-white/60 border border-white/10 hover:border-white/20'
+                                        ? 'bg-primary/10 text-primary' 
+                                        : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-300'
                             }`}
                             aria-label={`Select ${d.toLocaleDateString()}`}
                             aria-pressed={selected}
                         >
-                            <span className={`text-[9px] font-bold uppercase ${selected ? 'text-white/70' : today ? 'text-[#3423A6]/70' : 'text-white/40'}`}>
+                            <span className={`text-[9px] font-bold uppercase ${selected ? 'text-white/70' : today ? 'text-primary/70' : 'text-gray-400'}`}>
                                 {viewMode === 'monthly' 
                                     ? d.toLocaleDateString('en-US', { month: 'short' }).slice(0, 3) 
                                     : d.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 2)
@@ -981,243 +926,183 @@ export default function StatsView() {
         );
     };
 
-    // Connected account count
-    const connectedCount = connectedAccounts.length;
-    const totalPlatforms = allPlatforms.length;
-    const expiredCount = connectedAccounts.filter(a => 
-        a.tokenExpiry && new Date(a.tokenExpiry) < new Date()
-    ).length;
+    // FIX #22: Connected Apps with horizontal scroll and snap
+    const [selectedAppIndex, setSelectedAppIndex] = useState(0);
+    const connectedApp = connectedAppsData[selectedAppIndex];
 
     return (
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: '#000000' }}>
-            {/* Stars Canvas Background */}
-            <canvas 
-                ref={canvasRef} 
-                style={{ 
-                    position: 'absolute', 
-                    inset: 0, 
-                    width: '100%', 
-                    height: '100%',
-                    pointerEvents: 'none'
-                }}
-                aria-hidden="true"
-            />
-            
-            {/* Header */}
-            <div style={{ 
-                position: 'relative',
-                zIndex: 10,
-                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-                paddingTop: 'calc(12px + env(safe-area-inset-top, 0px))',
-                background: 'rgba(0, 0, 0, 0.5)',
-                backdropFilter: 'blur(12px)',
-                WebkitBackdropFilter: 'blur(12px)'
-            }}>
-                <div style={{ padding: '0 16px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div>
-                        <h1 style={{ fontSize: '20px', fontWeight: 'bold', color: '#fff' }}>Analytics</h1>
-                        <p style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.5)' }}>Track your progress</p>
-                    </div>
-                    <button 
-                        onClick={() => setView(AppView.SETTINGS)}
-                        style={{
-                            padding: '8px',
-                            background: 'rgba(255, 255, 255, 0.08)',
-                            borderRadius: '12px',
-                            border: 'none',
-                            cursor: 'pointer'
-                        }}
-                        aria-label="Open settings"
-                    >
-                        <Icons.Settings style={{ width: 20, height: 20, color: 'rgba(255, 255, 255, 0.6)' }} />
-                    </button>
-                </div>
-                
-                {/* View Mode Toggle */}
-                <div style={{ padding: '0 16px 12px', display: 'flex', gap: '8px' }}>
-                    {(['daily', 'weekly', 'monthly'] as const).map((mode) => (
-                        <button
-                            key={mode}
-                            onClick={() => setViewMode(mode)}
-                            style={{
-                                flex: 1,
-                                padding: '10px',
-                                borderRadius: '12px',
-                                fontSize: '13px',
-                                fontWeight: 600,
-                                border: 'none',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s',
-                                background: viewMode === mode ? '#3423A6' : 'rgba(255, 255, 255, 0.08)',
-                                color: viewMode === mode ? '#fff' : 'rgba(255, 255, 255, 0.6)',
-                                boxShadow: viewMode === mode ? '0 4px 12px rgba(52, 35, 166, 0.4)' : 'none'
-                            }}
-                            aria-pressed={viewMode === mode}
+        <div className="h-full overflow-y-auto bg-gray-50" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <div className="min-h-full pb-24">
+                {/* Header */}
+                <div className="bg-white border-b border-gray-100 sticky top-0 z-20">
+                    <div className="p-4 flex items-center justify-between">
+                        <div>
+                            <h1 className="text-xl font-black text-primary">Analytics</h1>
+                            <p className="text-xs text-gray-400">Track your progress</p>
+                        </div>
+                        <button 
+                            onClick={() => setView(AppView.SETTINGS)}
+                            className="p-2 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
+                            aria-label="Open settings"
                         >
-                            {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                            <Icons.Settings className="w-5 h-5 text-gray-600" />
                         </button>
-                    ))}
-                </div>
-                
-                {/* Calendar Strip */}
-                {renderCalendarStrip()}
-            </div>
-
-            {/* Content */}
-            <div style={{ 
-                flex: 1, 
-                overflowY: 'auto', 
-                padding: '16px',
-                paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
-                position: 'relative',
-                zIndex: 5,
-                WebkitOverflowScrolling: 'touch'
-            }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    </div>
                     
-                    {/* Alerts Section */}
+                    {/* View Mode Toggle */}
+                    <div className="px-4 pb-3 flex gap-2">
+                        {(['daily', 'weekly', 'monthly'] as const).map((mode) => (
+                            <button
+                                key={mode}
+                                onClick={() => setViewMode(mode)}
+                                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
+                                    viewMode === mode 
+                                        ? 'bg-primary text-white' 
+                                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                }`}
+                                aria-pressed={viewMode === mode}
+                            >
+                                {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                            </button>
+                        ))}
+                    </div>
+                    
+                    {/* FIX #19: Calendar Strip */}
+                    {renderCalendarStrip()}
+                </div>
+
+                {/* Content */}
+                <div className="p-4 space-y-4">
+                    {/* FIX #21: Alerts Section with larger dismiss button */}
                     {alerts.length > 0 && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div className="space-y-2">
                             {alerts.map((alert) => {
                                 const AlertIcon = alert.icon;
-                                const colors = {
-                                    warning: { bg: 'rgba(234, 179, 8, 0.1)', border: 'rgba(234, 179, 8, 0.2)', text: 'rgba(253, 224, 71, 0.9)', icon: 'rgba(234, 179, 8, 0.8)' },
-                                    danger: { bg: 'rgba(239, 68, 68, 0.1)', border: 'rgba(239, 68, 68, 0.2)', text: 'rgba(252, 165, 165, 0.9)', icon: 'rgba(239, 68, 68, 0.8)' },
-                                    info: { bg: 'rgba(59, 130, 246, 0.1)', border: 'rgba(59, 130, 246, 0.2)', text: 'rgba(147, 197, 253, 0.9)', icon: 'rgba(59, 130, 246, 0.8)' },
-                                    success: { bg: 'rgba(34, 197, 94, 0.1)', border: 'rgba(34, 197, 94, 0.2)', text: 'rgba(134, 239, 172, 0.9)', icon: 'rgba(34, 197, 94, 0.8)' }
+                                const bgColor = {
+                                    warning: 'bg-amber-50 border-amber-200',
+                                    danger: 'bg-red-50 border-red-200',
+                                    info: 'bg-blue-50 border-blue-200',
+                                    success: 'bg-green-50 border-green-200'
+                                }[alert.type];
+                                const textColor = {
+                                    warning: 'text-amber-700',
+                                    danger: 'text-red-700',
+                                    info: 'text-blue-700',
+                                    success: 'text-green-700'
+                                }[alert.type];
+                                const iconColor = {
+                                    warning: 'text-amber-500',
+                                    danger: 'text-red-500',
+                                    info: 'text-blue-500',
+                                    success: 'text-green-500'
                                 }[alert.type];
                                 
                                 return (
-                                    <GlassCard 
+                                    <div 
                                         key={alert.id}
-                                        style={{ 
-                                            padding: '16px', 
-                                            position: 'relative',
-                                            background: colors.bg,
-                                            border: `1px solid ${colors.border}`
-                                        }}
+                                        className={`relative p-4 rounded-2xl border ${bgColor}`}
                                     >
+                                        {/* FIX #21: Larger dismiss button for mobile */}
                                         <button 
                                             onClick={() => dismissAlert(alert.id)} 
-                                            style={{
-                                                position: 'absolute',
-                                                top: '8px',
-                                                right: '8px',
-                                                padding: '8px',
-                                                background: 'none',
-                                                border: 'none',
-                                                cursor: 'pointer',
-                                                borderRadius: '50%'
-                                            }}
+                                            className="absolute top-2 right-2 p-2 hover:bg-black/10 rounded-full transition-colors touch-target"
                                             aria-label={`Dismiss ${alert.title} alert`}
                                         >
-                                            <Icons.X style={{ width: 16, height: 16, color: 'rgba(255, 255, 255, 0.4)' }} />
+                                            <Icons.X className="w-4 h-4 text-gray-400" />
                                         </button>
                                         
-                                        <div style={{ display: 'flex', gap: '12px', paddingRight: '32px' }}>
-                                            <div style={{ 
-                                                padding: '8px', 
-                                                borderRadius: '12px', 
-                                                background: 'rgba(255, 255, 255, 0.05)'
-                                            }}>
-                                                <AlertIcon style={{ width: 20, height: 20, color: colors.icon }} />
+                                        <div className="flex gap-3 pr-8">
+                                            <div className={`p-2 rounded-xl bg-white/50 ${iconColor}`}>
+                                                <AlertIcon className="w-5 h-5" />
                                             </div>
-                                            <div style={{ flex: 1 }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                                                    <h4 style={{ fontWeight: 600, fontSize: '14px', color: colors.text }}>{alert.title}</h4>
-                                                    <span style={{ fontSize: '9px', fontWeight: 600, color: 'rgba(255, 255, 255, 0.4)', textTransform: 'uppercase' }}>
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <h4 className={`font-bold text-sm ${textColor}`}>{alert.title}</h4>
+                                                    <span className="text-[9px] font-bold text-gray-400 uppercase">
                                                         {alert.source}
                                                     </span>
                                                 </div>
-                                                <p style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.6)', marginBottom: '8px' }}>{alert.message}</p>
+                                                <p className="text-xs text-gray-600 mb-2">{alert.message}</p>
                                                 {alert.actionLabel && alert.actionView && (
                                                     <button
                                                         onClick={() => setView(alert.actionView!)}
-                                                        style={{
-                                                            fontSize: '12px',
-                                                            fontWeight: 600,
-                                                            color: colors.text,
-                                                            background: 'none',
-                                                            border: 'none',
-                                                            cursor: 'pointer',
-                                                            padding: 0
-                                                        }}
+                                                        className={`text-xs font-bold ${textColor} hover:underline`}
                                                     >
                                                         {alert.actionLabel} →
                                                     </button>
                                                 )}
                                             </div>
                                         </div>
-                                    </GlassCard>
+                                    </div>
                                 );
                             })}
                         </div>
                     )}
 
-                    {/* Stats Cards Grid */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                        <GlassCard style={{ padding: '16px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                                <Icons.CheckCircle style={{ width: 16, height: 16, color: 'rgba(34, 197, 94, 0.8)' }} />
-                                <span style={{ fontSize: '10px', fontWeight: 600, color: 'rgba(255, 255, 255, 0.4)', textTransform: 'uppercase' }}>Tasks</span>
+                    {/* Stats Cards */}
+                    <div className="grid grid-cols-2 gap-3">
+                        <Card className="p-4 bg-white">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Icons.CheckCircle className="w-4 h-4 text-emerald-500" />
+                                <span className="text-[10px] font-bold text-gray-400 uppercase">Tasks</span>
                             </div>
-                            <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#fff' }}>
+                            <div className="text-2xl font-black text-primary">
                                 {animatedValues.tasksCompleted ?? calculatedStats.tasksCompleted}
                             </div>
-                            <div style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.4)' }}>
+                            <div className="text-[10px] text-gray-400">
                                 {viewMode === 'daily' ? 'Today' : viewMode === 'weekly' ? 'This Week' : 'This Month'}
                             </div>
-                        </GlassCard>
+                        </Card>
                         
-                        <GlassCard style={{ padding: '16px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                                <Icons.Flame style={{ width: 16, height: 16, color: 'rgba(249, 115, 22, 0.8)' }} />
-                                <span style={{ fontSize: '10px', fontWeight: 600, color: 'rgba(255, 255, 255, 0.4)', textTransform: 'uppercase' }}>Streak</span>
+                        <Card className="p-4 bg-white">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Icons.Flame className="w-4 h-4 text-orange-500" />
+                                <span className="text-[10px] font-bold text-gray-400 uppercase">Streak</span>
                             </div>
-                            <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#fff' }}>
+                            <div className="text-2xl font-black text-primary">
                                 {animatedValues.streak ?? calculatedStats.streak}
                             </div>
-                            <div style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.4)' }}>
+                            <div className="text-[10px] text-gray-400">
                                 Best: {calculatedStats.longestStreak} days
                             </div>
-                        </GlassCard>
+                        </Card>
                         
-                        <GlassCard style={{ padding: '16px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                                <Icons.Coins style={{ width: 16, height: 16, color: 'rgba(234, 179, 8, 0.8)' }} />
-                                <span style={{ fontSize: '10px', fontWeight: 600, color: 'rgba(255, 255, 255, 0.4)', textTransform: 'uppercase' }}>Credits</span>
+                        <Card className="p-4 bg-white">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Icons.Coins className="w-4 h-4 text-yellow-500" />
+                                <span className="text-[10px] font-bold text-gray-400 uppercase">Credits</span>
                             </div>
-                            <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#fff' }}>
+                            <div className="text-2xl font-black text-primary">
                                 {(animatedValues.totalCredits ?? calculatedStats.totalCredits).toLocaleString()}
                             </div>
-                            <div style={{ fontSize: '10px', color: 'rgba(34, 197, 94, 0.8)' }}>
+                            <div className="text-[10px] text-emerald-500">
                                 +{calculatedStats.periodCredits} this period
                             </div>
-                        </GlassCard>
+                        </Card>
                         
-                        <GlassCard style={{ padding: '16px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                                <Icons.TrendingUp style={{ width: 16, height: 16, color: 'rgba(59, 130, 246, 0.8)' }} />
-                                <span style={{ fontSize: '10px', fontWeight: 600, color: 'rgba(255, 255, 255, 0.4)', textTransform: 'uppercase' }}>Score</span>
+                        <Card className="p-4 bg-white">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Icons.TrendingUp className="w-4 h-4 text-blue-500" />
+                                <span className="text-[10px] font-bold text-gray-400 uppercase">Score</span>
                             </div>
-                            <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#fff' }}>
+                            <div className="text-2xl font-black text-primary">
                                 {insights?.weeklyScore || 0}%
                             </div>
-                            <div style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.4)' }}>
+                            <div className="text-[10px] text-gray-400">
                                 Weekly performance
                             </div>
-                        </GlassCard>
+                        </Card>
                     </div>
 
                     {/* Activity Chart */}
-                    <GlassCard style={{ padding: '16px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                            <h3 style={{ fontWeight: 600, color: '#fff', fontSize: '15px' }}>Activity</h3>
-                            <span style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.4)' }}>Last 7 {viewMode === 'daily' ? 'days' : viewMode === 'weekly' ? 'weeks' : 'months'}</span>
+                    <Card className="p-4 bg-white">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-bold text-primary">Activity</h3>
+                            <span className="text-xs text-gray-400">Last 7 {viewMode === 'daily' ? 'days' : viewMode === 'weekly' ? 'weeks' : 'months'}</span>
                         </div>
                         <LineChart 
                             data={calculatedStats.historyData.map(d => d.tasks)}
-                            color="#3423A6"
+                            color="#4F46E5"
                             height={120}
                             labels={calculatedStats.historyData.map(d => {
                                 if (viewMode === 'monthly') {
@@ -1226,316 +1111,178 @@ export default function StatsView() {
                                 return d.date.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 2);
                             })}
                         />
-                    </GlassCard>
+                    </Card>
 
-                    {/* Connected Apps Section - UPDATED */}
-                    <GlassCard style={{ padding: '16px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <h3 style={{ fontWeight: 600, color: '#fff', fontSize: '15px' }}>Connected Apps</h3>
-                                {connectedCount > 0 && (
-                                    <span style={{
-                                        padding: '4px 8px',
-                                        borderRadius: '12px',
-                                        fontSize: '11px',
-                                        fontWeight: 600,
-                                        background: 'rgba(34, 197, 94, 0.2)',
-                                        color: 'rgba(134, 239, 172, 0.9)'
-                                    }}>
-                                        {connectedCount} Connected
-                                    </span>
-                                )}
+                    {/* Insights Card */}
+                    {insights && (
+                        <Card className="p-4 bg-white">
+                            <div className="flex items-center gap-2 mb-4">
+                                <Icons.Zap className="w-5 h-5 text-primary" />
+                                <h3 className="font-bold text-primary">Insights</h3>
                             </div>
+                            
+                            <div className="space-y-3">
+                                <div className="p-3 bg-gray-50 rounded-xl">
+                                    <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">Top Strength</div>
+                                    <div className="text-sm font-bold text-primary">{insights.topStrength}</div>
+                                </div>
+                                
+                                <div className="p-3 bg-gray-50 rounded-xl">
+                                    <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">Focus Area</div>
+                                    <div className="text-sm font-bold text-primary">{insights.focusArea}</div>
+                                </div>
+                                
+                                <div className="p-3 bg-blue-50 rounded-xl">
+                                    <div className="text-[10px] font-bold text-blue-400 uppercase mb-1">Trend</div>
+                                    <div className="text-sm text-blue-700">{insights.trend}</div>
+                                </div>
+                            </div>
+                        </Card>
+                    )}
+
+                    {/* FIX #22: Connected Apps Section with scroll snap */}
+                    <Card className="p-4 bg-white">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-bold text-primary">Connected Apps</h3>
                             <button 
                                 onClick={() => setShowBridgeHub(true)}
-                                style={{
-                                    fontSize: '12px',
-                                    fontWeight: 600,
-                                    color: '#3423A6',
-                                    background: 'none',
-                                    border: 'none',
-                                    cursor: 'pointer'
-                                }}
+                                className="text-xs text-primary font-bold hover:underline"
                             >
                                 Manage
                             </button>
                         </div>
                         
-                        {isLoadingAccounts ? (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                {[1, 2].map(i => (
-                                    <div key={i} style={{ 
-                                        padding: '12px', 
-                                        borderRadius: '12px', 
-                                        background: 'rgba(255, 255, 255, 0.05)',
-                                        animation: 'pulse 2s infinite'
-                                    }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                            <div style={{ width: 40, height: 40, borderRadius: '10px', background: 'rgba(255, 255, 255, 0.1)' }} />
-                                            <div style={{ flex: 1 }}>
-                                                <div style={{ height: 14, width: 80, borderRadius: 4, background: 'rgba(255, 255, 255, 0.1)', marginBottom: 6 }} />
-                                                <div style={{ height: 10, width: 120, borderRadius: 4, background: 'rgba(255, 255, 255, 0.05)' }} />
+                        {/* FIX #22: Horizontal scrolling app tabs with snap */}
+                        <div 
+                            className="flex gap-2 mb-4 overflow-x-auto scrollbar-hide scroll-smooth pb-1"
+                            style={{ scrollSnapType: 'x mandatory' }}
+                        >
+                            {connectedAppsData.map((app, index) => {
+                                const AppIcon = app.Icon;
+                                return (
+                                    <button
+                                        key={app.id}
+                                        onClick={() => setSelectedAppIndex(index)}
+                                        style={{ scrollSnapAlign: 'start' }}
+                                        className={`flex items-center gap-2 px-3 py-2 rounded-xl flex-shrink-0 transition-all ${
+                                            selectedAppIndex === index
+                                                ? 'bg-primary text-white'
+                                                : app.isConnected
+                                                    ? 'bg-gray-100 text-gray-700'
+                                                    : 'bg-gray-50 text-gray-400'
+                                        }`}
+                                        aria-pressed={selectedAppIndex === index}
+                                    >
+                                        <AppIcon className="w-4 h-4" />
+                                        <span className="text-xs font-bold whitespace-nowrap">{app.name}</span>
+                                        {!app.isConnected && (
+                                            <span className="text-[8px] px-1.5 py-0.5 bg-gray-200 rounded-full text-gray-500">
+                                                Not connected
+                                            </span>
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        
+                        {/* Selected App Metrics */}
+                        {connectedApp && (
+                            <div>
+                                {connectedApp.isConnected ? (
+                                    <div>
+                                        {/* Account Info */}
+                                        <div className="mb-4 p-3 bg-emerald-50 rounded-xl border border-emerald-200">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <Icons.CheckCircle className="w-4 h-4 text-emerald-600" />
+                                                <span className="text-[10px] font-bold text-emerald-600 uppercase">Connected</span>
                                             </div>
+                                            {connectedApp.accountName && (
+                                                <div className="text-sm font-bold text-gray-800">
+                                                    {connectedApp.accountName}
+                                                </div>
+                                            )}
+                                            <div className="text-[10px] text-gray-500 mt-1">
+                                                Connected to {connectedApp.name}
+                                            </div>
+                                        </div>
+                                        
+                                        {/* Metrics */}
+                                        <div className="grid grid-cols-2 gap-3">
+                                            {connectedApp.metrics?.map((metric: any) => (
+                                                <div key={metric.id} className="p-3 bg-gray-50 rounded-xl">
+                                                    <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">
+                                                        {metric.name}
+                                                    </div>
+                                                    <div className="flex items-baseline gap-1">
+                                                        <span className="text-lg font-black text-primary">
+                                                            {metric.unit === '$' && '$'}{metric.value.toLocaleString()}{metric.unit === '%' && '%'}
+                                                        </span>
+                                                        {metric.change !== 0 && (
+                                                            <span className={`text-[10px] font-bold ${metric.change > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                                                                {metric.change > 0 ? '+' : ''}{metric.change}%
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    {metric.history && <MiniSparkline data={metric.history} color={connectedApp.color} />}
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
-                                ))}
-                            </div>
-                        ) : connectedCount === 0 ? (
-                            <div style={{ textAlign: 'center', padding: '24px 0' }}>
-                                <div style={{ 
-                                    width: 56, 
-                                    height: 56, 
-                                    margin: '0 auto 12px',
-                                    background: 'rgba(52, 35, 166, 0.2)',
-                                    borderRadius: '16px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center'
-                                }}>
-                                    <Icons.Link style={{ width: 28, height: 28, color: 'rgba(255, 255, 255, 0.4)' }} />
-                                </div>
-                                <p style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.5)', marginBottom: '16px' }}>No apps connected yet</p>
-                                <button 
-                                    onClick={() => setShowBridgeHub(true)}
-                                    style={{
-                                        padding: '10px 20px',
-                                        background: '#3423A6',
-                                        border: 'none',
-                                        borderRadius: '12px',
-                                        color: '#fff',
-                                        fontSize: '13px',
-                                        fontWeight: 600,
-                                        cursor: 'pointer'
-                                    }}
-                                >
-                                    Connect Your First App
-                                </button>
-                            </div>
-                        ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                {connectedAccounts.map((account) => {
-                                    const platformStyle = PLATFORM_ICONS[account.platform] || PLATFORM_ICONS.default;
-                                    const platform = getPlatformInfo(account.platform);
-                                    const isExpired = account.tokenExpiry && new Date(account.tokenExpiry) < new Date();
-                                    
-                                    return (
-                                        <div 
-                                            key={account.platform}
-                                            style={{
-                                                padding: '12px',
-                                                borderRadius: '12px',
-                                                background: isExpired ? 'rgba(239, 68, 68, 0.1)' : 'rgba(255, 255, 255, 0.05)',
-                                                border: isExpired ? '1px solid rgba(239, 68, 68, 0.2)' : '1px solid rgba(255, 255, 255, 0.08)',
-                                                transition: 'all 0.2s'
-                                            }}
-                                        >
-                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                    <div style={{
-                                                        width: 40,
-                                                        height: 40,
-                                                        borderRadius: '10px',
-                                                        background: platformStyle.bgColor,
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        fontSize: '20px'
-                                                    }}>
-                                                        {platformStyle.icon}
-                                                    </div>
-                                                    <div>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                            <span style={{ fontWeight: 600, color: '#fff', fontSize: '14px', textTransform: 'capitalize' }}>
-                                                                {platform?.name || account.platform}
-                                                            </span>
-                                                            {isExpired ? (
-                                                                <span style={{
-                                                                    padding: '2px 6px',
-                                                                    borderRadius: '6px',
-                                                                    fontSize: '9px',
-                                                                    fontWeight: 600,
-                                                                    background: 'rgba(239, 68, 68, 0.2)',
-                                                                    color: 'rgba(252, 165, 165, 0.9)'
-                                                                }}>
-                                                                    Expired
-                                                                </span>
-                                                            ) : (
-                                                                <span style={{
-                                                                    width: 6,
-                                                                    height: 6,
-                                                                    borderRadius: '50%',
-                                                                    background: 'rgba(34, 197, 94, 0.8)'
-                                                                }} />
-                                                            )}
-                                                        </div>
-                                                        {/* CONNECTED ACCOUNT NAME - THE KEY FEATURE */}
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
-                                                            {account.avatar && (
-                                                                <img 
-                                                                    src={account.avatar} 
-                                                                    alt="" 
-                                                                    style={{ 
-                                                                        width: 14, 
-                                                                        height: 14, 
-                                                                        borderRadius: '50%',
-                                                                        border: '1px solid rgba(255, 255, 255, 0.2)'
-                                                                    }} 
-                                                                />
-                                                            )}
-                                                            <span style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.6)' }}>
-                                                                {account.username || account.email || account.accountId || 'Connected'}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                
-                                                {isExpired ? (
-                                                    <button
-                                                        onClick={() => handleRefreshToken(account.platform)}
-                                                        disabled={refreshingPlatform === account.platform}
-                                                        style={{
-                                                            padding: '6px 12px',
-                                                            borderRadius: '8px',
-                                                            fontSize: '11px',
-                                                            fontWeight: 600,
-                                                            background: 'rgba(239, 68, 68, 0.2)',
-                                                            color: 'rgba(252, 165, 165, 0.9)',
-                                                            border: 'none',
-                                                            cursor: 'pointer',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            gap: '4px'
-                                                        }}
-                                                    >
-                                                        <Icons.RefreshCw style={{ 
-                                                            width: 12, 
-                                                            height: 12,
-                                                            animation: refreshingPlatform === account.platform ? 'spin 1s linear infinite' : 'none'
-                                                        }} />
-                                                        Reconnect
-                                                    </button>
-                                                ) : (
-                                                    <button
-                                                        onClick={() => setShowBridgeHub(true)}
-                                                        style={{
-                                                            padding: '6px 12px',
-                                                            borderRadius: '8px',
-                                                            fontSize: '11px',
-                                                            fontWeight: 600,
-                                                            background: 'rgba(255, 255, 255, 0.08)',
-                                                            color: 'rgba(255, 255, 255, 0.6)',
-                                                            border: 'none',
-                                                            cursor: 'pointer'
-                                                        }}
-                                                    >
-                                                        Manage
-                                                    </button>
-                                                )}
-                                            </div>
+                                ) : (
+                                    <div className="text-center py-6">
+                                        <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                                            <connectedApp.Icon className="w-6 h-6 text-gray-400" />
                                         </div>
-                                    );
-                                })}
+                                        <p className="text-sm text-gray-500 mb-3">Connect {connectedApp.name} to see metrics</p>
+                                        <button 
+                                            onClick={() => setShowBridgeHub(true)}
+                                            className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-lg hover:bg-primary/90 transition-colors"
+                                        >
+                                            Connect App
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         )}
-                    </GlassCard>
+                    </Card>
 
                     {/* Bridge Hub Quick Access Card */}
                     <button
                         onClick={() => setShowBridgeHub(true)}
-                        style={{
-                            width: '100%',
-                            padding: '16px',
-                            background: 'linear-gradient(135deg, #171738 0%, #3423A6 100%)',
-                            borderRadius: '16px',
-                            border: 'none',
-                            textAlign: 'left',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s'
-                        }}
+                        className="w-full p-4 bg-gradient-to-r from-[#171738] to-[#3423A6] rounded-2xl text-left hover:shadow-lg transition-all group"
                     >
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <div style={{ 
-                                    width: 40, 
-                                    height: 40, 
-                                    background: 'rgba(255, 255, 255, 0.1)', 
-                                    borderRadius: '12px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center'
-                                }}>
-                                    <Icons.Link style={{ width: 20, height: 20, color: '#fff' }} />
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                                    <Icons.Link className="w-5 h-5 text-white" />
                                 </div>
                                 <div>
-                                    <h3 style={{ fontWeight: 600, color: '#fff', fontSize: '14px' }}>Bridge Hub</h3>
-                                    <p style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.6)' }}>Connect 40+ platforms</p>
+                                    <h3 className="font-bold text-white text-sm">Bridge Hub</h3>
+                                    <p className="text-[10px] text-white/60">Connect 40+ platforms</p>
                                 </div>
                             </div>
-                            <Icons.ChevronRight style={{ width: 20, height: 20, color: 'rgba(255, 255, 255, 0.4)' }} />
+                            <Icons.ChevronRight className="w-5 h-5 text-white/40 group-hover:text-white group-hover:translate-x-1 transition-all" />
                         </div>
                     </button>
 
-                    {/* Insights Card */}
-                    {insights && (
-                        <GlassCard style={{ padding: '16px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-                                <Icons.Zap style={{ width: 20, height: 20, color: '#3423A6' }} />
-                                <h3 style={{ fontWeight: 600, color: '#fff', fontSize: '15px' }}>Insights</h3>
-                            </div>
-                            
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                <div style={{ padding: '12px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '12px' }}>
-                                    <div style={{ fontSize: '10px', fontWeight: 600, color: 'rgba(255, 255, 255, 0.4)', textTransform: 'uppercase', marginBottom: '4px' }}>Top Strength</div>
-                                    <div style={{ fontSize: '14px', fontWeight: 600, color: '#fff' }}>{insights.topStrength}</div>
-                                </div>
-                                
-                                <div style={{ padding: '12px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '12px' }}>
-                                    <div style={{ fontSize: '10px', fontWeight: 600, color: 'rgba(255, 255, 255, 0.4)', textTransform: 'uppercase', marginBottom: '4px' }}>Focus Area</div>
-                                    <div style={{ fontSize: '14px', fontWeight: 600, color: '#fff' }}>{insights.focusArea}</div>
-                                </div>
-                                
-                                <div style={{ padding: '12px', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '12px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
-                                    <div style={{ fontSize: '10px', fontWeight: 600, color: 'rgba(147, 197, 253, 0.8)', textTransform: 'uppercase', marginBottom: '4px' }}>Trend</div>
-                                    <div style={{ fontSize: '13px', color: 'rgba(147, 197, 253, 0.9)' }}>{insights.trend}</div>
-                                </div>
-                            </div>
-                        </GlassCard>
-                    )}
-
                     {/* Quick Actions */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div className="grid grid-cols-2 gap-3">
                         <button
                             onClick={() => setView(AppView.DASHBOARD)}
-                            style={{
-                                padding: '16px',
-                                background: 'rgba(255, 255, 255, 0.03)',
-                                backdropFilter: 'blur(12px)',
-                                border: '1px solid rgba(255, 255, 255, 0.08)',
-                                borderRadius: '16px',
-                                textAlign: 'left',
-                                cursor: 'pointer'
-                            }}
+                            className="p-4 bg-white rounded-2xl border border-gray-100 text-left hover:shadow-md transition-all"
                         >
-                            <Icons.Target style={{ width: 20, height: 20, color: '#3423A6', marginBottom: '8px' }} />
-                            <div style={{ fontWeight: 600, fontSize: '14px', color: '#fff' }}>View Goals</div>
-                            <div style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.4)' }}>Track your progress</div>
+                            <Icons.Target className="w-5 h-5 text-primary mb-2" />
+                            <div className="font-bold text-sm text-primary">View Goals</div>
+                            <div className="text-[10px] text-gray-400">Track your progress</div>
                         </button>
                         
                         <button
                             onClick={() => setView(AppView.SHOP)}
-                            style={{
-                                padding: '16px',
-                                background: 'rgba(255, 255, 255, 0.03)',
-                                backdropFilter: 'blur(12px)',
-                                border: '1px solid rgba(255, 255, 255, 0.08)',
-                                borderRadius: '16px',
-                                textAlign: 'left',
-                                cursor: 'pointer'
-                            }}
+                            className="p-4 bg-white rounded-2xl border border-gray-100 text-left hover:shadow-md transition-all"
                         >
-                            <Icons.Shop style={{ width: 20, height: 20, color: '#3423A6', marginBottom: '8px' }} />
-                            <div style={{ fontWeight: 600, fontSize: '14px', color: '#fff' }}>Asset Store</div>
-                            <div style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.4)' }}>Manage credits</div>
+                            <Icons.Shop className="w-5 h-5 text-primary mb-2" />
+                            <div className="font-bold text-sm text-primary">Asset Store</div>
+                            <div className="text-[10px] text-gray-400">Manage credits</div>
                         </button>
                     </div>
                 </div>
@@ -1544,30 +1291,8 @@ export default function StatsView() {
             {/* Bridge Hub Modal */}
             <BridgeHub 
                 isOpen={showBridgeHub} 
-                onClose={() => {
-                    setShowBridgeHub(false);
-                    // Reload connected accounts when Bridge Hub closes
-                    if (user?.email) {
-                        oauthService.getConnectedAccounts(user.email).then(res => {
-                            if (res.success && res.accounts) {
-                                setConnectedAccounts(res.accounts);
-                            }
-                        });
-                    }
-                }} 
+                onClose={() => setShowBridgeHub(false)} 
             />
-
-            {/* Animations */}
-            <style>{`
-                @keyframes pulse {
-                    0%, 100% { opacity: 1; }
-                    50% { opacity: 0.5; }
-                }
-                @keyframes spin {
-                    from { transform: rotate(0deg); }
-                    to { transform: rotate(360deg); }
-                }
-            `}</style>
         </div>
     );
 }

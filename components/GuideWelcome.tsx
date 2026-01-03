@@ -157,7 +157,7 @@ export const WelcomeIntro = memo(({ onStartTour, onSkip }: { onStartTour: () => 
         <p style={{
           fontSize: 'clamp(16px, 4vw, 20px)',
           color: 'rgba(255,255,255,0.7)',
-          marginBottom: 24,
+          marginBottom: 56,
           fontWeight: 300,
           opacity: subtitleVisible ? 1 : 0,
           transform: subtitleVisible ? 'translateY(0)' : 'translateY(20px)',
@@ -165,35 +165,6 @@ export const WelcomeIntro = memo(({ onStartTour, onSkip }: { onStartTour: () => 
         }}>
           Your AI-powered journey companion
         </p>
-        <div style={{
-          maxWidth: 600,
-          margin: '0 auto 56px',
-          padding: '20px',
-          background: 'rgba(255,255,255,0.03)',
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
-          border: '1px solid rgba(255,255,255,0.08)',
-          borderRadius: 16,
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
-          opacity: subtitleVisible ? 1 : 0,
-          transform: subtitleVisible ? 'translateY(0)' : 'translateY(20px)',
-          transition: 'all 0.8s cubic-bezier(0.16, 1, 0.3, 1)',
-          transitionDelay: '0.2s',
-        }}>
-          <p style={{
-            fontSize: 'clamp(14px, 3vw, 16px)',
-            color: 'rgba(255,255,255,0.6)',
-            lineHeight: 1.6,
-            margin: 0,
-            textAlign: 'left',
-          }}>
-            <strong style={{ color: 'rgba(255,255,255,0.9)' }}>How to use ChatView:</strong><br />
-            • <strong>Planet View:</strong> Drag the interactive planet to explore your journey. Each point represents guidance from The Guide.<br />
-            • <strong>Chat Mode:</strong> Switch to chat view to have conversations with The Guide. Ask questions, share goals, or get advice.<br />
-            • <strong>Attachments:</strong> Upload images, documents, or audio files to provide context for better guidance.<br />
-            • <strong>Journeys:</strong> All your conversations are saved as journeys. Access them anytime from the header menu.
-          </p>
-        </div>
         <div style={{
           display: 'flex',
           gap: 16,
@@ -340,50 +311,58 @@ export const TourOverlay = memo(({
   const getSpotlightConfig = () => {
     switch (currentStep.target) {
       case 'planet':
-        // Planet is centered in the middle area
+        // Planet canvas is in flex: 1 container, centered. Planet is drawn in center of canvas
+        // Canvas takes up space between header (~60px) and input (~80px from bottom)
+        // Planet is approximately 200-250px in diameter when rendered
         return {
           top: '50%',
           left: '50%',
-          width: 280,
-          height: 280,
-          transform: 'translate(-50%, -60%)',
+          width: 300,
+          height: 300,
+          transform: 'translate(-50%, -50%)',
           borderRadius: '50%',
         };
       case 'input':
-        // Input box at bottom: paddingBottom 32px, padding 16px 20px
+        // Input container: padding 12px 16px, paddingBottom includes safe area
+        // Input box: padding 8px 16px, borderRadius 24px, height ~40px
+        // Total: container padding 12px + input height 40px = ~64px from bottom
         return {
-          bottom: 32,
-          left: 20,
-          right: 20,
-          height: 52,
-          borderRadius: 26,
+          bottom: 12,
+          left: 16,
+          right: 16,
+          height: 56,
+          borderRadius: 28,
         };
       case 'header':
-        // Center header button "THE GUIDE"
+        // Header: padding 12px 16px, paddingTop includes safe area
+        // Center div with "The Guide" text - approximately 120px wide
         return {
-          top: 8,
+          top: 12,
           left: '50%',
-          width: 130,
-          height: 48,
+          width: 140,
+          height: 50,
           transform: 'translateX(-50%)',
-          borderRadius: 12,
+          borderRadius: 8,
         };
       case 'chat-toggle':
-        // Right side button - padding 12px 16px, button has padding 8px
+        // Globe icon button in header top right: padding 8px, icon 20px
+        // Position: right side of header, padding 12px 16px from edge
         return {
-          top: 8,
-          right: 12,
-          width: 40,
-          height: 40,
+          top: 12,
+          right: 16,
+          width: 36,
+          height: 36,
           borderRadius: 8,
         };
       case 'agent':
-        // Master Agent button: bottom: 190px, centered, padding 10px 24px
+        // Master Agent button: bottom: calc(env(safe-area-inset-bottom, 0px) + 100px)
+        // padding: 10px 24px, borderRadius: 40px
+        // Content: ~180px wide (text + icons), height ~36px + 20px padding = 56px
         return {
-          bottom: 185,
+          bottom: 100,
           left: '50%',
-          width: 180,
-          height: 44,
+          width: 200,
+          height: 56,
           transform: 'translateX(-50%)',
           borderRadius: 40,
         };
@@ -416,15 +395,15 @@ export const TourOverlay = memo(({
     
     switch (currentStep.target) {
       case 'planet':
-        return { ...base, bottom: 100, left: '50%', transform: 'translateX(-50%)' };
+        return { ...base, bottom: 120, left: '50%', transform: 'translateX(-50%)' };
       case 'input':
-        return { ...base, bottom: 110, left: '50%', transform: 'translateX(-50%)' };
+        return { ...base, bottom: 90, left: '50%', transform: 'translateX(-50%)' };
       case 'header':
-        return { ...base, top: 70, left: '50%', transform: 'translateX(-50%)' };
+        return { ...base, top: 80, left: '50%', transform: 'translateX(-50%)' };
       case 'chat-toggle':
-        return { ...base, top: 60, right: 60, left: 'auto', transform: 'none' };
+        return { ...base, top: 70, right: 20, left: 'auto', transform: 'none' };
       case 'agent':
-        return { ...base, bottom: 250, left: '50%', transform: 'translateX(-50%)' };
+        return { ...base, bottom: 180, left: '50%', transform: 'translateX(-50%)' };
       default:
         return { ...base, top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
     }
@@ -452,49 +431,49 @@ export const TourOverlay = memo(({
             {currentStep.target === 'planet' && (
               <ellipse
                 cx="50%"
-                cy="40%"
-                rx="140"
-                ry="140"
+                cy="50%"
+                rx="150"
+                ry="150"
                 fill="black"
               />
             )}
             {currentStep.target === 'input' && (
               <rect
-                x="20"
-                y="calc(100% - 84px)"
-                width="calc(100% - 40px)"
-                height="52"
-                rx="26"
+                x="16"
+                y="calc(100% - 68px)"
+                width="calc(100% - 32px)"
+                height="56"
+                rx="28"
                 fill="black"
               />
             )}
             {currentStep.target === 'header' && (
               <rect
-                x="calc(50% - 65px)"
-                y="8"
-                width="130"
-                height="48"
-                rx="12"
+                x="calc(50% - 70px)"
+                y="12"
+                width="140"
+                height="50"
+                rx="8"
                 fill="black"
               />
             )}
             {currentStep.target === 'chat-toggle' && (
               <rect
                 x="calc(100% - 52px)"
-                y="8"
-                width="40"
-                height="40"
+                y="12"
+                width="36"
+                height="36"
                 rx="8"
                 fill="black"
               />
             )}
             {currentStep.target === 'agent' && (
               <rect
-                x="calc(50% - 90px)"
-                y="calc(100% - 229px)"
-                width="180"
-                height="44"
-                rx="22"
+                x="calc(50% - 100px)"
+                y="calc(100% - 156px)"
+                width="200"
+                height="56"
+                rx="28"
                 fill="black"
               />
             )}
@@ -511,13 +490,13 @@ export const TourOverlay = memo(({
         />
       </svg>
 
-      {/* Spotlight border/glow effect */}
+      {/* Spotlight border/glow effect - white border that pulses */}
       <div
         style={{
           position: 'fixed',
           ...spotlightConfig,
-          border: '2px solid rgba(255,255,255,0.4)',
-          boxShadow: '0 0 30px rgba(255,255,255,0.2), inset 0 0 30px rgba(255,255,255,0.1)',
+          border: '3px solid rgba(255,255,255,0.8)',
+          boxShadow: '0 0 40px rgba(255,255,255,0.4), inset 0 0 40px rgba(255,255,255,0.2)',
           zIndex: 10001,
           pointerEvents: 'none',
           animation: 'spotlightPulse 2s ease-in-out infinite',
@@ -634,12 +613,12 @@ export const TourOverlay = memo(({
       <style>{`
         @keyframes spotlightPulse {
           0%, 100% { 
-            box-shadow: 0 0 30px rgba(255,255,255,0.2), inset 0 0 30px rgba(255,255,255,0.1);
-            border-color: rgba(255,255,255,0.4);
+            box-shadow: 0 0 40px rgba(255,255,255,0.4), inset 0 0 40px rgba(255,255,255,0.2);
+            border-color: rgba(255,255,255,0.8);
           }
           50% { 
-            box-shadow: 0 0 50px rgba(255,255,255,0.3), inset 0 0 40px rgba(255,255,255,0.15);
-            border-color: rgba(255,255,255,0.6);
+            box-shadow: 0 0 60px rgba(255,255,255,0.6), inset 0 0 50px rgba(255,255,255,0.3);
+            border-color: rgba(255,255,255,1);
           }
         }
       `}</style>

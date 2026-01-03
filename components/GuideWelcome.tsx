@@ -1,3 +1,4 @@
+// components/GuideWelcome.tsx
 import React, { useState, useEffect, memo } from 'react';
 
 interface TourStep {
@@ -7,12 +8,38 @@ interface TourStep {
   position: 'top' | 'bottom' | 'left' | 'right';
 }
 
+// Updated tour steps - now includes mode toggle and correct Master Agent at the end
 const TOUR_STEPS: TourStep[] = [
-  { target: 'planet', title: 'Your Journey Map', description: 'Watch your guidance unfold as points on this interactive planet. Drag to explore.', position: 'bottom' },
-  { target: 'input', title: 'Ask Anything', description: 'Type your questions, challenges, or goals here. Attach images or documents for context.', position: 'top' },
-  { target: 'header', title: 'Your Journeys', description: 'Tap here to view all your saved conversations and continue where you left off.', position: 'bottom' },
-  { target: 'chat-toggle', title: 'Switch Views', description: 'Toggle between the planet view and traditional chat mode anytime.', position: 'left' },
-  { target: 'agent', title: 'Master Agent', description: 'Access powerful AI automation tools for your business and goals.', position: 'top' },
+  { 
+    target: 'planet', 
+    title: 'Your Journey Map', 
+    description: 'Watch your guidance unfold as points on this interactive planet. Drag to explore.', 
+    position: 'bottom' 
+  },
+  { 
+    target: 'input', 
+    title: 'Ask Anything', 
+    description: 'Type your questions, challenges, or goals here. The Guide will create a visual journey for you.', 
+    position: 'top' 
+  },
+  { 
+    target: 'header', 
+    title: 'Your Journeys', 
+    description: 'Tap here to view all your saved conversations and continue where you left off.', 
+    position: 'bottom' 
+  },
+  { 
+    target: 'mode-toggle', 
+    title: 'Switch Views', 
+    description: 'Toggle between Planet view for visual journeys and Chat view for traditional conversations.', 
+    position: 'top' 
+  },
+  { 
+    target: 'master-agent', 
+    title: 'Master Agent', 
+    description: 'Access powerful AI automation tools for your e-commerce business - manage products, analytics, email campaigns, and more.', 
+    position: 'top' 
+  },
 ];
 
 export const WelcomeIntro = memo(({ onStartTour, onSkip }: { onStartTour: () => void; onSkip: () => void }) => {
@@ -22,7 +49,6 @@ export const WelcomeIntro = memo(({ onStartTour, onSkip }: { onStartTour: () => 
   const [buttonsVisible, setButtonsVisible] = useState(false);
   const [animationStarted, setAnimationStarted] = useState(false);
 
-  // Initial entrance animation
   useEffect(() => {
     const timers = [
       setTimeout(() => setBoxesVisible([true, false, false]), 300),
@@ -31,7 +57,7 @@ export const WelcomeIntro = memo(({ onStartTour, onSkip }: { onStartTour: () => 
       setTimeout(() => setTextVisible(true), 1200),
       setTimeout(() => setSubtitleVisible(true), 1600),
       setTimeout(() => setButtonsVisible(true), 2000),
-      setTimeout(() => setAnimationStarted(true), 2500), // Start continuous animation after entrance
+      setTimeout(() => setAnimationStarted(true), 2500),
     ];
     return () => timers.forEach(clearTimeout);
   }, []);
@@ -67,7 +93,7 @@ export const WelcomeIntro = memo(({ onStartTour, onSkip }: { onStartTour: () => 
         ))}
       </div>
 
-      {/* Animated glass boxes - continuously animated until tour starts */}
+      {/* Animated glass boxes */}
       <div style={{
         position: 'absolute',
         top: '12%',
@@ -218,7 +244,7 @@ export const WelcomeIntro = memo(({ onStartTour, onSkip }: { onStartTour: () => 
               boxShadow: '0 4px 12px rgba(52, 35, 166, 0.4)',
             }}
             onMouseEnter={e => {
-              e.currentTarget.style.background = '#171738';
+              e.currentTarget.style.background = '#271b7a';
               e.currentTarget.style.transform = 'translateY(-2px)';
               e.currentTarget.style.boxShadow = '0 6px 16px rgba(52, 35, 166, 0.5)';
             }}
@@ -239,54 +265,26 @@ export const WelcomeIntro = memo(({ onStartTour, onSkip }: { onStartTour: () => 
           50% { opacity: 0.8; }
         }
         @keyframes floatBox1 {
-          0%, 100% { 
-            transform: translate(0, 0) rotate(12deg) scale(1);
-          }
-          25% { 
-            transform: translate(10px, -15px) rotate(15deg) scale(1.05);
-          }
-          50% { 
-            transform: translate(-5px, -25px) rotate(10deg) scale(1.02);
-          }
-          75% { 
-            transform: translate(-10px, -10px) rotate(14deg) scale(1.03);
-          }
+          0%, 100% { transform: translate(0, 0) rotate(12deg) scale(1); }
+          25% { transform: translate(10px, -15px) rotate(15deg) scale(1.05); }
+          50% { transform: translate(-5px, -25px) rotate(10deg) scale(1.02); }
+          75% { transform: translate(-10px, -10px) rotate(14deg) scale(1.03); }
         }
         @keyframes floatBox2 {
-          0%, 100% { 
-            transform: translate(0, 0) rotate(-8deg) scale(1);
-          }
-          33% { 
-            transform: translate(-12px, 10px) rotate(-10deg) scale(1.04);
-          }
-          66% { 
-            transform: translate(8px, -8px) rotate(-6deg) scale(1.02);
-          }
+          0%, 100% { transform: translate(0, 0) rotate(-8deg) scale(1); }
+          33% { transform: translate(-12px, 10px) rotate(-10deg) scale(1.04); }
+          66% { transform: translate(8px, -8px) rotate(-6deg) scale(1.02); }
         }
         @keyframes floatBox3 {
-          0%, 100% { 
-            transform: translate(0, 0) rotate(5deg) scale(1);
-          }
-          30% { 
-            transform: translate(15px, 12px) rotate(8deg) scale(1.03);
-          }
-          60% { 
-            transform: translate(-8px, 20px) rotate(3deg) scale(1.05);
-          }
-          90% { 
-            transform: translate(-12px, 5px) rotate(6deg) scale(1.01);
-          }
+          0%, 100% { transform: translate(0, 0) rotate(5deg) scale(1); }
+          30% { transform: translate(15px, 12px) rotate(8deg) scale(1.03); }
+          60% { transform: translate(-8px, 20px) rotate(3deg) scale(1.05); }
+          90% { transform: translate(-12px, 5px) rotate(6deg) scale(1.01); }
         }
         @keyframes floatBox4 {
-          0%, 100% { 
-            transform: translate(0, 0) rotate(-12deg) scale(1);
-          }
-          40% { 
-            transform: translate(-8px, -12px) rotate(-14deg) scale(1.06);
-          }
-          80% { 
-            transform: translate(10px, -5px) rotate(-10deg) scale(1.02);
-          }
+          0%, 100% { transform: translate(0, 0) rotate(-12deg) scale(1); }
+          40% { transform: translate(-8px, -12px) rotate(-14deg) scale(1.06); }
+          80% { transform: translate(10px, -5px) rotate(-10deg) scale(1.02); }
         }
       `}</style>
     </div>
@@ -307,67 +305,83 @@ export const TourOverlay = memo(({
   const currentStep = TOUR_STEPS[step];
   
   // Get spotlight position and size based on target
-  // These values match the actual ChatView element positions
-  const getSpotlightConfig = () => {
+  // These values are calculated based on actual ChatView element positions
+  const getSpotlightConfig = (): React.CSSProperties => {
     switch (currentStep.target) {
       case 'planet':
-        // Planet canvas is in flex: 1 container, centered. Planet is drawn in center of canvas
-        // Canvas takes up space between header (~60px) and input (~80px from bottom)
-        // Planet is approximately 200-250px in diameter when rendered
+        // Planet canvas - centered in the middle of the screen
+        // topOffset: 180, bottomOffset: 190, planet is ~50% of available space
         return {
+          position: 'fixed',
           top: '50%',
           left: '50%',
-          width: 300,
-          height: 300,
+          width: 280,
+          height: 280,
           transform: 'translate(-50%, -50%)',
           borderRadius: '50%',
         };
+      
       case 'input':
-        // Input container: padding 12px 16px, paddingBottom includes safe area
-        // Input box: padding 8px 16px, borderRadius 24px, height ~40px
-        // Total: container padding 12px + input height 40px = ~64px from bottom
+        // Input area at bottom
+        // padding: 16px, paddingBottom: calc(16px + env(safe-area-inset-bottom))
+        // Input container: padding 8px 16px, borderRadius 24px
         return {
-          bottom: 12,
+          position: 'fixed',
+          bottom: 16,
           left: 16,
           right: 16,
           height: 56,
           borderRadius: 28,
         };
+      
       case 'header':
-        // Header: padding 12px 16px, paddingTop includes safe area
-        // Center div with "The Guide" text - approximately 120px wide
+        // Header center - "The Guide" title and journeys list button
+        // padding: 12px 16px, paddingTop: calc(12px + env(safe-area-inset-top))
+        // List button is on the right: padding: 8px
         return {
-          top: 12,
-          left: '50%',
-          width: 140,
-          height: 50,
-          transform: 'translateX(-50%)',
-          borderRadius: 8,
-        };
-      case 'chat-toggle':
-        // Globe icon button in header top right: padding 8px, icon 20px
-        // Position: right side of header, padding 12px 16px from edge
-        return {
+          position: 'fixed',
           top: 12,
           right: 16,
-          width: 36,
-          height: 36,
-          borderRadius: 8,
+          width: 40,
+          height: 40,
+          borderRadius: 10,
         };
-      case 'agent':
-        // Master Agent button: bottom: calc(env(safe-area-inset-bottom, 0px) + 100px)
-        // padding: 10px 24px, borderRadius: 40px
-        // Content: ~180px wide (text + icons), height ~36px + 20px padding = 56px
+      
+      case 'mode-toggle':
+        // Mode toggle (Planet/Chat) in bottom input area
+        // Inside bottom area: marginBottom: 12px from input
+        // Toggle container: padding: 4px, borderRadius: 20px
+        // Each button: padding: 6px 16px
+        // Total width ~130px, height ~36px
         return {
-          bottom: 100,
+          position: 'fixed',
+          bottom: 90, // Above the input (56px + 16px padding + 18px gap)
           left: '50%',
-          width: 200,
-          height: 56,
+          width: 140,
+          height: 36,
+          transform: 'translateX(-50%)',
+          borderRadius: 20,
+        };
+      
+      case 'master-agent':
+        // Master Agent button
+        // position: absolute, bottom: calc(env(safe-area-inset-bottom) + 100px)
+        // padding: 10px 24px, borderRadius: 40px
+        // Contains: icon (16px) + text + icon (14px) + gaps
+        // Approximate width: ~180px, height: ~44px
+        return {
+          position: 'fixed',
+          bottom: 168, // 100px + bottom area height (~68px)
+          left: '50%',
+          width: 190,
+          height: 48,
           transform: 'translateX(-50%)',
           borderRadius: 40,
         };
+      
       default:
         return {
+          position: 'fixed',
           top: '50%',
           left: '50%',
           width: 100,
@@ -395,17 +409,93 @@ export const TourOverlay = memo(({
     
     switch (currentStep.target) {
       case 'planet':
-        return { ...base, bottom: 120, left: '50%', transform: 'translateX(-50%)' };
-      case 'input':
-        return { ...base, bottom: 90, left: '50%', transform: 'translateX(-50%)' };
-      case 'header':
-        return { ...base, top: 80, left: '50%', transform: 'translateX(-50%)' };
-      case 'chat-toggle':
-        return { ...base, top: 70, right: 20, left: 'auto', transform: 'none' };
-      case 'agent':
         return { ...base, bottom: 180, left: '50%', transform: 'translateX(-50%)' };
+      case 'input':
+        return { ...base, bottom: 100, left: '50%', transform: 'translateX(-50%)' };
+      case 'header':
+        return { ...base, top: 70, right: 16, left: 'auto', transform: 'none' };
+      case 'mode-toggle':
+        return { ...base, bottom: 150, left: '50%', transform: 'translateX(-50%)' };
+      case 'master-agent':
+        return { ...base, bottom: 240, left: '50%', transform: 'translateX(-50%)' };
       default:
         return { ...base, top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
+    }
+  };
+
+  // Get SVG mask shape based on target
+  const getMaskShape = () => {
+    switch (currentStep.target) {
+      case 'planet':
+        return (
+          <ellipse
+            cx="50%"
+            cy="50%"
+            rx="140"
+            ry="140"
+            fill="black"
+          />
+        );
+      
+      case 'input':
+        return (
+          <rect
+            x="16"
+            y="calc(100% - 72px)"
+            width="calc(100% - 32px)"
+            height="56"
+            rx="28"
+            fill="black"
+          />
+        );
+      
+      case 'header':
+        return (
+          <rect
+            x="calc(100% - 56px)"
+            y="12"
+            width="40"
+            height="40"
+            rx="10"
+            fill="black"
+          />
+        );
+      
+      case 'mode-toggle':
+        return (
+          <rect
+            x="calc(50% - 70px)"
+            y="calc(100% - 126px)"
+            width="140"
+            height="36"
+            rx="18"
+            fill="black"
+          />
+        );
+      
+      case 'master-agent':
+        return (
+          <rect
+            x="calc(50% - 95px)"
+            y="calc(100% - 216px)"
+            width="190"
+            height="48"
+            rx="24"
+            fill="black"
+          />
+        );
+      
+      default:
+        return (
+          <rect
+            x="calc(50% - 50px)"
+            y="calc(50% - 50px)"
+            width="100"
+            height="100"
+            rx="12"
+            fill="black"
+          />
+        );
     }
   };
 
@@ -413,7 +503,7 @@ export const TourOverlay = memo(({
 
   return (
     <>
-      {/* SVG Mask Overlay - creates the "cutout" effect */}
+      {/* SVG Mask Overlay */}
       <svg
         style={{
           position: 'fixed',
@@ -426,60 +516,10 @@ export const TourOverlay = memo(({
       >
         <defs>
           <mask id="spotlight-mask">
-            {/* White = visible (darkened area), Black = hidden (spotlight area) */}
             <rect x="0" y="0" width="100%" height="100%" fill="white" />
-            {currentStep.target === 'planet' && (
-              <ellipse
-                cx="50%"
-                cy="50%"
-                rx="150"
-                ry="150"
-                fill="black"
-              />
-            )}
-            {currentStep.target === 'input' && (
-              <rect
-                x="16"
-                y="calc(100% - 68px)"
-                width="calc(100% - 32px)"
-                height="56"
-                rx="28"
-                fill="black"
-              />
-            )}
-            {currentStep.target === 'header' && (
-              <rect
-                x="calc(50% - 70px)"
-                y="12"
-                width="140"
-                height="50"
-                rx="8"
-                fill="black"
-              />
-            )}
-            {currentStep.target === 'chat-toggle' && (
-              <rect
-                x="calc(100% - 52px)"
-                y="12"
-                width="36"
-                height="36"
-                rx="8"
-                fill="black"
-              />
-            )}
-            {currentStep.target === 'agent' && (
-              <rect
-                x="calc(50% - 100px)"
-                y="calc(100% - 156px)"
-                width="200"
-                height="56"
-                rx="28"
-                fill="black"
-              />
-            )}
+            {getMaskShape()}
           </mask>
         </defs>
-        {/* Dark overlay with mask applied */}
         <rect
           x="0"
           y="0"
@@ -490,13 +530,12 @@ export const TourOverlay = memo(({
         />
       </svg>
 
-      {/* Spotlight border/glow effect - white border that pulses */}
+      {/* Spotlight border/glow effect */}
       <div
         style={{
-          position: 'fixed',
           ...spotlightConfig,
-          border: '3px solid rgba(255,255,255,0.8)',
-          boxShadow: '0 0 40px rgba(255,255,255,0.4), inset 0 0 40px rgba(255,255,255,0.2)',
+          border: '3px solid rgba(255,255,255,0.9)',
+          boxShadow: '0 0 40px rgba(255,255,255,0.5), inset 0 0 40px rgba(255,255,255,0.2)',
           zIndex: 10001,
           pointerEvents: 'none',
           animation: 'spotlightPulse 2s ease-in-out infinite',
@@ -594,14 +633,15 @@ export const TourOverlay = memo(({
               onClick={onNext}
               style={{
                 padding: '8px 20px',
-                background: 'rgba(255,255,255,0.15)',
-                border: '1px solid rgba(255,255,255,0.2)',
+                background: step === TOUR_STEPS.length - 1 ? '#3423A6' : 'rgba(255,255,255,0.15)',
+                border: step === TOUR_STEPS.length - 1 ? '1px solid rgba(52, 35, 166, 0.5)' : '1px solid rgba(255,255,255,0.2)',
                 borderRadius: 20,
                 color: '#fff',
                 fontSize: 13,
                 fontWeight: 500,
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
+                boxShadow: step === TOUR_STEPS.length - 1 ? '0 4px 12px rgba(52, 35, 166, 0.4)' : 'none',
               }}
             >
               {step === TOUR_STEPS.length - 1 ? 'Get Started' : 'Next'}
@@ -613,11 +653,11 @@ export const TourOverlay = memo(({
       <style>{`
         @keyframes spotlightPulse {
           0%, 100% { 
-            box-shadow: 0 0 40px rgba(255,255,255,0.4), inset 0 0 40px rgba(255,255,255,0.2);
-            border-color: rgba(255,255,255,0.8);
+            box-shadow: 0 0 40px rgba(255,255,255,0.5), inset 0 0 40px rgba(255,255,255,0.2);
+            border-color: rgba(255,255,255,0.9);
           }
           50% { 
-            box-shadow: 0 0 60px rgba(255,255,255,0.6), inset 0 0 50px rgba(255,255,255,0.3);
+            box-shadow: 0 0 60px rgba(255,255,255,0.7), inset 0 0 50px rgba(255,255,255,0.3);
             border-color: rgba(255,255,255,1);
           }
         }

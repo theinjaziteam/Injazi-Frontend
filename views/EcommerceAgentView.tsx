@@ -14,6 +14,8 @@ import {
     ConnectedAccountCard
 } from '../components/UIComponents';
 import { ecommerceAgentService } from '../services/ecommerceAgentService';
+import BridgeHub from '../components/BridgeHub';
+import { oauthService, ConnectedAccount } from '../services/oauthService';
 
 type TabType = 'chat' | 'products' | 'analytics' | 'email' | 'social' | 'settings';
 
@@ -46,6 +48,11 @@ export default function EcommerceAgentView() {
     // Actions state
     const [pendingActions, setPendingActions] = useState<any[]>([]);
 
+    // Bridge Hub state
+    const [showBridgeHub, setShowBridgeHub] = useState(false);
+    const [connectedAccounts, setConnectedAccounts] = useState<ConnectedAccount[]>([]);
+    const [isRefreshingAccounts, setIsRefreshingAccounts] = useState(false);
+
     // Stars animation
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const animationRef = useRef<number | null>(null);
@@ -71,6 +78,39 @@ export default function EcommerceAgentView() {
             setPendingActions(user.aiActionLogs.filter((a: any) => a.status === 'pending'));
         }
     }, [user]);
+
+    // Load connected accounts
+    useEffect(() => {
+        const loadConnectedAccounts = async () => {
+            if (user?.email) {
+                try {
+                    const accounts = await oauthService.getConnectedAccounts(user.email);
+                    setConnectedAccounts(accounts);
+                } catch (error) {
+                    console.error('Error loading connected accounts:', error);
+                }
+            }
+        };
+        loadConnectedAccounts();
+    }, [user?.email]);
+
+    // Refresh accounts when BridgeHub closes
+    useEffect(() => {
+        if (!showBridgeHub && user?.email) {
+            const refreshAccounts = async () => {
+                setIsRefreshingAccounts(true);
+                try {
+                    const accounts = await oauthService.getConnectedAccounts(user.email);
+                    setConnectedAccounts(accounts);
+                } catch (error) {
+                    console.error('Error refreshing connected accounts:', error);
+                } finally {
+                    setIsRefreshingAccounts(false);
+                }
+            };
+            refreshAccounts();
+        }
+    }, [showBridgeHub, user?.email]);
 
     // Initialize stars (same as ChatView - 200 stars)
     useEffect(() => {
@@ -319,6 +359,64 @@ export default function EcommerceAgentView() {
         } catch (error) {
             console.error('Action reject error:', error);
         }
+    };
+
+    const handleDisconnect = async (platform: string) => {
+        if (!user?.email) return;
+        try {
+            await oauthService.disconnect(user.email, platform);
+            setConnectedAccounts(prev => prev.filter(a => a.platform !== platform));
+        } catch (error) {
+            console.error('Disconnect error:', error);
+        }
+    };
+
+    const handleReconnect = async (platform: string) => {
+        if (!user?.email) return;
+        try {
+            await oauthService.connect(platform, user.email);
+            // Accounts will refresh when BridgeHub closes
+        } catch (error) {
+            console.error('Reconnect error:', error);
+        }
+    };
+
+    // Platform icon mapping
+    const getPlatformIcon = (platform: string) => {
+        const icons: Record<string, string> = {
+            shopify: '🛒',
+            klaviyo: '📧',
+            tiktok: '🎵',
+            instagram: '📷',
+            facebook: '👥',
+            google: '🔍',
+            discord: '💬',
+            twitter: '🐦',
+            youtube: '📺',
+            linkedin: '💼',
+            pinterest: '📌',
+            snapchat: '👻'
+        };
+        return icons[platform.toLowerCase()] || '🔗';
+    };
+
+    // Platform name mapping
+    const getPlatformName = (platform: string) => {
+        const names: Record<string, string> = {
+            shopify: 'Shopify',
+            klaviyo: 'Klaviyo',
+            tiktok: 'TikTok',
+            instagram: 'Instagram',
+            facebook: 'Facebook',
+            google: 'Google',
+            discord: 'Discord',
+            twitter: 'Twitter',
+            youtube: 'YouTube',
+            linkedin: 'LinkedIn',
+            pinterest: 'Pinterest',
+            snapchat: 'Snapchat'
+        };
+        return names[platform.toLowerCase()] || platform.charAt(0).toUpperCase() + platform.slice(1);
     };
 
     // Glassy card component (exact same as ChatView)
@@ -972,27 +1070,272 @@ export default function EcommerceAgentView() {
                 </div>
             )}
 
-            {/* Connected Accounts */}
+            {/* Connected Accounts via Bridge Hub */}
             <div style={{ marginBottom: '24px' }}>
-                <h3 style={{ fontWeight: 600, color: '#fff', marginBottom: '12px', fontSize: '15px' }}>Connected Accounts</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {['shopify', 'klaviyo', 'tiktok', 'instagram', 'facebook'].map((platform) => {
-                        const account = (user.connectedEcommerceAccounts || []).find(
-                            (a: any) => a.platform === platform
-                        );
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                    <h3 style={{ fontWeight: 600, color: 'rgba(255, 255, 255, 0.9)', fontSize: '15px', margin: 0 }}>Connected Apps</h3>
+                    <span style={{ 
+                        fontSize: '11px', 
+                        color: 'rgba(255, 255, 255, 0.5)',
+                        fontWeight: 500
+                    }}>
+                        {connectedAccounts.filter(a => a.isConnected && !a.isExpired).length} connected
+                    </span>
+                </div>
+                
+                {connectedAccounts.length === 0 ? (
+                    <GlassCard style={{ padding: '32px', textAlign: 'center' }}>
+                        <div style={{ 
+                            width: 64, 
+                            height: 64, 
+                            margin: '0 auto 16px',
+                            borderRadius: '50%',
+                            background: 'rgba(255, 255, 255, 0.05)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '32px'
+                        }}>
+                            🔗
+                        </div>
+                        <h4 style={{ 
+                            color: 'rgba(255, 255, 255, 0.9)', 
+                            fontWeight: 600, 
+                            fontSize: '14px',
+                            marginBottom: '8px'
+                        }}>
+                            No apps connected
+                        </h4>
+                        <p style={{ 
+                            color: 'rgba(255, 255, 255, 0.5)', 
+                            fontSize: '12px',
+                            marginBottom: '16px'
+                        }}>
+                            Connect your apps to unlock powerful automation
+                        </p>
+                        <button
+                            onClick={() => setShowBridgeHub(true)}
+                            style={{
+                                padding: '10px 20px',
+                                background: '#3423A6',
+                                color: '#fff',
+                                border: 'none',
+                                borderRadius: '12px',
+                                fontSize: '13px',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                transition: 'all 0.2s'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.background = '#171738';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.background = '#3423A6';
+                            }}
+                        >
+                            Connect Apps
+                        </button>
+                    </GlassCard>
+                ) : (
+                    <>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '12px' }}>
+                            {connectedAccounts
+                                .filter(account => account.isConnected)
+                                .map((account) => {
+                                    const isExpired = account.isExpired || (account.expiresAt && account.expiresAt < Date.now());
+                                    const displayName = account.platformUsername || account.platformEmail || getPlatformName(account.platform);
+                                    
                         return (
-                            <GlassCard key={platform} style={{ padding: '16px' }}>
-                                <ConnectedAccountCard
-                                    account={account || { platform, isConnected: false }}
-                                    onConnect={async () => {
-                                        const { url } = await ecommerceAgentService.getOAuthUrl(platform);
-                                        if (url) window.open(url, '_blank');
-                                    }}
-                                />
+                                        <GlassCard key={account.platform} style={{ padding: '16px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                {/* Avatar */}
+                                                {account.platformAvatar ? (
+                                                    <img 
+                                                        src={account.platformAvatar} 
+                                                        alt={displayName}
+                                                        style={{
+                                                            width: 48,
+                                                            height: 48,
+                                                            borderRadius: '50%',
+                                                            border: '2px solid rgba(255, 255, 255, 0.1)'
+                                                        }}
+                                                    />
+                                                ) : (
+                                                    <div style={{
+                                                        width: 48,
+                                                        height: 48,
+                                                        borderRadius: '50%',
+                                                        background: 'rgba(52, 35, 166, 0.3)',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        fontSize: '20px',
+                                                        border: '1px solid rgba(255, 255, 255, 0.1)'
+                                                    }}>
+                                                        {getPlatformIcon(account.platform)}
+                                                    </div>
+                                                )}
+                                                
+                                                {/* Account Info */}
+                                                <div style={{ flex: 1, minWidth: 0 }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                                        <h4 style={{ 
+                                                            color: 'rgba(255, 255, 255, 0.9)', 
+                                                            fontWeight: 600, 
+                                                            fontSize: '14px',
+                                                            margin: 0,
+                                                            overflow: 'hidden',
+                                                            textOverflow: 'ellipsis',
+                                                            whiteSpace: 'nowrap'
+                                                        }}>
+                                                            {displayName}
+                                                        </h4>
+                                                        {isExpired && (
+                                                            <span style={{
+                                                                padding: '2px 6px',
+                                                                borderRadius: '4px',
+                                                                background: 'rgba(234, 179, 8, 0.2)',
+                                                                border: '1px solid rgba(234, 179, 8, 0.3)',
+                                                                color: 'rgba(253, 224, 71, 1)',
+                                                                fontSize: '9px',
+                                                                fontWeight: 600,
+                                                                textTransform: 'uppercase'
+                                                            }}>
+                                                                Expired
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <p style={{ 
+                                                        color: 'rgba(255, 255, 255, 0.5)', 
+                                                        fontSize: '12px',
+                                                        margin: 0,
+                                                        overflow: 'hidden',
+                                                        textOverflow: 'ellipsis',
+                                                        whiteSpace: 'nowrap'
+                                                    }}>
+                                                        {getPlatformName(account.platform)}
+                                                    </p>
+                                                </div>
+                                                
+                                                {/* Actions */}
+                                                <div style={{ display: 'flex', gap: '8px' }}>
+                                                    {isExpired ? (
+                                                        <button
+                                                            onClick={() => handleReconnect(account.platform)}
+                                                            disabled={isRefreshingAccounts}
+                                                            style={{
+                                                                padding: '8px 12px',
+                                                                background: 'rgba(234, 179, 8, 0.2)',
+                                                                color: 'rgba(253, 224, 71, 1)',
+                                                                border: '1px solid rgba(234, 179, 8, 0.3)',
+                                                                borderRadius: '8px',
+                                                                fontSize: '11px',
+                                                                fontWeight: 600,
+                                                                cursor: isRefreshingAccounts ? 'not-allowed' : 'pointer',
+                                                                opacity: isRefreshingAccounts ? 0.5 : 1,
+                                                                transition: 'all 0.2s'
+                                                            }}
+                                                            onMouseEnter={(e) => {
+                                                                if (!isRefreshingAccounts) {
+                                                                    e.currentTarget.style.background = 'rgba(234, 179, 8, 0.3)';
+                                                                }
+                                                            }}
+                                                            onMouseLeave={(e) => {
+                                                                if (!isRefreshingAccounts) {
+                                                                    e.currentTarget.style.background = 'rgba(234, 179, 8, 0.2)';
+                                                                }
+                                                            }}
+                                                        >
+                                                            Reconnect
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => handleDisconnect(account.platform)}
+                                                            style={{
+                                                                padding: '8px 12px',
+                                                                background: 'rgba(239, 68, 68, 0.2)',
+                                                                color: 'rgba(252, 165, 165, 1)',
+                                                                border: '1px solid rgba(239, 68, 68, 0.3)',
+                                                                borderRadius: '8px',
+                                                                fontSize: '11px',
+                                                                fontWeight: 600,
+                                                                cursor: 'pointer',
+                                                                transition: 'all 0.2s'
+                                                            }}
+                                                            onMouseEnter={(e) => {
+                                                                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.3)';
+                                                            }}
+                                                            onMouseLeave={(e) => {
+                                                                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
+                                                            }}
+                                                        >
+                                                            Disconnect
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
                             </GlassCard>
                         );
                     })}
                 </div>
+                        
+                        {/* Add More Apps Card */}
+                        <GlassCard 
+                            style={{ 
+                                padding: '16px',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s'
+                            }}
+                            onClick={() => setShowBridgeHub(true)}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
+                                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+                                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                            }}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div style={{
+                                    width: 48,
+                                    height: 48,
+                                    borderRadius: '12px',
+                                    background: 'rgba(52, 35, 166, 0.2)',
+                                    border: '1px solid rgba(52, 35, 166, 0.3)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '24px'
+                                }}>
+                                    ➕
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <h4 style={{ 
+                                        color: 'rgba(255, 255, 255, 0.9)', 
+                                        fontWeight: 600, 
+                                        fontSize: '14px',
+                                        margin: '0 0 4px 0'
+                                    }}>
+                                        Add More Apps
+                                    </h4>
+                                    <p style={{ 
+                                        color: 'rgba(255, 255, 255, 0.5)', 
+                                        fontSize: '12px',
+                                        margin: 0
+                                    }}>
+                                        Connect 40+ platforms via Bridge Hub
+                                    </p>
+                                </div>
+                                <Icons.ChevronRight style={{ 
+                                    width: 20, 
+                                    height: 20, 
+                                    color: 'rgba(255, 255, 255, 0.3)' 
+                                }} />
+                            </div>
+                        </GlassCard>
+                    </>
+                )}
             </div>
 
             {/* Agent Preferences */}
@@ -1112,26 +1455,26 @@ export default function EcommerceAgentView() {
                             role="tab"
                             aria-selected={activeTab === id}
                             aria-controls={`${id}-panel`}
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            padding: '8px 12px',
-                            borderRadius: '12px',
-                            fontSize: '13px',
-                            fontWeight: 500,
-                            whiteSpace: 'nowrap',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s',
-                            background: activeTab === id 
-                                ? '#3423A6' 
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '8px 12px',
+                                borderRadius: '12px',
+                                fontSize: '13px',
+                                fontWeight: 500,
+                                whiteSpace: 'nowrap',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                                background: activeTab === id 
+                                    ? '#3423A6' 
                                 : 'rgba(255, 255, 255, 0.03)',
                             backdropFilter: activeTab !== id ? 'blur(12px)' : 'none',
                             WebkitBackdropFilter: activeTab !== id ? 'blur(12px)' : 'none',
                             border: activeTab !== id ? '1px solid rgba(255, 255, 255, 0.08)' : 'none',
                             boxShadow: activeTab !== id ? 'inset 0 1px 0 rgba(255, 255, 255, 0.05)' : '0 4px 12px rgba(52, 35, 166, 0.4)',
-                            color: activeTab === id 
-                                ? '#fff' 
+                                color: activeTab === id 
+                                    ? '#fff' 
                                 : 'rgba(255, 255, 255, 0.7)'
                         }}
                         onMouseEnter={(e) => {
@@ -1145,7 +1488,7 @@ export default function EcommerceAgentView() {
                                 e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
                                 e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
                             }
-                        }}
+                            }}
                         >
                             <Icon style={{ width: 16, height: 16 }} aria-hidden="true" />
                             {label}
@@ -1202,6 +1545,12 @@ export default function EcommerceAgentView() {
                     animation-delay: 0.3s;
                 }
             `}</style>
+
+            {/* Bridge Hub Modal */}
+            <BridgeHub 
+                isOpen={showBridgeHub} 
+                onClose={() => setShowBridgeHub(false)} 
+            />
         </div>
     );
 }

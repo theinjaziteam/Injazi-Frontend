@@ -420,7 +420,14 @@ export default function EcommerceAgentView() {
     };
 
     // Glassy card component (exact same as ChatView)
-    const GlassCard: React.FC<{ children: React.ReactNode; className?: string; style?: React.CSSProperties }> = ({ children, className, style }) => (
+    const GlassCard: React.FC<{ 
+        children: React.ReactNode; 
+        className?: string; 
+        style?: React.CSSProperties;
+        onClick?: () => void;
+        onMouseEnter?: (e: React.MouseEvent<HTMLDivElement>) => void;
+        onMouseLeave?: (e: React.MouseEvent<HTMLDivElement>) => void;
+    }> = ({ children, className, style, onClick, onMouseEnter, onMouseLeave }) => (
         <div 
             className={className}
             style={{
@@ -432,6 +439,9 @@ export default function EcommerceAgentView() {
                 boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.05)',
                 ...style
             }}
+            onClick={onClick}
+            onMouseEnter={onMouseEnter}
+            onMouseLeave={onMouseLeave}
         >
             {children}
         </div>
@@ -1267,7 +1277,7 @@ export default function EcommerceAgentView() {
                                                             }}
                                                             onMouseLeave={(e) => {
                                                                 e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
-                                                            }}
+                                    }}
                                                         >
                                                             Disconnect
                                                         </button>

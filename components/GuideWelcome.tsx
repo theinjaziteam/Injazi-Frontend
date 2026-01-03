@@ -20,7 +20,9 @@ export const WelcomeIntro = memo(({ onStartTour, onSkip }: { onStartTour: () => 
   const [textVisible, setTextVisible] = useState(false);
   const [subtitleVisible, setSubtitleVisible] = useState(false);
   const [buttonsVisible, setButtonsVisible] = useState(false);
+  const [animationStarted, setAnimationStarted] = useState(false);
 
+  // Initial entrance animation
   useEffect(() => {
     const timers = [
       setTimeout(() => setBoxesVisible([true, false, false]), 300),
@@ -29,6 +31,7 @@ export const WelcomeIntro = memo(({ onStartTour, onSkip }: { onStartTour: () => 
       setTimeout(() => setTextVisible(true), 1200),
       setTimeout(() => setSubtitleVisible(true), 1600),
       setTimeout(() => setButtonsVisible(true), 2000),
+      setTimeout(() => setAnimationStarted(true), 2500), // Start continuous animation after entrance
     ];
     return () => timers.forEach(clearTimeout);
   }, []);
@@ -64,7 +67,7 @@ export const WelcomeIntro = memo(({ onStartTour, onSkip }: { onStartTour: () => 
         ))}
       </div>
 
-      {/* Animated glass boxes */}
+      {/* Animated glass boxes - continuously animated until tour starts */}
       <div style={{
         position: 'absolute',
         top: '12%',
@@ -72,13 +75,15 @@ export const WelcomeIntro = memo(({ onStartTour, onSkip }: { onStartTour: () => 
         width: 140,
         height: 140,
         background: 'rgba(255,255,255,0.03)',
-        backdropFilter: 'blur(10px)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
         border: '1px solid rgba(255,255,255,0.08)',
         borderRadius: 20,
         transform: boxesVisible[0] ? 'translateX(0) rotate(12deg)' : 'translateX(-150px) rotate(12deg)',
         opacity: boxesVisible[0] ? 1 : 0,
-        transition: 'all 1s cubic-bezier(0.34, 1.56, 0.64, 1)',
+        transition: boxesVisible[0] ? 'all 1s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'none',
         boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+        animation: animationStarted ? 'floatBox1 4s ease-in-out infinite' : 'none',
       }} />
       <div style={{
         position: 'absolute',
@@ -86,15 +91,17 @@ export const WelcomeIntro = memo(({ onStartTour, onSkip }: { onStartTour: () => 
         right: '12%',
         width: 100,
         height: 100,
-        background: 'rgba(255,255,255,0.04)',
-        backdropFilter: 'blur(10px)',
-        border: '1px solid rgba(255,255,255,0.1)',
+        background: 'rgba(255,255,255,0.03)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        border: '1px solid rgba(255,255,255,0.08)',
         borderRadius: 16,
         transform: boxesVisible[1] ? 'translateY(0) rotate(-8deg)' : 'translateY(-120px) rotate(-8deg)',
         opacity: boxesVisible[1] ? 1 : 0,
-        transition: 'all 1s cubic-bezier(0.34, 1.56, 0.64, 1)',
-        transitionDelay: '0.1s',
+        transition: boxesVisible[1] ? 'all 1s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'none',
+        transitionDelay: boxesVisible[1] ? '0.1s' : '0s',
         boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+        animation: animationStarted ? 'floatBox2 5s ease-in-out infinite' : 'none',
       }} />
       <div style={{
         position: 'absolute',
@@ -102,15 +109,17 @@ export const WelcomeIntro = memo(({ onStartTour, onSkip }: { onStartTour: () => 
         left: '15%',
         width: 120,
         height: 120,
-        background: 'rgba(255,255,255,0.02)',
-        backdropFilter: 'blur(10px)',
-        border: '1px solid rgba(255,255,255,0.06)',
+        background: 'rgba(255,255,255,0.03)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        border: '1px solid rgba(255,255,255,0.08)',
         borderRadius: 24,
         transform: boxesVisible[2] ? 'translateY(0) rotate(5deg)' : 'translateY(120px) rotate(5deg)',
         opacity: boxesVisible[2] ? 1 : 0,
-        transition: 'all 1s cubic-bezier(0.34, 1.56, 0.64, 1)',
-        transitionDelay: '0.2s',
+        transition: boxesVisible[2] ? 'all 1s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'none',
+        transitionDelay: boxesVisible[2] ? '0.2s' : '0s',
         boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+        animation: animationStarted ? 'floatBox3 6s ease-in-out infinite' : 'none',
       }} />
       <div style={{
         position: 'absolute',
@@ -118,15 +127,17 @@ export const WelcomeIntro = memo(({ onStartTour, onSkip }: { onStartTour: () => 
         right: '10%',
         width: 80,
         height: 80,
-        background: 'rgba(255,255,255,0.025)',
-        backdropFilter: 'blur(10px)',
-        border: '1px solid rgba(255,255,255,0.07)',
+        background: 'rgba(255,255,255,0.03)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        border: '1px solid rgba(255,255,255,0.08)',
         borderRadius: 14,
         transform: boxesVisible[2] ? 'translateX(0) rotate(-12deg)' : 'translateX(100px) rotate(-12deg)',
         opacity: boxesVisible[2] ? 1 : 0,
-        transition: 'all 1s cubic-bezier(0.34, 1.56, 0.64, 1)',
-        transitionDelay: '0.3s',
+        transition: boxesVisible[2] ? 'all 1s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'none',
+        transitionDelay: boxesVisible[2] ? '0.3s' : '0s',
         boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+        animation: animationStarted ? 'floatBox4 4.5s ease-in-out infinite' : 'none',
       }} />
 
       {/* Main content */}
@@ -134,7 +145,7 @@ export const WelcomeIntro = memo(({ onStartTour, onSkip }: { onStartTour: () => 
         <h1 style={{
           fontSize: 'clamp(32px, 8vw, 56px)',
           fontWeight: 300,
-          color: '#fff',
+          color: 'rgba(255, 255, 255, 0.9)',
           marginBottom: 16,
           letterSpacing: '-0.02em',
           opacity: textVisible ? 1 : 0,
@@ -145,15 +156,44 @@ export const WelcomeIntro = memo(({ onStartTour, onSkip }: { onStartTour: () => 
         </h1>
         <p style={{
           fontSize: 'clamp(16px, 4vw, 20px)',
-          color: 'rgba(255,255,255,0.5)',
-          marginBottom: 56,
+          color: 'rgba(255,255,255,0.7)',
+          marginBottom: 24,
           fontWeight: 300,
           opacity: subtitleVisible ? 1 : 0,
           transform: subtitleVisible ? 'translateY(0)' : 'translateY(20px)',
           transition: 'all 0.8s cubic-bezier(0.16, 1, 0.3, 1)',
         }}>
-          Your Journey Begins Here
+          Your AI-powered journey companion
         </p>
+        <div style={{
+          maxWidth: 600,
+          margin: '0 auto 56px',
+          padding: '20px',
+          background: 'rgba(255,255,255,0.03)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          borderRadius: 16,
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+          opacity: subtitleVisible ? 1 : 0,
+          transform: subtitleVisible ? 'translateY(0)' : 'translateY(20px)',
+          transition: 'all 0.8s cubic-bezier(0.16, 1, 0.3, 1)',
+          transitionDelay: '0.2s',
+        }}>
+          <p style={{
+            fontSize: 'clamp(14px, 3vw, 16px)',
+            color: 'rgba(255,255,255,0.6)',
+            lineHeight: 1.6,
+            margin: 0,
+            textAlign: 'left',
+          }}>
+            <strong style={{ color: 'rgba(255,255,255,0.9)' }}>How to use ChatView:</strong><br />
+            • <strong>Planet View:</strong> Drag the interactive planet to explore your journey. Each point represents guidance from The Guide.<br />
+            • <strong>Chat Mode:</strong> Switch to chat view to have conversations with The Guide. Ask questions, share goals, or get advice.<br />
+            • <strong>Attachments:</strong> Upload images, documents, or audio files to provide context for better guidance.<br />
+            • <strong>Journeys:</strong> All your conversations are saved as journeys. Access them anytime from the header menu.
+          </p>
+        </div>
         <div style={{
           display: 'flex',
           gap: 16,
@@ -167,21 +207,27 @@ export const WelcomeIntro = memo(({ onStartTour, onSkip }: { onStartTour: () => 
             onClick={onSkip}
             style={{
               padding: '14px 28px',
-              background: 'transparent',
-              border: '1px solid rgba(255,255,255,0.15)',
+              background: 'rgba(255,255,255,0.03)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255,255,255,0.08)',
               borderRadius: 40,
-              color: 'rgba(255,255,255,0.6)',
+              color: 'rgba(255,255,255,0.7)',
               fontSize: 15,
+              fontWeight: 500,
               cursor: 'pointer',
               transition: 'all 0.3s ease',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
             }}
             onMouseEnter={e => {
-              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)';
-              e.currentTarget.style.color = 'rgba(255,255,255,0.8)';
+              e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)';
+              e.currentTarget.style.color = 'rgba(255,255,255,0.9)';
             }}
             onMouseLeave={e => {
-              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)';
-              e.currentTarget.style.color = 'rgba(255,255,255,0.6)';
+              e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+              e.currentTarget.style.color = 'rgba(255,255,255,0.7)';
             }}
           >
             Skip Tour
@@ -190,22 +236,25 @@ export const WelcomeIntro = memo(({ onStartTour, onSkip }: { onStartTour: () => 
             onClick={onStartTour}
             style={{
               padding: '14px 36px',
-              background: 'rgba(255,255,255,0.1)',
-              backdropFilter: 'blur(10px)',
-              border: '1px solid rgba(255,255,255,0.2)',
+              background: '#3423A6',
+              border: '1px solid rgba(52, 35, 166, 0.5)',
               borderRadius: 40,
               color: '#fff',
               fontSize: 15,
+              fontWeight: 600,
               cursor: 'pointer',
               transition: 'all 0.3s ease',
+              boxShadow: '0 4px 12px rgba(52, 35, 166, 0.4)',
             }}
             onMouseEnter={e => {
-              e.currentTarget.style.background = 'rgba(255,255,255,0.15)';
+              e.currentTarget.style.background = '#171738';
               e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 6px 16px rgba(52, 35, 166, 0.5)';
             }}
             onMouseLeave={e => {
-              e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
+              e.currentTarget.style.background = '#3423A6';
               e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(52, 35, 166, 0.4)';
             }}
           >
             Take the Tour
@@ -217,6 +266,56 @@ export const WelcomeIntro = memo(({ onStartTour, onSkip }: { onStartTour: () => 
         @keyframes twinkle {
           0%, 100% { opacity: 0.2; }
           50% { opacity: 0.8; }
+        }
+        @keyframes floatBox1 {
+          0%, 100% { 
+            transform: translate(0, 0) rotate(12deg) scale(1);
+          }
+          25% { 
+            transform: translate(10px, -15px) rotate(15deg) scale(1.05);
+          }
+          50% { 
+            transform: translate(-5px, -25px) rotate(10deg) scale(1.02);
+          }
+          75% { 
+            transform: translate(-10px, -10px) rotate(14deg) scale(1.03);
+          }
+        }
+        @keyframes floatBox2 {
+          0%, 100% { 
+            transform: translate(0, 0) rotate(-8deg) scale(1);
+          }
+          33% { 
+            transform: translate(-12px, 10px) rotate(-10deg) scale(1.04);
+          }
+          66% { 
+            transform: translate(8px, -8px) rotate(-6deg) scale(1.02);
+          }
+        }
+        @keyframes floatBox3 {
+          0%, 100% { 
+            transform: translate(0, 0) rotate(5deg) scale(1);
+          }
+          30% { 
+            transform: translate(15px, 12px) rotate(8deg) scale(1.03);
+          }
+          60% { 
+            transform: translate(-8px, 20px) rotate(3deg) scale(1.05);
+          }
+          90% { 
+            transform: translate(-12px, 5px) rotate(6deg) scale(1.01);
+          }
+        }
+        @keyframes floatBox4 {
+          0%, 100% { 
+            transform: translate(0, 0) rotate(-12deg) scale(1);
+          }
+          40% { 
+            transform: translate(-8px, -12px) rotate(-14deg) scale(1.06);
+          }
+          80% { 
+            transform: translate(10px, -5px) rotate(-10deg) scale(1.02);
+          }
         }
       `}</style>
     </div>

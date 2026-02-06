@@ -833,9 +833,6 @@ select:-webkit-autofill:focus {
    TAILWIND BASE LAYER ADDITIONS
    ============================================ */
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 
 /* Custom component layer */
 @layer components {

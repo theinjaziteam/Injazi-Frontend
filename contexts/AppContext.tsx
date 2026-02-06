@@ -72,7 +72,7 @@ const INITIAL_CONNECTED_APPS: ConnectedApp[] = [
 
 const INITIAL_STATE: UserState = {
     email: "",
-    password: "",
+    // password REMOVED — never store in client state
     createdAt: Date.now(),
     name: "",
     country: "",
@@ -108,11 +108,7 @@ const INITIAL_STATE: UserState = {
     myCourses: [],
     myProducts: [],
     myVideos: [],
-    friends: [
-        { id: 'f1', name: 'Sarah', streak: 12, avatar: 'https://picsum.photos/110', lastActive: '2m ago', goalTitle: 'Run Marathon', progress: 45 },
-        { id: 'f2', name: 'Mike', streak: 5, avatar: 'https://picsum.photos/111', lastActive: '1h ago', goalTitle: 'Learn Python', progress: 20 },
-        { id: 'f3', name: 'Emma', streak: 30, avatar: 'https://picsum.photos/112', lastActive: '4h ago', goalTitle: 'Save $10k', progress: 75 }
-    ]
+    friends: []  // Empty — no fake friends, populated from server or social features
 };
 
 interface AppContextType {
@@ -155,7 +151,13 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<UserState>(() => {
         const saved = localStorage.getItem('injazi_user');
-        return saved ? JSON.parse(saved) : INITIAL_STATE;
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            // Strip password if it somehow got saved from an older version
+            delete parsed.password;
+            return parsed;
+        }
+        return INITIAL_STATE;
     });
 
     const [view, setView] = useState<AppView>(
@@ -189,24 +191,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setUser(prev => ({ ...prev, friends: updatedFriends }));
     };
 
+    // Persist user to localStorage (strip sensitive fields before saving)
     useEffect(() => {
         if (user.email) {
-            localStorage.setItem('injazi_user', JSON.stringify(user));
+            const toSave = { ...user };
+            delete (toSave as any).password;  // Never persist password
+            localStorage.setItem('injazi_user', JSON.stringify(toSave));
         } else {
             localStorage.removeItem('injazi_user');
         }
     }, [user]);
 
+    // Auto-sync to backend
     useEffect(() => {
         if (isAuthenticated && user.email) {
             const saveTimer = setTimeout(() => {
-                console.log("💾 Auto-Syncing State...");
+                console.log(" Auto-Syncing State...");
                 api.sync(user).catch(err => console.error("Sync failed", err));
             }, 2000);
             return () => clearTimeout(saveTimer);
         }
     }, [user.credits, user.dailyTasks, user.goal, user.realMoneyBalance, user.friends, user.isPremium, user.activePlanId]);
 
+    // Load social content when navigating to SOCIAL view
     useEffect(() => {
         if (view === AppView.SOCIAL && user.goal) {
             const currentGoal = user.goal;
@@ -220,22 +227,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 let needsSync = false;
 
                 if (currentGoal.savedCurriculum && currentGoal.savedCurriculum.length > 0) {
-                    console.log("📚 Loading saved curriculum");
+                    console.log(" Loading saved curriculum");
                     updatedLessons = currentGoal.savedCurriculum;
                 } else {
-                    console.log("🤖 Generating new curriculum...");
+                    console.log(" Generating new curriculum...");
                     setIsLoadingLessons(true);
                     try {
                         const generated = await getGoalCurriculum(currentGoal);
                         if (generated && generated.length > 0) {
                             updatedLessons = generated;
-                            console.log("✅ Curriculum generated:", generated.length, "chapters");
+                            console.log(" Curriculum generated:", generated.length, "chapters");
                         } else {
-                            console.log("⚠️ AI returned empty, using default");
+                            console.log(" AI returned empty, using default");
                             updatedLessons = getDefaultCurriculum(currentGoal);
                         }
                     } catch (e) {
-                        console.error("❌ Curriculum generation failed:", e);
+                        console.error(" Curriculum generation failed:", e);
                         updatedLessons = getDefaultCurriculum(currentGoal);
                     }
                     setIsLoadingLessons(false);
@@ -293,7 +300,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 setRecommendedVideos(updatedVideos);
 
                 if (needsSync) {
-                    console.log("💾 Saving content to goal...");
+                    console.log(" Saving content to goal...");
                     const updatedGoalData = {
                         savedCurriculum: updatedLessons,
                         savedCourses: updatedCourses,

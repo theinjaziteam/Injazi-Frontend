@@ -1,7 +1,9 @@
 /* index.css */
 /* INJAZI Design System & Global Styles */
 /* FIXES: #40 (Focus states), #41 (Safe-area), #42 (Color contrast), #43 (Loading states), #44 (Empty states) */
-
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 /* ============================================
    CSS VARIABLES & DESIGN TOKENS
    ============================================ */

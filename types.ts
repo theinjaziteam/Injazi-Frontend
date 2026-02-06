@@ -199,7 +199,6 @@ export interface AgentAlert {
 export interface UserState {
   _id?: string;
   email: string;
-  password?: string;
   createdAt: number;
   name: string;
   country: string;

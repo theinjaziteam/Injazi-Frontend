@@ -73,7 +73,8 @@ export const api = {
     sync: async (userData: any) => {
         if (!userData.email) return;
         const token = localStorage.getItem('injazi_token');
-        await fetch(`${API_URL}/api/sync`, {
+        if (!token) return; // Don't sync without auth
+        const response = await fetch(`${API_URL}/api/sync`, {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
@@ -81,10 +82,19 @@ export const api = {
             },
             body: JSON.stringify(userData)
         });
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({ message: 'Sync failed' }));
+            throw new Error(err.message || 'Sync failed');
+        }
     },
 
     getUser: async (email: string) => {
-        const response = await fetch(`${API_URL}/api/user/${encodeURIComponent(email)}`);
+        const token = localStorage.getItem('injazi_token');
+        const response = await fetch(`${API_URL}/api/user/${encodeURIComponent(email)}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
         const result = await response.json();
         if (!response.ok) throw result;
         return result;

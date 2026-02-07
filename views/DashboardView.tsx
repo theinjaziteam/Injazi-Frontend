@@ -86,7 +86,8 @@ export default function DashboardView() {
         if (isEarnExpanded && user.email && adgemOffers.length === 0) {
             fetchAdgemOffers();
         }
-    }, [isEarnExpanded]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isEarnExpanded, user.email]);
 
     const fetchAdgemOffers = async () => {
         if (isLoadingOffers) return;
@@ -348,9 +349,18 @@ export default function DashboardView() {
                                 <span className="text-sm font-bold text-white/90">{formatCredits(user.credits || 0)}</span>
                             </div>
                             
+                            {/* AI Agents Button */}
+                            <button
+                                onClick={() => setView(AppView.AGENT_DASHBOARD)}
+                                className="p-2 bg-white/10 rounded-xl hover:bg-white/20 transition-all active:scale-95 backdrop-blur-sm focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2"
+                                aria-label="Open AI agents"
+                            >
+                                <Icons.Bot className="w-5 h-5 text-white/80" />
+                            </button>
+                            
                             {/* FIX #6: Added aria-label and focus-visible for accessibility */}
-                            <button 
-                                onClick={() => setView(AppView.SETTINGS)} 
+                            <button
+                                onClick={() => setView(AppView.SETTINGS)}
                                 className="p-2 bg-white/10 rounded-xl hover:bg-white/20 transition-all active:scale-95 backdrop-blur-sm focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2"
                                 aria-label="Open settings"
                             >

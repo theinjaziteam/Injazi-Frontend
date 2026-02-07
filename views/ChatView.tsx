@@ -86,14 +86,14 @@ export default function ChatView() {
         if (Array.isArray(saved)) {
             setConversations(saved);
         }
-    }, []);
+    }, [user]);
 
     // Save conversations to user
     useEffect(() => {
         if (conversations.length > 0 || (user as any).guideConversations?.length > 0) {
             setUser(prev => ({ ...prev, guideConversations: conversations } as any));
         }
-    }, [conversations]);
+    }, [conversations, setUser]);
 
     // FIX #8: Pause animation when tab is not visible
     useEffect(() => {

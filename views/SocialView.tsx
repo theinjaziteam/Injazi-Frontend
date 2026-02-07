@@ -465,6 +465,11 @@ export default function SocialView() {
         setNewItemAttachments(prev => prev.filter((_, i) => i !== index));
     };
 
+    const closeLessonModal = () => {
+        setViewingLesson(null);
+        setCurrentChapter(null);
+    };
+
     const confirmAddItem = () => {
         const priceCredits = parseInt(newItemPriceCredits);
         if (!newItemTitle || isNaN(priceCredits) || priceCredits < 100) {

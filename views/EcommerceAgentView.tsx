@@ -2,18 +2,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { AppView } from '../types';
-import { 
-    Icons, 
-    EcommerceIcons, 
-    AgentActionCard, 
-    KPICard, 
-    ProductDraftCard, 
+import {
+    Icons,
+    EcommerceIcons,
+    AgentActionCard,
+    KPICard,
+    ProductDraftCard,
     InsightCard,
     EmailPreviewCard,
     SocialContentCard,
     ConnectedAccountCard
 } from '../components/UIComponents';
 import { ecommerceAgentService } from '../services/ecommerceAgentService';
+import { masterAgentService, AgentType } from '../services/masterAgentService';
 import BridgeHub from '../components/BridgeHub';
 import { oauthService, ConnectedAccount } from '../services/oauthService';
 
@@ -23,6 +24,10 @@ export default function EcommerceAgentView() {
     const { user, setUser, setView } = useApp();
     const [activeTab, setActiveTab] = useState<TabType>('chat');
     const [isLoading, setIsLoading] = useState(false);
+    
+    // Autonomous mode state
+    const [autonomousMode, setAutonomousMode] = useState(false);
+    const [autoApprove, setAutoApprove] = useState(false);
     
     // Chat state
     const [chatInput, setChatInput] = useState('');

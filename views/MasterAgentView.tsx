@@ -1,5 +1,5 @@
 // views/MasterAgentView.tsx
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { AppView } from '../types';
 import { Icons } from '../components/UIComponents';
@@ -8,6 +8,121 @@ import BridgeHub from '../components/BridgeHub';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://injazi-backend.onrender.com';
 
+// ============================================
+// MASTER AGENT SERVICE
+// ============================================
+const masterAgentService = {
+    // Main chat endpoint that handles tool execution
+    chat: async (email: string, message: string, context: {
+        connectedPlatforms: string[];
+        activeTools: string[];
+        goal?: any;
+        userName: string;
+        history: { role: string; content: string }[];
+        userTasks?: any[];
+    }) => {
+        try {
+            const response = await fetch(`${API_URL}/api/master-agent/chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, message, ...context })
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || 'Chat request failed');
+            }
+            
+            return response.json();
+        } catch (error) {
+            console.error('Master agent chat error:', error);
+            // Fallback to regular chat endpoint if master-agent endpoint doesn't exist
+            return masterAgentService.fallbackChat(email, message, context);
+        }
+    },
+
+    // Fallback to regular AI chat
+    fallbackChat: async (email: string, message: string, context: any) => {
+        const systemPrompt = `You are Master Agent - a powerful personal AI assistant that helps users accomplish tasks using their connected apps and services.
+
+YOUR CAPABILITIES:
+${context.activeTools?.map((t: string) => `- ${t}`).join('\n') || '- General assistance'}
+
+CONNECTED PLATFORMS:
+${context.connectedPlatforms?.length > 0 ? context.connectedPlatforms.map((p: string) => `- ${p}`).join('\n') : '- No platforms connected yet'}
+
+USER CONTEXT:
+- Name: ${context.userName}
+- Current Goal: ${context.goal?.title || 'Not set'}
+
+IMPORTANT INSTRUCTIONS:
+1. If the user asks to use a connected platform (like GitHub, Google, Shopify), tell them you're accessing it and provide helpful information.
+2. If a platform is not connected but needed, suggest they connect it in Settings.
+3. Be concise, helpful, and action-oriented.
+4. Format responses nicely with **bold** for emphasis.
+5. Always suggest next steps.
+
+When users ask about their connected accounts:
+- For GitHub: Offer to list repos, check issues, view profile
+- For Google: Offer to check calendar, read emails, create events
+- For Shopify: Offer to check orders, products, analytics
+- For other platforms: Explain what you can help with
+
+If you cannot actually perform an action, explain what would need to be done and offer alternatives.`;
+
+        const response = await fetch(`${API_URL}/api/ai/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                systemPrompt,
+                goal: context.goal || { title: 'General Assistant', category: 'OTHER' },
+                history: context.history || [],
+                message,
+                userProfile: '',
+                currentTasks: context.userTasks || [],
+                connectedPlatforms: context.connectedPlatforms,
+                activeTools: context.activeTools
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Chat request failed');
+        }
+
+        return response.json();
+    },
+
+    // Execute a specific tool action
+    executeTool: async (email: string, tool: string, action: string, params?: any) => {
+        const response = await fetch(`${API_URL}/api/master-agent/execute`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, tool, action, params })
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Tool execution failed');
+        }
+        
+        return response.json();
+    },
+
+    // Get available actions for connected platforms
+    getAvailableActions: async (email: string) => {
+        try {
+            const response = await fetch(`${API_URL}/api/master-agent/actions/${encodeURIComponent(email)}`);
+            if (!response.ok) return { actions: [] };
+            return response.json();
+        } catch {
+            return { actions: [] };
+        }
+    }
+};
+
+// ============================================
+// TYPES
+// ============================================
 type TabType = 'chat' | 'tools' | 'automations' | 'settings';
 
 interface Message {
@@ -16,7 +131,8 @@ interface Message {
     content: string;
     timestamp: number;
     isThinking?: boolean;
-    actions?: { type: string; platform: string; status: 'pending' | 'running' | 'complete' | 'error'; description: string }[];
+    toolUsed?: string;
+    actionTaken?: string;
 }
 
 interface Tool {
@@ -39,8 +155,12 @@ interface Automation {
     icon: React.FC<any>;
 }
 
+// ============================================
+// AVAILABLE TOOLS
+// ============================================
 const AVAILABLE_TOOLS: Tool[] = [
     { id: 'web-search', name: 'Web Search', description: 'Search the internet for real-time information', icon: Icons.Globe, category: 'productivity', enabled: true },
+    { id: 'github', name: 'GitHub', description: 'Manage repositories, issues, and code', icon: Icons.Cpu, category: 'productivity', enabled: true, requiresConnection: 'github' },
     { id: 'calendar', name: 'Calendar', description: 'Manage events and schedules', icon: Icons.Calendar, category: 'productivity', enabled: true, requiresConnection: 'google' },
     { id: 'email', name: 'Email', description: 'Read, compose and send emails', icon: Icons.Mail, category: 'communication', enabled: true, requiresConnection: 'google' },
     { id: 'notes', name: 'Notes', description: 'Create and manage notes', icon: Icons.FileText, category: 'productivity', enabled: true },
@@ -50,8 +170,12 @@ const AVAILABLE_TOOLS: Tool[] = [
     { id: 'code', name: 'Code Assistant', description: 'Write, explain, and debug code', icon: Icons.Cpu, category: 'creative', enabled: true },
     { id: 'social', name: 'Social Media', description: 'Create and schedule social posts', icon: Icons.Users, category: 'communication', enabled: true, requiresConnection: 'instagram' },
     { id: 'tasks', name: 'Task Manager', description: 'Create and manage your tasks', icon: Icons.CheckCircle, category: 'productivity', enabled: true },
+    { id: 'discord', name: 'Discord', description: 'Manage Discord servers and messages', icon: Icons.MessageCircle, category: 'communication', enabled: true, requiresConnection: 'discord' },
 ];
 
+// ============================================
+// MAIN COMPONENT
+// ============================================
 export default function MasterAgentView() {
     const { user, setUser, setView } = useApp();
     const [activeTab, setActiveTab] = useState<TabType>('chat');
@@ -61,7 +185,6 @@ export default function MasterAgentView() {
     const [chatInput, setChatInput] = useState('');
     const [messages, setMessages] = useState<Message[]>([]);
     const [isInputFocused, setIsInputFocused] = useState(false);
-    const [isTyping, setIsTyping] = useState(false);
     const chatEndRef = useRef<HTMLDivElement>(null);
     
     // Tools state
@@ -70,6 +193,7 @@ export default function MasterAgentView() {
     // Connected accounts
     const [connectedAccounts, setConnectedAccounts] = useState<ConnectedAccount[]>([]);
     const [showBridgeHub, setShowBridgeHub] = useState(false);
+    const [isLoadingAccounts, setIsLoadingAccounts] = useState(false);
     
     // Automations state
     const [automations, setAutomations] = useState<Automation[]>([
@@ -84,7 +208,6 @@ export default function MasterAgentView() {
         soundEffects: true,
         autoSave: true,
         darkMode: true,
-        language: 'English',
         voiceEnabled: false,
     });
     
@@ -95,12 +218,16 @@ export default function MasterAgentView() {
     const isAnimatingRef = useRef(true);
     const [canvasKey, setCanvasKey] = useState(0);
 
+    // ============================================
+    // EFFECTS
+    // ============================================
+    
     // Scroll to bottom when messages change
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    // Load connected accounts
+    // Load connected accounts on mount
     useEffect(() => {
         if (user?.email) {
             loadConnectedAccounts();
@@ -114,17 +241,7 @@ export default function MasterAgentView() {
         }
     }, [showBridgeHub]);
 
-    const loadConnectedAccounts = async () => {
-        if (!user?.email) return;
-        try {
-            const accounts = await oauthService.getConnectedAccounts(user.email);
-            setConnectedAccounts(accounts);
-        } catch (error) {
-            console.error('Error loading connected accounts:', error);
-        }
-    };
-
-    // Initialize stars with more variety
+    // Initialize stars
     useEffect(() => {
         if (starsRef.current.length === 0) {
             starsRef.current = Array.from({ length: 300 }, () => ({
@@ -137,7 +254,7 @@ export default function MasterAgentView() {
         }
     }, []);
 
-    // Pause animation when tab not visible
+    // Visibility change handler
     useEffect(() => {
         const handleVisibilityChange = () => {
             if (document.hidden) {
@@ -155,7 +272,7 @@ export default function MasterAgentView() {
         return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
     }, []);
 
-    // Enhanced stars animation with nebula and shooting stars
+    // Canvas animation
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -201,7 +318,7 @@ export default function MasterAgentView() {
             
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
             
-            // Deep space gradient background
+            // Deep space gradient
             const bgGradient = ctx.createLinearGradient(0, 0, 0, h);
             bgGradient.addColorStop(0, '#000000');
             bgGradient.addColorStop(0.5, '#0a0a1a');
@@ -209,12 +326,11 @@ export default function MasterAgentView() {
             ctx.fillStyle = bgGradient;
             ctx.fillRect(0, 0, w, h);
 
-            // Draw stars with parallax and twinkling
+            // Draw stars
             starsRef.current.forEach(star => {
                 const twinkle = 0.4 + Math.sin(currentTime * star.speed * 10 + star.brightness * 20) * 0.4;
                 const size = star.brightness * 2 + 0.5;
                 
-                // Star glow
                 const glowSize = size * 3;
                 const glow = ctx.createRadialGradient(
                     (star.x + 1) * w / 2, (star.y + 1) * h / 2, 0,
@@ -227,14 +343,13 @@ export default function MasterAgentView() {
                 ctx.arc((star.x + 1) * w / 2, (star.y + 1) * h / 2, glowSize, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // Star core
                 ctx.fillStyle = `rgba(255, 255, 255, ${star.z * twinkle})`;
                 ctx.beginPath();
                 ctx.arc((star.x + 1) * w / 2, (star.y + 1) * h / 2, size, 0, Math.PI * 2);
                 ctx.fill();
             });
 
-            // Purple nebula (top-left)
+            // Purple nebula
             const nebula1 = ctx.createRadialGradient(w * 0.2, h * 0.3, 0, w * 0.2, h * 0.3, w * 0.5);
             nebula1.addColorStop(0, 'rgba(139, 92, 246, 0.15)');
             nebula1.addColorStop(0.5, 'rgba(139, 92, 246, 0.05)');
@@ -242,7 +357,7 @@ export default function MasterAgentView() {
             ctx.fillStyle = nebula1;
             ctx.fillRect(0, 0, w, h);
 
-            // Blue nebula (bottom-right)
+            // Blue nebula
             const nebula2 = ctx.createRadialGradient(w * 0.8, h * 0.7, 0, w * 0.8, h * 0.7, w * 0.4);
             nebula2.addColorStop(0, 'rgba(59, 130, 246, 0.1)');
             nebula2.addColorStop(0.5, 'rgba(59, 130, 246, 0.03)');
@@ -250,34 +365,34 @@ export default function MasterAgentView() {
             ctx.fillStyle = nebula2;
             ctx.fillRect(0, 0, w, h);
 
-            // Occasional shooting star
-            if (Math.random() < 0.002 && shootingStars.length < 3) {
+            // Shooting stars
+            if (Math.random() < 0.003 && shootingStars.length < 3) {
                 shootingStars.push({
-                    x: Math.random() * w,
+                    x: Math.random() * w * 0.5,
                     y: Math.random() * h * 0.3,
-                    vx: 3 + Math.random() * 4,
-                    vy: 2 + Math.random() * 3,
+                    vx: 4 + Math.random() * 6,
+                    vy: 2 + Math.random() * 4,
                     life: 0,
-                    maxLife: 30 + Math.random() * 30
+                    maxLife: 25 + Math.random() * 35
                 });
             }
 
-            // Draw and update shooting stars
             shootingStars = shootingStars.filter(ss => {
                 ss.x += ss.vx;
                 ss.y += ss.vy;
                 ss.life++;
                 
                 const alpha = 1 - (ss.life / ss.maxLife);
-                const gradient = ctx.createLinearGradient(ss.x, ss.y, ss.x - ss.vx * 10, ss.y - ss.vy * 10);
+                const gradient = ctx.createLinearGradient(ss.x, ss.y, ss.x - ss.vx * 15, ss.y - ss.vy * 15);
                 gradient.addColorStop(0, `rgba(255, 255, 255, ${alpha})`);
+                gradient.addColorStop(0.3, `rgba(167, 139, 250, ${alpha * 0.5})`);
                 gradient.addColorStop(1, 'transparent');
                 
                 ctx.strokeStyle = gradient;
                 ctx.lineWidth = 2;
                 ctx.beginPath();
                 ctx.moveTo(ss.x, ss.y);
-                ctx.lineTo(ss.x - ss.vx * 10, ss.y - ss.vy * 10);
+                ctx.lineTo(ss.x - ss.vx * 15, ss.y - ss.vy * 15);
                 ctx.stroke();
                 
                 return ss.life < ss.maxLife;
@@ -295,27 +410,47 @@ export default function MasterAgentView() {
         };
     }, [canvasKey]);
 
-    // Check if a tool's required connection is active
+    // ============================================
+    // HELPER FUNCTIONS
+    // ============================================
+
+    const loadConnectedAccounts = async () => {
+        if (!user?.email) return;
+        setIsLoadingAccounts(true);
+        try {
+            const accounts = await oauthService.getConnectedAccounts(user.email);
+            setConnectedAccounts(accounts);
+        } catch (error) {
+            console.error('Error loading connected accounts:', error);
+        } finally {
+            setIsLoadingAccounts(false);
+        }
+    };
+
     const isToolConnected = (tool: Tool): boolean => {
         if (!tool.requiresConnection) return true;
         return connectedAccounts.some(a => 
-            a.platform === tool.requiresConnection && a.isConnected && !a.isExpired
+            a.platform.toLowerCase() === tool.requiresConnection?.toLowerCase() && 
+            a.isConnected && 
+            !a.isExpired
         );
     };
 
-    // Get enabled and connected tools for AI context
     const getActiveTools = (): string[] => {
         return tools
             .filter(t => t.enabled && isToolConnected(t))
             .map(t => t.name);
     };
 
-    // Get connected platforms for AI context
     const getConnectedPlatforms = (): string[] => {
         return connectedAccounts
             .filter(a => a.isConnected && !a.isExpired)
             .map(a => a.platform);
     };
+
+    // ============================================
+    // CHAT HANDLER
+    // ============================================
 
     const handleSendMessage = async () => {
         if (!chatInput.trim() || isLoading) return;
@@ -331,7 +466,6 @@ export default function MasterAgentView() {
         const currentInput = chatInput.trim();
         setChatInput('');
         setIsLoading(true);
-        setIsTyping(true);
 
         // Add thinking message
         const thinkingId = `thinking-${Date.now()}`;
@@ -347,64 +481,29 @@ export default function MasterAgentView() {
             const activeTools = getActiveTools();
             const connectedPlatforms = getConnectedPlatforms();
             
-            const systemPrompt = `You are Master Agent - a powerful personal AI assistant that helps users accomplish tasks using their connected apps and services.
-
-YOUR CAPABILITIES:
-${activeTools.map(t => `- ${t}`).join('\n')}
-
-CONNECTED PLATFORMS:
-${connectedPlatforms.length > 0 ? connectedPlatforms.map(p => `- ${p}`).join('\n') : '- No platforms connected yet'}
-
-USER CONTEXT:
-- Name: ${user.name}
-- Current Goal: ${user.goal?.title || 'Not set'}
-- Streak: ${user.streak || 0} days
-- Tasks Today: ${user.dailyTasks?.length || 0}
-
-BEHAVIOR GUIDELINES:
-1. Be concise but thorough - get to the point quickly
-2. When using connected services, explain what you're doing
-3. If a task requires a service that's not connected, suggest connecting it
-4. Proactively offer follow-up actions
-5. Use formatting for clarity (bold for emphasis, bullet points for lists)
-6. If you can accomplish something with connected tools, tell the user you're doing it
-
-RESPONSE FORMAT:
-- For simple questions: Give a direct answer
-- For tasks: Explain what you'll do, then do it
-- For suggestions: Be specific and actionable
-- Always end with a helpful follow-up question or next step when appropriate
-
-Remember: You have real access to the user's connected accounts. You can read emails, check calendars, manage Shopify stores, etc. Act on their behalf when asked.`;
-
-            const response = await fetch(`${API_URL}/api/ai/chat`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    systemPrompt,
-                    goal: user.goal || { title: 'General Assistant', category: 'OTHER' },
-                    history: messages.filter(m => !m.isThinking).slice(-10).map(m => ({ 
-                        role: m.role === 'user' ? 'user' : 'assistant', 
-                        content: m.content 
-                    })),
-                    message: currentInput,
-                    userProfile: user.userProfile || '',
-                    currentTasks: user.dailyTasks || [],
-                    connectedPlatforms,
-                    activeTools
-                })
+            // Call master agent service
+            const response = await masterAgentService.chat(user.email, currentInput, {
+                connectedPlatforms,
+                activeTools,
+                goal: user.goal,
+                userName: user.name,
+                history: messages.filter(m => !m.isThinking).slice(-10).map(m => ({ 
+                    role: m.role, 
+                    content: m.content 
+                })),
+                userTasks: user.dailyTasks
             });
 
-            const data = await response.json();
-            
-            // Remove thinking message and add real response
+            // Remove thinking and add response
             setMessages(prev => {
                 const filtered = prev.filter(m => m.id !== thinkingId);
                 return [...filtered, {
                     id: `msg-${Date.now() + 1}`,
                     role: 'assistant',
-                    content: data.response || "I'm here to help! What would you like to accomplish?",
-                    timestamp: Date.now()
+                    content: response.response || response.message || "I'm here to help! What would you like to do?",
+                    timestamp: Date.now(),
+                    toolUsed: response.toolUsed,
+                    actionTaken: response.actionTaken
                 }];
             });
         } catch (error) {
@@ -414,13 +513,12 @@ Remember: You have real access to the user's connected accounts. You can read em
                 return [...filtered, {
                     id: `msg-${Date.now() + 1}`,
                     role: 'assistant',
-                    content: "I'm having trouble connecting right now. Please check your connection and try again.",
+                    content: "I'm having trouble connecting right now. Please try again.",
                     timestamp: Date.now()
                 }];
             });
         } finally {
             setIsLoading(false);
-            setIsTyping(false);
         }
     };
 
@@ -444,19 +542,20 @@ Remember: You have real access to the user's connected accounts. You can read em
         }
     };
 
-    // Glassy card component
+    // ============================================
+    // UI COMPONENTS
+    // ============================================
+
     const GlassCard: React.FC<{ 
         children: React.ReactNode; 
         style?: React.CSSProperties; 
         onClick?: () => void;
-        className?: string;
         hover?: boolean;
-    }> = ({ children, style, onClick, className, hover = true }) => {
+    }> = ({ children, style, onClick, hover = true }) => {
         const [isHovered, setIsHovered] = useState(false);
         
         return (
             <div 
-                className={className}
                 style={{
                     background: isHovered && hover ? 'rgba(255, 255, 255, 0.06)' : 'rgba(255, 255, 255, 0.03)',
                     backdropFilter: 'blur(12px)',
@@ -478,12 +577,7 @@ Remember: You have real access to the user's connected accounts. You can read em
         );
     };
 
-    // Tab button component
-    const TabButton: React.FC<{ 
-        tab: TabType; 
-        icon: React.FC<any>; 
-        label: string 
-    }> = ({ tab, icon: TabIcon, label }) => (
+    const TabButton: React.FC<{ tab: TabType; icon: React.FC<any>; label: string }> = ({ tab, icon: TabIcon, label }) => (
         <button
             onClick={() => setActiveTab(tab)}
             style={{
@@ -517,7 +611,6 @@ Remember: You have real access to the user's connected accounts. You can read em
         </button>
     );
 
-    // Typing indicator animation
     const TypingIndicator = () => (
         <div style={{ display: 'flex', gap: '4px', padding: '4px 0' }}>
             {[0, 1, 2].map(i => (
@@ -541,21 +634,25 @@ Remember: You have real access to the user's connected accounts. You can read em
                     from { transform: rotate(0deg); }
                     to { transform: rotate(360deg); }
                 }
-                @keyframes pulse {
-                    0%, 100% { opacity: 1; }
-                    50% { opacity: 0.5; }
-                }
                 @keyframes slideIn {
                     from { opacity: 0; transform: translateY(10px); }
                     to { opacity: 1; transform: translateY(0); }
+                }
+                @keyframes pulse {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.5; }
                 }
             `}</style>
         </div>
     );
 
+    // ============================================
+    // RENDER CHAT TAB
+    // ============================================
+
     const renderChatTab = () => (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-            {/* Connected Apps Banner */}
+            {/* Connection Banner */}
             {connectedAccounts.filter(a => a.isConnected && !a.isExpired).length === 0 && (
                 <div style={{ padding: '12px 16px 0' }}>
                     <GlassCard 
@@ -571,16 +668,62 @@ Remember: You have real access to the user's connected accounts. You can read em
                                 <Icons.Link style={{ width: 18, height: 18, color: 'rgba(167, 139, 250, 1)' }} />
                                 <div>
                                     <p style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(255, 255, 255, 0.9)', margin: 0 }}>
-                                        Connect your apps
+                                        Connect your apps to unlock superpowers
                                     </p>
                                     <p style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.5)', margin: 0 }}>
-                                        Enable me to help with your tasks
+                                        GitHub, Google, Shopify, Discord & more
                                     </p>
                                 </div>
                             </div>
                             <Icons.ChevronRight style={{ width: 18, height: 18, color: 'rgba(255, 255, 255, 0.4)' }} />
                         </div>
                     </GlassCard>
+                </div>
+            )}
+
+            {/* Connected Apps Pills */}
+            {connectedAccounts.filter(a => a.isConnected && !a.isExpired).length > 0 && (
+                <div style={{ padding: '12px 16px 0' }}>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        {connectedAccounts.filter(a => a.isConnected && !a.isExpired).map(account => (
+                            <div
+                                key={account.platform}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    padding: '6px 12px',
+                                    background: 'rgba(34, 197, 94, 0.1)',
+                                    borderRadius: '20px',
+                                    border: '1px solid rgba(34, 197, 94, 0.2)'
+                                }}
+                            >
+                                <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e' }} />
+                                <span style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.8)', textTransform: 'capitalize', fontWeight: 500 }}>
+                                    {account.platform}
+                                </span>
+                            </div>
+                        ))}
+                        <button
+                            onClick={() => setShowBridgeHub(true)}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '6px 12px',
+                                background: 'rgba(255, 255, 255, 0.05)',
+                                borderRadius: '20px',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                cursor: 'pointer',
+                                color: 'rgba(255, 255, 255, 0.5)',
+                                fontSize: '11px',
+                                fontWeight: 500
+                            }}
+                        >
+                            <Icons.Plus style={{ width: 12, height: 12 }} />
+                            Add
+                        </button>
+                    </div>
                 </div>
             )}
             
@@ -612,8 +755,8 @@ Remember: You have real access to the user's connected accounts. You can read em
                         
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', maxWidth: '340px', margin: '0 auto' }}>
                             {[
-                                { text: 'Plan my day', icon: Icons.Calendar },
-                                { text: 'Check my emails', icon: Icons.Mail },
+                                { text: 'Check my GitHub repos', icon: Icons.Cpu },
+                                { text: 'Read my emails', icon: Icons.Mail },
                                 { text: 'Analyze my progress', icon: Icons.BarChart },
                                 { text: 'Help me code', icon: Icons.Cpu }
                             ].map((prompt, i) => (
@@ -621,10 +764,7 @@ Remember: You have real access to the user's connected accounts. You can read em
                                     key={i}
                                     onClick={() => {
                                         setChatInput(prompt.text);
-                                        setTimeout(() => {
-                                            const input = chatInput || prompt.text;
-                                            if (input) handleSendMessage();
-                                        }, 100);
+                                        setTimeout(handleSendMessage, 100);
                                     }}
                                     style={{
                                         padding: '14px',
@@ -642,7 +782,7 @@ Remember: You have real access to the user's connected accounts. You can read em
                     </div>
                 )}
                 
-                {messages.map((msg, index) => (
+                {messages.map((msg) => (
                     <div 
                         key={msg.id} 
                         style={{ 
@@ -680,15 +820,32 @@ Remember: You have real access to the user's connected accounts. You can read em
                             {msg.isThinking ? (
                                 <TypingIndicator />
                             ) : (
-                                <p style={{ 
-                                    fontSize: '14px', 
-                                    whiteSpace: 'pre-wrap', 
-                                    wordBreak: 'break-word', 
-                                    margin: 0, 
-                                    lineHeight: 1.6 
-                                }}>
-                                    {msg.content}
-                                </p>
+                                <>
+                                    <p style={{ 
+                                        fontSize: '14px', 
+                                        whiteSpace: 'pre-wrap', 
+                                        wordBreak: 'break-word', 
+                                        margin: 0, 
+                                        lineHeight: 1.6 
+                                    }}>
+                                        {msg.content}
+                                    </p>
+                                    {msg.toolUsed && (
+                                        <div style={{
+                                            marginTop: '10px',
+                                            paddingTop: '10px',
+                                            borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '6px'
+                                        }}>
+                                            <Icons.Zap style={{ width: 12, height: 12, color: 'rgba(167, 139, 250, 0.8)' }} />
+                                            <span style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.5)' }}>
+                                                Used {msg.toolUsed} {msg.actionTaken ? `(${msg.actionTaken})` : ''}
+                                            </span>
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
                     </div>
@@ -760,29 +917,33 @@ Remember: You have real access to the user's connected accounts. You can read em
         </div>
     );
 
+    // ============================================
+    // RENDER TOOLS TAB
+    // ============================================
+
     const renderToolsTab = () => (
         <div style={{ padding: '16px', overflowY: 'auto', WebkitOverflowScrolling: 'touch', height: '100%' }}>
             <div style={{ marginBottom: '20px' }}>
                 <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#fff', marginBottom: '4px' }}>Tools & Capabilities</h3>
                 <p style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.5)' }}>
-                    {tools.filter(t => t.enabled).length} of {tools.length} enabled
+                    {tools.filter(t => t.enabled && isToolConnected(t)).length} of {tools.length} active
                 </p>
             </div>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {tools.map((tool, index) => {
-                    const isConnected = isToolConnected(tool);
+                    const connected = isToolConnected(tool);
                     
                     return (
                         <GlassCard 
                             key={tool.id} 
                             style={{ 
                                 padding: '14px 16px',
-                                animation: `slideIn 0.3s ease ${index * 0.05}s both`,
-                                opacity: !isConnected ? 0.6 : 1
+                                animation: `slideIn 0.3s ease ${index * 0.03}s both`,
+                                opacity: !connected ? 0.6 : 1
                             }}
-                            onClick={() => isConnected && toggleTool(tool.id)}
-                            hover={isConnected}
+                            onClick={() => connected && toggleTool(tool.id)}
+                            hover={connected}
                         >
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
@@ -790,13 +951,13 @@ Remember: You have real access to the user's connected accounts. You can read em
                                         width: 44,
                                         height: 44,
                                         borderRadius: '12px',
-                                        background: tool.enabled && isConnected 
+                                        background: tool.enabled && connected 
                                             ? 'linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(59, 130, 246, 0.2))'
                                             : 'rgba(255, 255, 255, 0.05)',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
-                                        border: tool.enabled && isConnected 
+                                        border: tool.enabled && connected 
                                             ? '1px solid rgba(139, 92, 246, 0.3)' 
                                             : '1px solid rgba(255, 255, 255, 0.08)',
                                         transition: 'all 0.3s ease'
@@ -804,32 +965,32 @@ Remember: You have real access to the user's connected accounts. You can read em
                                         <tool.icon style={{ 
                                             width: 22, 
                                             height: 22, 
-                                            color: tool.enabled && isConnected 
+                                            color: tool.enabled && connected 
                                                 ? 'rgba(167, 139, 250, 1)' 
-                                                : 'rgba(255, 255, 255, 0.3)',
-                                            transition: 'color 0.3s ease'
+                                                : 'rgba(255, 255, 255, 0.3)'
                                         }} />
                                     </div>
                                     <div>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                             <h5 style={{ fontSize: '14px', fontWeight: 600, color: '#fff', margin: 0 }}>{tool.name}</h5>
-                                            {!isConnected && tool.requiresConnection && (
+                                            {!connected && tool.requiresConnection && (
                                                 <span style={{
                                                     fontSize: '9px',
                                                     fontWeight: 600,
                                                     color: 'rgba(251, 191, 36, 1)',
                                                     background: 'rgba(251, 191, 36, 0.2)',
                                                     padding: '2px 6px',
-                                                    borderRadius: '4px'
+                                                    borderRadius: '4px',
+                                                    textTransform: 'uppercase'
                                                 }}>
-                                                    CONNECT {tool.requiresConnection.toUpperCase()}
+                                                    Connect
                                                 </span>
                                             )}
                                         </div>
                                         <p style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.4)', margin: 0 }}>{tool.description}</p>
                                     </div>
                                 </div>
-                                {isConnected ? (
+                                {connected ? (
                                     <div style={{
                                         width: 48,
                                         height: 26,
@@ -838,7 +999,6 @@ Remember: You have real access to the user's connected accounts. You can read em
                                             ? 'linear-gradient(135deg, rgba(139, 92, 246, 1), rgba(109, 62, 216, 1))'
                                             : 'rgba(255, 255, 255, 0.1)',
                                         padding: '2px',
-                                        transition: 'all 0.3s ease',
                                         cursor: 'pointer'
                                     }}>
                                         <div style={{
@@ -853,10 +1013,7 @@ Remember: You have real access to the user's connected accounts. You can read em
                                     </div>
                                 ) : (
                                     <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setShowBridgeHub(true);
-                                        }}
+                                        onClick={(e) => { e.stopPropagation(); setShowBridgeHub(true); }}
                                         style={{
                                             padding: '6px 12px',
                                             background: 'rgba(139, 92, 246, 0.2)',
@@ -878,6 +1035,10 @@ Remember: You have real access to the user's connected accounts. You can read em
             </div>
         </div>
     );
+
+    // ============================================
+    // RENDER AUTOMATIONS TAB
+    // ============================================
 
     const renderAutomationsTab = () => (
         <div style={{ padding: '16px', overflowY: 'auto', WebkitOverflowScrolling: 'touch', height: '100%' }}>
@@ -911,10 +1072,7 @@ Remember: You have real access to the user's connected accounts. You can read em
                 {automations.map((automation, index) => (
                     <GlassCard 
                         key={automation.id} 
-                        style={{ 
-                            padding: '16px',
-                            animation: `slideIn 0.3s ease ${index * 0.1}s both`
-                        }}
+                        style={{ padding: '16px', animation: `slideIn 0.3s ease ${index * 0.1}s both` }}
                     >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                             <div style={{ display: 'flex', gap: '14px', flex: 1 }}>
@@ -928,9 +1086,7 @@ Remember: You have real access to the user's connected accounts. You can read em
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    border: automation.enabled 
-                                        ? '1px solid rgba(139, 92, 246, 0.3)' 
-                                        : '1px solid rgba(255, 255, 255, 0.08)',
+                                    border: automation.enabled ? '1px solid rgba(139, 92, 246, 0.3)' : '1px solid rgba(255, 255, 255, 0.08)',
                                     flexShrink: 0
                                 }}>
                                     <automation.icon style={{ 
@@ -963,8 +1119,7 @@ Remember: You have real access to the user's connected accounts. You can read em
                                         ? 'linear-gradient(135deg, rgba(139, 92, 246, 1), rgba(109, 62, 216, 1))'
                                         : 'rgba(255, 255, 255, 0.1)',
                                     padding: '2px',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.3s ease'
+                                    cursor: 'pointer'
                                 }}
                             >
                                 <div style={{
@@ -984,6 +1139,10 @@ Remember: You have real access to the user's connected accounts. You can read em
         </div>
     );
 
+    // ============================================
+    // RENDER SETTINGS TAB
+    // ============================================
+
     const renderSettingsTab = () => (
         <div style={{ padding: '16px', overflowY: 'auto', WebkitOverflowScrolling: 'touch', height: '100%' }}>
             <div style={{ marginBottom: '24px' }}>
@@ -991,33 +1150,19 @@ Remember: You have real access to the user's connected accounts. You can read em
                 <p style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.5)' }}>Configure Master Agent</p>
             </div>
             
-            {/* Connected Apps Section */}
+            {/* Connected Apps */}
             <div style={{ marginBottom: '24px' }}>
-                <h4 style={{ 
-                    fontSize: '11px', 
-                    fontWeight: 700, 
-                    color: 'rgba(255, 255, 255, 0.4)', 
-                    textTransform: 'uppercase',
-                    letterSpacing: '1px',
-                    marginBottom: '12px'
-                }}>
+                <h4 style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255, 255, 255, 0.4)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px' }}>
                     Connected Apps
                 </h4>
                 
-                <GlassCard 
-                    style={{ padding: '16px', marginBottom: '10px' }}
-                    onClick={() => setShowBridgeHub(true)}
-                >
+                <GlassCard style={{ padding: '16px', marginBottom: '10px' }} onClick={() => setShowBridgeHub(true)}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                             <div style={{
-                                width: 44,
-                                height: 44,
-                                borderRadius: '12px',
+                                width: 44, height: 44, borderRadius: '12px',
                                 background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(59, 130, 246, 0.2))',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 border: '1px solid rgba(139, 92, 246, 0.3)'
                             }}>
                                 <Icons.Link style={{ width: 22, height: 22, color: 'rgba(167, 139, 250, 1)' }} />
@@ -1025,7 +1170,7 @@ Remember: You have real access to the user's connected accounts. You can read em
                             <div>
                                 <h5 style={{ fontSize: '14px', fontWeight: 600, color: '#fff', margin: 0 }}>Bridge Hub</h5>
                                 <p style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.4)', margin: 0 }}>
-                                    {connectedAccounts.filter(a => a.isConnected && !a.isExpired).length} apps connected
+                                    {isLoadingAccounts ? 'Loading...' : `${connectedAccounts.filter(a => a.isConnected && !a.isExpired).length} apps connected`}
                                 </p>
                             </div>
                         </div>
@@ -1033,44 +1178,20 @@ Remember: You have real access to the user's connected accounts. You can read em
                     </div>
                 </GlassCard>
 
-                {/* Show connected accounts */}
                 {connectedAccounts.filter(a => a.isConnected && !a.isExpired).length > 0 && (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px' }}>
                         {connectedAccounts.filter(a => a.isConnected && !a.isExpired).map(account => (
-                            <div
-                                key={account.platform}
-                                style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '8px',
-                                    padding: '8px 12px',
-                                    background: 'rgba(255, 255, 255, 0.05)',
-                                    borderRadius: '20px',
-                                    border: '1px solid rgba(255, 255, 255, 0.1)'
-                                }}
-                            >
-                                <div style={{
-                                    width: 6,
-                                    height: 6,
-                                    borderRadius: '50%',
-                                    background: '#22c55e'
-                                }} />
+                            <div key={account.platform} style={{
+                                display: 'flex', alignItems: 'center', gap: '8px',
+                                padding: '8px 12px', background: 'rgba(255, 255, 255, 0.05)',
+                                borderRadius: '20px', border: '1px solid rgba(255, 255, 255, 0.1)'
+                            }}>
+                                <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e' }} />
                                 <span style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)', textTransform: 'capitalize' }}>
                                     {account.platform}
                                 </span>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDisconnect(account.platform);
-                                    }}
-                                    style={{
-                                        background: 'none',
-                                        border: 'none',
-                                        padding: '2px',
-                                        cursor: 'pointer',
-                                        display: 'flex'
-                                    }}
-                                >
+                                <button onClick={(e) => { e.stopPropagation(); handleDisconnect(account.platform); }}
+                                    style={{ background: 'none', border: 'none', padding: '2px', cursor: 'pointer', display: 'flex' }}>
                                     <Icons.X style={{ width: 12, height: 12, color: 'rgba(255, 255, 255, 0.4)' }} />
                                 </button>
                             </div>
@@ -1079,16 +1200,9 @@ Remember: You have real access to the user's connected accounts. You can read em
                 )}
             </div>
 
-            {/* Preferences Section */}
+            {/* Preferences */}
             <div style={{ marginBottom: '24px' }}>
-                <h4 style={{ 
-                    fontSize: '11px', 
-                    fontWeight: 700, 
-                    color: 'rgba(255, 255, 255, 0.4)', 
-                    textTransform: 'uppercase',
-                    letterSpacing: '1px',
-                    marginBottom: '12px'
-                }}>
+                <h4 style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255, 255, 255, 0.4)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px' }}>
                     Preferences
                 </h4>
                 
@@ -1099,14 +1213,8 @@ Remember: You have real access to the user's connected accounts. You can read em
                         { key: 'autoSave', label: 'Auto Save', desc: 'Save conversations automatically', icon: Icons.RefreshCw },
                         { key: 'voiceEnabled', label: 'Voice Mode', desc: 'Enable voice interactions', icon: Icons.Mic },
                     ].map((item, index) => (
-                        <GlassCard 
-                            key={item.key} 
-                            style={{ 
-                                padding: '14px 16px',
-                                animation: `slideIn 0.3s ease ${index * 0.05}s both`
-                            }}
-                            onClick={() => setSettings(s => ({ ...s, [item.key]: !s[item.key as keyof typeof settings] }))}
-                        >
+                        <GlassCard key={item.key} style={{ padding: '14px 16px', animation: `slideIn 0.3s ease ${index * 0.05}s both` }}
+                            onClick={() => setSettings(s => ({ ...s, [item.key]: !s[item.key as keyof typeof settings] }))}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                                     <item.icon style={{ width: 20, height: 20, color: 'rgba(255, 255, 255, 0.5)' }} />
@@ -1116,23 +1224,16 @@ Remember: You have real access to the user's connected accounts. You can read em
                                     </div>
                                 </div>
                                 <div style={{
-                                    width: 48,
-                                    height: 26,
-                                    borderRadius: '13px',
+                                    width: 48, height: 26, borderRadius: '13px',
                                     background: settings[item.key as keyof typeof settings]
                                         ? 'linear-gradient(135deg, rgba(139, 92, 246, 1), rgba(109, 62, 216, 1))'
                                         : 'rgba(255, 255, 255, 0.1)',
-                                    padding: '2px',
-                                    transition: 'all 0.3s ease'
+                                    padding: '2px'
                                 }}>
                                     <div style={{
-                                        width: 22,
-                                        height: 22,
-                                        borderRadius: '11px',
-                                        background: '#fff',
+                                        width: 22, height: 22, borderRadius: '11px', background: '#fff',
                                         transform: settings[item.key as keyof typeof settings] ? 'translateX(22px)' : 'translateX(0)',
-                                        transition: 'transform 0.3s ease',
-                                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                                        transition: 'transform 0.3s ease', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
                                     }} />
                                 </div>
                             </div>
@@ -1141,21 +1242,14 @@ Remember: You have real access to the user's connected accounts. You can read em
                 </div>
             </div>
 
-            {/* Data & Privacy Section */}
+            {/* Data & Privacy */}
             <div style={{ marginBottom: '24px' }}>
-                <h4 style={{ 
-                    fontSize: '11px', 
-                    fontWeight: 700, 
-                    color: 'rgba(255, 255, 255, 0.4)', 
-                    textTransform: 'uppercase',
-                    letterSpacing: '1px',
-                    marginBottom: '12px'
-                }}>
+                <h4 style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255, 255, 255, 0.4)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px' }}>
                     Data & Privacy
                 </h4>
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <GlassCard style={{ padding: '14px 16px' }}>
+                    <GlassCard style={{ padding: '14px 16px' }} onClick={() => setView(AppView.LEGAL)}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                                 <Icons.Shield style={{ width: 20, height: 20, color: 'rgba(255, 255, 255, 0.5)' }} />
@@ -1168,14 +1262,8 @@ Remember: You have real access to the user's connected accounts. You can read em
                         </div>
                     </GlassCard>
                     
-                    <GlassCard 
-                        style={{ padding: '14px 16px' }}
-                        onClick={() => {
-                            if (window.confirm('Clear all chat history? This cannot be undone.')) {
-                                setMessages([]);
-                            }
-                        }}
-                    >
+                    <GlassCard style={{ padding: '14px 16px' }}
+                        onClick={() => { if (window.confirm('Clear all chat history?')) setMessages([]); }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                                 <Icons.Trash style={{ width: 20, height: 20, color: 'rgba(239, 68, 68, 0.7)' }} />
@@ -1190,13 +1278,17 @@ Remember: You have real access to the user's connected accounts. You can read em
                 </div>
             </div>
 
-            {/* Version Info */}
+            {/* Version */}
             <div style={{ textAlign: 'center', paddingTop: '20px', paddingBottom: '20px' }}>
                 <p style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.3)' }}>Master Agent v1.0.0</p>
                 <p style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.2)', marginTop: '4px' }}>Powered by Injazi AI</p>
             </div>
         </div>
     );
+
+    // ============================================
+    // MAIN RENDER
+    // ============================================
 
     const renderContent = () => {
         switch (activeTab) {
@@ -1210,37 +1302,20 @@ Remember: You have real access to the user's connected accounts. You can read em
 
     return (
         <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: '#000' }}>
-            {/* Stars Background */}
-            <canvas 
-                key={canvasKey}
-                ref={canvasRef} 
-                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} 
-            />
+            <canvas key={canvasKey} ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />
             
             {/* Header */}
             <div style={{ 
-                position: 'relative', 
-                zIndex: 10, 
-                padding: '12px 16px',
+                position: 'relative', zIndex: 10, padding: '12px 16px',
                 paddingTop: 'calc(12px + env(safe-area-inset-top, 0px))',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
-                background: 'rgba(0, 0, 0, 0.3)',
-                backdropFilter: 'blur(10px)'
+                background: 'rgba(0, 0, 0, 0.3)', backdropFilter: 'blur(10px)'
             }}>
-                <button 
-                    onClick={() => setView(AppView.CHAT)}
-                    style={{ 
-                        padding: '10px', 
-                        background: 'rgba(255, 255, 255, 0.05)', 
-                        border: '1px solid rgba(255, 255, 255, 0.08)',
-                        borderRadius: '12px',
-                        cursor: 'pointer',
-                        transition: 'all 0.3s ease'
-                    }}
-                >
+                <button onClick={() => setView(AppView.CHAT)} style={{ 
+                    padding: '10px', background: 'rgba(255, 255, 255, 0.05)', 
+                    border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', cursor: 'pointer'
+                }}>
                     <Icons.ArrowLeft style={{ width: 20, height: 20, color: 'rgba(255, 255, 255, 0.7)' }} />
                 </button>
                 
@@ -1254,35 +1329,27 @@ Remember: You have real access to the user's connected accounts. You can read em
                     </p>
                 </div>
                 
-                <button 
-                    onClick={() => setActiveTab('settings')}
-                    style={{ 
-                        padding: '10px', 
-                        background: activeTab === 'settings' ? 'rgba(139, 92, 246, 0.2)' : 'rgba(255, 255, 255, 0.05)', 
-                        border: activeTab === 'settings' ? '1px solid rgba(139, 92, 246, 0.3)' : '1px solid rgba(255, 255, 255, 0.08)',
-                        borderRadius: '12px',
-                        cursor: 'pointer',
-                        transition: 'all 0.3s ease'
-                    }}
-                >
+                <button onClick={() => setActiveTab('settings')} style={{ 
+                    padding: '10px', 
+                    background: activeTab === 'settings' ? 'rgba(139, 92, 246, 0.2)' : 'rgba(255, 255, 255, 0.05)', 
+                    border: activeTab === 'settings' ? '1px solid rgba(139, 92, 246, 0.3)' : '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '12px', cursor: 'pointer'
+                }}>
                     <Icons.Settings style={{ width: 20, height: 20, color: activeTab === 'settings' ? 'rgba(167, 139, 250, 1)' : 'rgba(255, 255, 255, 0.7)' }} />
                 </button>
             </div>
             
-            {/* Main Content */}
+            {/* Content */}
             <div style={{ position: 'relative', zIndex: 10, flex: 1, overflow: 'hidden' }}>
                 {renderContent()}
             </div>
             
             {/* Tab Bar */}
             <div style={{ 
-                position: 'relative', 
-                zIndex: 10,
-                padding: '8px 16px',
+                position: 'relative', zIndex: 10, padding: '8px 16px',
                 paddingBottom: 'calc(8px + env(safe-area-inset-bottom, 0px))',
                 borderTop: '1px solid rgba(255, 255, 255, 0.06)',
-                background: 'rgba(0, 0, 0, 0.5)',
-                backdropFilter: 'blur(20px)'
+                background: 'rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(20px)'
             }}>
                 <div style={{ display: 'flex', gap: '6px' }}>
                     <TabButton tab="chat" icon={Icons.MessageCircle} label="Chat" />
@@ -1292,7 +1359,6 @@ Remember: You have real access to the user's connected accounts. You can read em
                 </div>
             </div>
 
-            {/* Bridge Hub Modal */}
             <BridgeHub isOpen={showBridgeHub} onClose={() => setShowBridgeHub(false)} />
         </div>
     );

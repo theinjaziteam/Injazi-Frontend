@@ -847,7 +847,7 @@ export default function ChatView() {
     // FIX #10: Master Agent Button with responsive positioning
     const MasterAgentButton = () => (
         <button
-            onClick={() => setView(AppView.ECOMMERCE_AGENT)}
+            onClick={() => setView(AppView.MASTER_AGENT)}
             aria-label="Open Master Agent"
             style={{
                 position: 'absolute',

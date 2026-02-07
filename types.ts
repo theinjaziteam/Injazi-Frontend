@@ -57,6 +57,7 @@ export enum AppView {
   CHAT = 'CHAT',
   STATS = 'STATS',
   SOCIAL = 'SOCIAL',
+  MASTER_AGENT = 'master_agent',
   LIVE_CALL = 'LIVE_CALL',
   PLANS = 'PLANS',
   LEGAL = 'LEGAL',

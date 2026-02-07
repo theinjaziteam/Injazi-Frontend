@@ -86,7 +86,6 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://injazi-backend.onrender
 
 // Ad Unit IDs - Replace with your actual AdMob ad unit IDs
 const AD_UNIT_IDS = {
-const AD_UNIT_IDS = {
     test: {
         android: 'ca-app-pub-3940256099942544/5224354917',
         ios: 'ca-app-pub-3940256099942544/1712485313'

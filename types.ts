@@ -112,7 +112,7 @@ export interface Task {
   estimatedTimeMinutes: number;
   difficulty: Difficulty;
   videoRequirements: string;
-  creditsReward: number; 
+  creditsReward: number;
   isSelected?: boolean;
   status: TaskStatus;
   verificationMessage?: string;
@@ -121,9 +121,13 @@ export interface Task {
   sourceLessonId?: string;
   isSupplementary?: boolean;
   isLessonTask?: boolean;
-  timeLeft?: number; 
-  lastUpdated?: number; 
-  isTimerActive?: boolean; 
+  timeLeft?: number;
+  lastUpdated?: number;
+  isTimerActive?: boolean;
+  credits?: number;
+  reward?: number;
+  completedAt?: number;
+  createdAt?: number;
 }
 
 export interface EarnTask {
@@ -209,6 +213,7 @@ export interface UserState {
   currentDay: number;
   credits: number;
   streak: number;
+  longestStreak?: number;
   isPremium: boolean;
   activePlanId: string;
   
@@ -243,6 +248,16 @@ export interface UserState {
   adgemOffers?: AdgemOffer[];
   adgemTransactions?: AdgemTransaction[];
   adgemLastSync?: number;
+  
+  // Ad tracking
+  totalAdsWatched?: number;
+  dailyAdCount?: number;
+  
+  // E-commerce Agent fields
+  productDrafts?: ProductDraft[];
+  emailCampaignDrafts?: EmailCampaignDraft[];
+  socialContentDrafts?: SocialContentDraft[];
+  aiActionLogs?: AIActionLog[];
 }
 
 export interface WalletTransaction {
@@ -283,6 +298,7 @@ export interface Product {
   isFeatured?: boolean;
   likes: number;
   isLiked?: boolean;
+  attachments?: string[];
 }
 
 export interface FeedItem {
@@ -354,6 +370,7 @@ export interface Friend {
   isChallenged?: boolean;
   goalTitle?: string;
   progress?: number;
+  credits?: number;
 }
 
 export interface Course {
@@ -368,6 +385,7 @@ export interface Course {
   rating: number;
   thumbnail: string;
   isFeatured?: boolean;
+  attachments?: string[];
 }
 
 export interface ExternalVideo {

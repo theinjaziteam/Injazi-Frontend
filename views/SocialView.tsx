@@ -468,6 +468,7 @@ export default function SocialView() {
     const closeLessonModal = () => {
         setViewingLesson(null);
         setCurrentChapter(null);
+        setIsLoadingLessonContent(false);
     };
 
     const confirmAddItem = () => {

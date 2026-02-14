@@ -1,8 +1,8 @@
-# INJAZI WEBAPP - COMPLETE SYSTEM AUDIT
+# INJAZI WEBAPP - TECHNICAL AUDIT (THIS REPOSITORY)
 
 **Generated:** 2026-02-14  
 **Auditor:** Senior Principal Software Architect  
-**Scope:** Full repository analysis including frontend, backend (production GitHub service/), agent systems, and deployment
+**Scope:** Full repository analysis of THIS specific codebase (frontend + server/)
 
 ---
 
@@ -10,836 +10,568 @@
 
 ### What is Injazi?
 
-**Injazi** (Arabic for "achievement/success") is a **production-ready** full-stack mobile-first goal achievement application with AI-powered coaching and task management capabilities. The platform uses Groq AI (LLaMA 3.3-70b-versatile) for contextual coaching, task generation, and real-time feedback.
+**Injazi** (Arabic for "achievement/success") is a mobile-first goal achievement application with AI-powered coaching and task management capabilities. This repository contains the **frontend application** and a **minimal backend** for basic authentication and data sync.
+
+### Critical Finding
+
+⚠️ **This repository does NOT contain the full production backend described in previous versions of this audit.** The actual backend in this repo (`server/`) is a minimal 3-endpoint Express server. Features like OAuth, AI endpoints, Master Agent, AdMob integration, and email verification **do not exist in this codebase**.
 
 ### Architecture Overview
 
 **Frontend:**
-- React 19 + TypeScript + Vite
-- TailwindCSS + lucide-react icons
+- React 19.2 + TypeScript + Vite 7.2.4
+- TailwindCSS 3.4.17 + lucide-react icons
 - Context API for state management
-- localStorage persistence + 2-second auto-sync to backend
+- localStorage persistence + periodic sync to backend
 - Mobile-first responsive design
-- Deployed on Vercel
 
-**Backend:**
+**Backend (server/):**
 - Node.js (ESM) + Express
 - MongoDB Atlas (Mongoose ODM)
-- Groq API (llama-3.3-70b-versatile) for AI features
+- bcryptjs for password hashing
 - JWT authentication (30-day tokens)
-- Rate limiting (in-memory)
-- OAuth support for 20+ platforms
-- Deployed on Render
+- **Only 3 endpoints:** health, auth, sync
 
-**Production Backend Stats:**
-- `service/index.js`: 45,888 bytes - main server with 20+ endpoints
-- `service/masterAgentRoutes.js`: 81,705 bytes - autonomous AI agent system
-- `service/ecommerceAgent.js`: 24,235 bytes - **NOT MOUNTED** (unused)
-- `service/oauth.js`: OAuth flows for 20+ platforms
-- `service/models.js`: 24,448 bytes - MongoDB schemas
+---
 
-### Tech Stack
+## TECH STACK (ACTUAL)
 
-**Frontend:**
-```
-react: 19.0.0
-typescript: 5.7.2
-vite: 6.0.11
-tailwindcss: 4.0.14
-lucide-react: 0.469.0
-```
+### Frontend Dependencies
 
-**Backend:**
-```
-express: 4.21.2
-mongoose: 8.9.4
-cors: 2.8.5
-bcryptjs: 2.4.3
-jsonwebtoken: 9.0.2
+```json
+{
+  "react": "^19.2.0",
+  "react-dom": "^19.2.0",
+  "lucide-react": "^0.468.0",
+  "typescript": "~5.8.2",
+  "vite": "^7.2.4",
+  "tailwindcss": "^3.4.17",
+  "@vitejs/plugin-react": "^5.1.1",
+  "autoprefixer": "^10.4.21",
+  "postcss": "^8.5.3"
+}
 ```
 
-**AI Provider:**
-- Groq API (llama-3.3-70b-versatile) via `https://api.groq.com/openai/v1/chat/completions`
+### Backend Dependencies
 
-### Environment Variables
+```json
+{
+  "express": "^4.21.2",
+  "mongoose": "^8.9.4",
+  "cors": "^2.8.5",
+  "bcryptjs": "^2.4.3",
+  "jsonwebtoken": "^9.0.2",
+  "dotenv": "^16.4.7"
+}
+```
 
-**Production Backend Requires:**
+---
+
+## DATABASE SCHEMA (ACTUAL)
+
+### User Model (`server/models.js`)
+
+```javascript
+{
+  // Authentication
+  email: { type: String, required: true, unique: true },
+  password: { type: String, required: true },
+  name: { type: String, default: 'Architect' },
+  country: { type: String, default: 'Unknown' },
+  createdAt: { type: Number, default: Date.now },
+  privacyAccepted: { type: Boolean, default: false },
+
+  // Game State
+  credits: { type: Number, default: 100 },
+  realMoneyBalance: { type: Number, default: 0.0 },
+  streak: { type: Number, default: 0 },
+  currentDay: { type: Number, default: 1 },
+  isPremium: { type: Boolean, default: false },
+  activePlanId: { type: String, default: 'free' },
+  maxGoalSlots: { type: Number, default: 3 },
+  userProfile: { type: String, default: '' },
+
+  // Data & Relations
+  goal: GoalSchema,           // Current active goal
+  allGoals: [GoalSchema],     // All user goals
+  dailyTasks: [TaskSchema],   // Current day's tasks
+
+  // Flexible Collections
+  chatHistory: [Mixed],       // AI chat history
+  friends: [Mixed],           // Social connections
+  connectedApps: [Mixed],     // OAuth connections
+  earnTasks: [Mixed],         // Money-earning tasks
+  myCourses: [Mixed],         // Purchased courses
+  myProducts: [Mixed]         // Purchased products
+}
+```
+
+### TaskSchema (Embedded)
+
+```javascript
+{
+  id: String,
+  dayNumber: Number,
+  title: String,
+  description: String,
+  estimatedTimeMinutes: Number,
+  difficulty: String,
+  videoRequirements: String,
+  creditsReward: Number,
+  isSelected: Boolean,
+  status: { type: String, default: 'pending' },
+  verificationMessage: String,
+  isSupplementary: Boolean,
+  progress: { type: Number, default: 0 },
+  maxProgress: { type: Number, default: 1 },
+  // Background Timer Fields
+  timeLeft: { type: Number, default: 0 },
+  lastUpdated: { type: Number, default: 0 },
+  isTimerActive: { type: Boolean, default: false }
+}
+```
+
+### GoalSchema (Embedded)
+
+```javascript
+{
+  id: String,
+  title: String,
+  category: String,
+  mode: String,
+  summary: String,
+  explanation: String,
+  difficultyProfile: String,
+  durationDays: Number,
+  createdAt: Number,
+  visualUrl: String,
+  dailyQuestions: [String],
+  savedTasks: [TaskSchema],
+  savedCurriculum: [Mixed],
+  savedCourses: [Mixed],
+  savedProducts: [Mixed],
+  savedFeed: [Mixed],
+  savedVideos: [Mixed]
+}
+```
+
+---
+
+## BACKEND API (ACTUAL)
+
+### Environment Variables Required
+
 ```bash
-# Core (REQUIRED)
-JWT_SECRET=<strong-random-secret>    # Server exits if missing
-MONGODB_URI=<mongodb-atlas-uri>      # MongoDB connection
-GROQ_API_KEY=<groq-api-key>         # NOT Gemini - uses Groq/LLaMA
+# Core
+MONGODB_URI=<mongodb-atlas-uri>
+JWT_SECRET=<jwt-secret>           # Defaults to 'injazi-secret' if missing ⚠️
 
-# Deployment
-FRONTEND_URL=https://injazi.vercel.app
-BACKEND_URL=<render-backend-url>
-PORT=5000
+# CORS
+FRONTEND_URL=<vercel-url>
 
-# Email (EmailJS)
-EMAILJS_SERVICE_ID=<service-id>
-EMAILJS_PUBLIC_KEY=<public-key>
-EMAILJS_PRIVATE_KEY=<private-key>
-
-# OAuth (20+ platforms - optional per platform)
-GITHUB_CLIENT_ID=<id>
-GITHUB_CLIENT_SECRET=<secret>
-GOOGLE_CLIENT_ID=<id>
-GOOGLE_CLIENT_SECRET=<secret>
-SHOPIFY_CLIENT_ID=<id>
-SHOPIFY_CLIENT_SECRET=<secret>
-# ... (Instagram, TikTok, Facebook, Twitter, LinkedIn, Pinterest,
-#      Stripe, PayPal, Notion, Slack, Discord, Spotify, 
-#      Mailchimp, Klaviyo, etc.)
+# Server
+PORT=5000                          # Defaults to 5000
 ```
 
-**Frontend (Vercel):**
-```bash
-VITE_API_URL=<render-backend-url>
-VITE_EMAILJS_SERVICE_ID=<service-id>
-VITE_EMAILJS_TEMPLATE_ID=<template-id>
-VITE_EMAILJS_PUBLIC_KEY=<public-key>
-```
+### Endpoints
 
----
-
-## IMPLEMENTED FEATURES (VERIFIED)
-
-### 1. Authentication System
-
-**Endpoints (all working):**
-- `POST /api/auth/register` - Create account with email verification
-- `POST /api/auth/login` - Login with email/password
-- `POST /api/auth/verify` - Email verification with code
-- `POST /api/auth/resend` - Resend verification code
-- `POST /api/auth/forgot-password` - Password reset request
-- `POST /api/auth/reset-password` - Password reset with code
-
-**Security Features:**
-- ✅ JWT with 30-day expiry (no refresh mechanism)
-- ✅ `JWT_SECRET` required (server exits if missing)
-- ✅ bcrypt password hashing
-- ✅ Email format validation (`/^[^\s@]+@[^\s@]+\.[^\s@]+$/`)
-- ✅ Password length validation (≥6 chars)
-- ✅ Email verification with 6-digit codes
-- ✅ Verification codes stored in MongoDB (not in-memory)
-- ✅ 15-minute code expiry with TTL index
-- ✅ 5-minute resend cooldown
-
-**Security Gaps:**
-- ⚠️ 30-day JWT with no rotation/refresh flow
-- ⚠️ No maximum login attempts / account lockout
-
-### 2. User Data Sync
-
-**Endpoints:**
-- `POST /api/sync` - Sync user state (requires auth)
-- `GET /api/user/:email` - Get user data (requires auth)
-
-**Features:**
-- ✅ JWT authentication required
-- ✅ Strips sensitive fields before update: `password`, `isPremium`, `realMoneyBalance`, `connectedAccounts`, `adRewardTransactions`, `isEmailVerified`
-- ✅ `findOneAndUpdate` with `{ new: true, upsert: false }`
-
-**Frontend Auto-Sync:**
-- Syncs every 2 seconds when state changes
-- Uses `localStorage` for offline persistence
-- Context API manages global state
-
-**Concerns:**
-- ⚠️ 2-second sync interval may cause race conditions with multiple tabs/devices
-- ⚠️ No conflict resolution strategy
-- ⚠️ Fully denormalized schema (all data in single User document)
-
-### 3. AI Endpoints (Groq/LLaMA 3.3)
-
-**Endpoints:**
-- `POST /api/ai/completion` - General AI completion
-- `POST /api/ai/chat` - Conversational AI (The Guide)
-- `POST /api/ai/generate-tasks` - Daily task generation
-- `POST /api/ai/curriculum` - Learning curriculum generation
-- `GET /api/ai/rate-limit-status` - Check rate limits
-
-**AI Configuration:**
+**1. GET /** - Root health check
 ```javascript
-GROQ_URL: 'https://api.groq.com/openai/v1/chat/completions'
-GROQ_MODEL: 'llama-3.3-70b-versatile'
-GROQ_API_KEY: process.env.GROQ_API_KEY
+Response: {
+  message: 'InJazi API is running!',
+  status: 'healthy',
+  timestamp: '2026-02-14T...',
+  database: 'connected' | 'disconnected'
+}
 ```
 
-**Rate Limits (in-memory):**
+**2. GET /api/health** - API health check
 ```javascript
-'ai/completion': { windowMs: 60000, maxRequests: 20 }
-'ai/generate-tasks': { windowMs: 60000, maxRequests: 10 }
-'ai/chat': { windowMs: 60000, maxRequests: 30 }
-'ai/curriculum': { windowMs: 60000, maxRequests: 5 }
+Response: {
+  status: 'OK',
+  database: 'connected' | 'disconnected'
+}
 ```
 
-**Validation:**
-- ✅ Message array validation
-- ✅ Message count limit (≤20 messages)
-- ✅ Content length limit (≤50,000 chars)
-- ✅ Day range validation (1-365 days)
-- ✅ Returns proper 429 with `Retry-After` headers
-- ✅ Automatic rate limit cleanup (every 5 minutes)
-
-**Security Gaps:**
-- ⚠️ **All AI endpoints use `optionalAuth`** - unauthenticated users can consume Groq quota
-- ⚠️ Rate limiter is ephemeral (in-memory Map) - resets on server restart
-- ⚠️ Rate limiter tracks by IP+email - IP can be spoofed
-
-### 4. AdMob Integration
-
-**Endpoints:**
-- `GET /api/admob/health` - Health check
-- `GET /api/admob/can-watch` - Check if user can watch ad
-- `GET /api/admob/reward-callback` - Reward callback (GET)
-- `POST /api/admob/reward-callback` - Reward callback (POST)
-- `POST /api/admob/verify-reward` - Server-side reward verification
-- `GET /api/admob/history/:email` - Get reward history
-
-**Features:**
-- ✅ Server-side reward verification with signature validation
-- ✅ 25 ads/day limit (MAX_DAILY_ADS constant)
-- ✅ Transaction history stored in MongoDB
-- ✅ Credits awarded (30 per ad)
-
-**Security Gaps:**
-- ⚠️ **`/api/admob/history/:email` has NO authentication** - anyone can fetch another user's ad history
-- ⚠️ No verification that requester owns the email
-
-### 5. OAuth Integration (20+ Platforms)
-
-**Platforms Supported:**
-- GitHub, Google, Shopify, Instagram, TikTok, Facebook
-- Twitter/X, LinkedIn, Pinterest, YouTube
-- Stripe, PayPal, Square
-- Notion, Slack, Discord, Spotify
-- Mailchimp, Klaviyo
-
-**Endpoints:**
-- `GET /api/oauth/platforms` - List configured platforms
-- `GET /api/oauth/platforms/all` - List all available platforms
-- `GET /api/oauth/:platform/url` - Get OAuth authorization URL
-- `GET /api/oauth/:platform/callback` - OAuth callback handler
-- `GET /api/oauth/connected/:email` - List connected accounts
-- `POST /api/oauth/disconnect` - Disconnect platform
-- `POST /api/oauth/refresh` - Refresh access token
-
-**Features:**
-- ✅ Complete OAuth 2.0 flows for 20+ platforms
-- ✅ Token storage in MongoDB (encrypted at rest by MongoDB Atlas)
-- ✅ Token expiry tracking
-- ✅ Refresh token support
-- ✅ Platform-specific scope configuration
-
-**Security Gaps:**
-- ⚠️ **`/api/oauth/connected/:email` has NO authentication** - anyone can list another user's OAuth accounts
-- ⚠️ **`/api/oauth/disconnect` has NO authentication** - anyone can disconnect another user's platforms
-- ⚠️ Access tokens have `select: false` in schema but are explicitly included in queries
-- ⚠️ No verification that requester owns the email
-
-### 6. Master Agent System (81KB Implementation)
-
-**File:** `service/masterAgentRoutes.js`
-
-**Core Features:**
-- ✅ Autonomous AI agent with tool execution
-- ✅ Complete tool implementations for:
-  - **GitHub:** repos, files, issues, branches, stats (15+ tools)
-  - **Google:** calendar, email, drive (8+ tools)
-  - **Shopify:** products, orders, analytics, inventory (8+ tools)
-  - **Spotify:** playback, playlists, search (13+ tools)
-  - **Notion:** databases, pages, search (4+ tools)
-  - **Discord:** user, guilds (2+ tools)
-  - **Slack:** channels, messages (3+ tools)
-- ✅ Automation scheduler (in-memory)
-- ✅ Tool result caching
-- ✅ Multi-turn conversations with context
-
-**Architecture:**
+**3. POST /api/auth** - Combined login/register endpoint
 ```javascript
-// Core AI function
-async function think(prompt, options = {}) {
-  // Calls Groq API with system prompts, JSON mode, temperature
+Request: {
+  email: string,
+  password: string,
+  name?: string,         // Only for register
+  country?: string,      // Only for register
+  isRegister: boolean    // true = register, false = login
 }
 
-// Tool execution
-async function getUserToken(email, platform) {
-  // Retrieves OAuth tokens with proper field selection
+Response: {
+  user: { ...userData, password: removed },
+  token: string         // JWT valid for 30 days
 }
 
-// Automation scheduler
-const runningAutomations = new Map();
-const automationResults = new Map();
+Errors:
+- 400: User already exists (register)
+- 404: User not found (login)
+- 401: Invalid credentials (login)
+- 500: Server error
 ```
 
-**Tool Execution Flow:**
-1. User sends message to Master Agent
-2. AI analyzes intent and decides which tools to use
-3. Agent retrieves OAuth tokens from database
-4. Agent calls real platform APIs (GitHub, Shopify, etc.)
-5. Agent returns structured results to user
-
-**All tools use REAL API calls with REAL OAuth tokens** - not mocked.
-
-### 7. E-commerce Agent (NOT MOUNTED)
-
-**File:** `service/ecommerceAgent.js` (24KB)
-
-**Status:** ❌ **UNUSED - Not imported in index.js**
-
-This file exists in the repository but is **not mounted** to the Express app. All `/api/ecommerce/*` endpoints return 404.
-
-**Would provide if mounted:**
-- Shopify setup and product import
-- Product scraping (currently uses AI-generated mock data)
-- Email campaign generation
-- Social media content generation
-- Analytics tracking
-- AI product descriptions
-
-**Frontend also has dead code:** `EcommerceAgentView.tsx` (80KB) is unused - `AppView.ECOMMERCE_AGENT` routes to `MasterAgentView` instead.
-
-**Decision needed:**
-- Mount the file and integrate with Master Agent, OR
-- Delete both `ecommerceAgent.js` and `EcommerceAgentView.tsx`
-
----
-
-## DATABASE SCHEMA (MongoDB)
-
-### User Model (Fully Denormalized)
-
+**4. POST /api/sync** - Sync user data
 ```javascript
-{
-  email: String (unique),
-  password: String (hashed),
-  displayName: String,
-  profileImage: String,
-  isPremium: Boolean,
-  credits: Number,
-  realMoneyBalance: Number,
-  isEmailVerified: Boolean,
-  
-  // Goal tracking
-  goals: [{ name, description, category, targetDate, ... }],
-  currentGoalIndex: Number,
-  currentDay: Number,
-  totalDaysActive: Number,
-  streak: Number,
-  
-  // Tasks
-  tasks: [{ id, day, title, description, completed, ... }],
-  completedTasks: [{ id, day, title, completedAt, ... }],
-  taskHistory: [{ ...task, goalName }],
-  
-  // AI Chat
-  chatHistory: [{ role, content, timestamp, attachments }],
-  
-  // Social/Content
-  feed: [{ id, type, title, description, thumbnail, ... }],
-  socialPosts: [{ id, platform, content, ... }],
-  curriculum: { title, description, lessons: [...] },
-  
-  // E-commerce (used by Master Agent)
-  connectedAccounts: [{ 
-    platform, 
-    accessToken, // select: false
-    refreshToken, // select: false
-    expiresAt, 
-    userId, 
-    email, 
-    ... 
-  }],
-  adRewardTransactions: [{ date, amount, signature }],
-  shopifyStore: { ...storeConfig },
-  products: [{ ...productData }],
-  productDrafts: [{ ...draftData }],
-  emailCampaigns: [{ ...campaignData }],
-  contentDrafts: [{ ...contentData }],
-  analyticsSnapshots: [{ date, visitors, sales, ... }],
-  automations: [{ id, name, trigger, actions, ... }],
-  
-  createdAt: Date,
-  updatedAt: Date
-}
-```
-
-**Characteristics:**
-- ✅ Single collection design (simple queries)
-- ⚠️ No normalization - documents can grow very large
-- ⚠️ Embedded arrays with unbounded growth (chatHistory, taskHistory, etc.)
-- ⚠️ No sharding strategy for scale
-- ⚠️ Updating nested arrays requires careful field selection
-
-### PendingUser Model (Email Verification)
-
-```javascript
-{
-  email: String (unique),
-  password: String (hashed),
-  displayName: String,
-  verificationCode: String,
-  createdAt: Date (TTL index - auto-delete after 15min),
-  lastResent: Date,
-  resendCount: Number
-}
-```
-
-**Features:**
-- ✅ TTL index auto-deletes after 15 minutes
-- ✅ Resend cooldown tracking (5 minutes)
-- ✅ Separate from main User collection
-
----
-
-## FRONTEND ARCHITECTURE
-
-### State Management
-
-**Context API:**
-- `AppContext.tsx` - Main application state (UserState + AppView)
-- `ThemeContext.tsx` - Theme preferences
-
-**UserState Structure:**
-```typescript
-{
-  email: string;
-  displayName: string;
-  profileImage: string;
-  isPremium: boolean;
-  credits: number;
-  realMoneyBalance: number;
-  
-  // Goal & tasks
-  goals: Goal[];
-  currentGoalIndex: number;
-  currentDay: number;
-  totalDaysActive: number;
-  streak: number;
-  tasks: Task[];
-  completedTasks: CompletedTask[];
-  taskHistory: TaskHistoryEntry[];
-  
-  // AI & content
-  chatHistory: ChatMessage[];
-  feed: FeedItem[];
-  curriculum: Curriculum | null;
-  socialPosts: SocialPost[];
-  
-  // E-commerce (Master Agent)
-  connectedAccounts: ConnectedAccount[];
-  shopifyStore: any;
-  products: any[];
-  emailCampaigns: any[];
-  analyticsSnapshots: any[];
-  automations: any[];
-}
-```
-
-**Persistence:**
-- `localStorage.setItem('userState', JSON.stringify(state))`
-- Loaded on app mount
-- Auto-sync to backend every 2 seconds
-
-### Views (No React Router)
-
-**Navigation via AppView enum:**
-```typescript
-enum AppView {
-  LOGIN,
-  ONBOARDING,
-  DASHBOARD,
-  TASK_LIST,
-  TASK_EXECUTION,
-  CHAT,
-  SOCIAL,
-  STATS,
-  SHOP,
-  SETTINGS,
-  LEGAL,
-  MASTER_AGENT,
-  ECOMMERCE_AGENT, // Routes to MASTER_AGENT
-}
-```
-
-**View Components:**
-- `LoginView.tsx` - Auth (login/register/verify)
-- `OnboardingView.tsx` - Goal selection
-- `DashboardView.tsx` - Progress overview
-- `TaskListView.tsx` - Daily tasks
-- `TaskExecutionView.tsx` - Task completion flow
-- `ChatView.tsx` - AI Guide chat with attachments
-- `SocialView.tsx` - Social feed, lessons, videos
-- `StatsView.tsx` - Analytics dashboard
-- `ShopView.tsx` - In-app purchases
-- `SettingsView.tsx` - User settings, OAuth connections
-- `LegalView.tsx` - Terms/Privacy
-- `MasterAgentView.tsx` - Autonomous AI agent
-- `EcommerceAgentView.tsx` - **UNUSED (80KB dead code)**
-
-### Services
-
-**API Client (`services/api.ts`):**
-- `login(email, password)`
-- `register(email, password, displayName)`
-- `verifyEmail(email, code)`
-- `resendVerificationCode(email)`
-- `syncUserState(state)`
-- Auto-includes JWT in Authorization header
-
-**AI Service (`services/geminiService.ts`):**
-```typescript
-// NOTE: Despite filename, uses backend which uses Groq, not Gemini
-export async function sendChatMessage(
-  messages: ChatMessage[],
-  userState: UserState
-): Promise<string> {
-  // Builds rich context with goal, tasks, logs
-  // Sends to /api/ai/chat
-  // Handles attachments (image/pdf/audio)
+Request: {
+  email: string,
+  ...updates          // Any user fields to update
 }
 
-export async function generateDailyTasks(...): Promise<Task[]>
-export async function generateCurriculum(...): Promise<Curriculum>
-export async function generateSocialContent(...): Promise<SocialPost[]>
+Response: {
+  success: boolean
+}
+
+Errors:
+- 400: No email provided
+- 500: Sync failed
 ```
 
-**Content Service (`services/contentService.ts`):**
-- `generateFeedContent()` - Products, courses, lessons
-- `generateAdContent()` - Sponsored content
+**Total endpoints: 4** (not 40+)
 
 ---
 
 ## SECURITY AUDIT
 
-### ✅ IMPLEMENTED CORRECTLY
+### ⚠️ CRITICAL ISSUES
 
-1. **JWT Secret:** Server exits if `JWT_SECRET` missing (no fallback)
-2. **Password Hashing:** bcrypt with salt rounds
-3. **Email Verification:** 6-digit codes with 15-min expiry
-4. **Input Validation:** Email format, password length, message counts
-5. **Rate Limiting:** Per-endpoint limits with 429 responses
-6. **Sensitive Field Stripping:** `/api/sync` strips `isPremium`, `realMoneyBalance`, etc.
-7. **JSON Body Limit:** 10MB (not 50MB)
-8. **Verification Code Storage:** MongoDB with TTL index (not in-memory)
-
-### ⚠️ SECURITY GAPS (PRIORITY ORDER)
-
-**HIGH PRIORITY:**
-
-1. **Unauthenticated endpoints accept email parameters:**
-   - `/api/admob/history/:email` - NO auth
-   - `/api/oauth/connected/:email` - NO auth
-   - `/api/oauth/disconnect` - NO auth (accepts email in body)
-   - **Impact:** Anyone can view ad history, OAuth connections, and disconnect accounts
-   - **Fix:** Add `requireAuth` middleware + verify `req.userId` matches email
-
-2. **AI endpoints use `optionalAuth`:**
-   - `/api/ai/completion`, `/api/ai/chat`, `/api/ai/generate-tasks`, `/api/ai/curriculum`
-   - **Impact:** Unauthenticated users consume Groq API quota
-   - **Fix:** Change to `requireAuth`
-
-3. **No JWT rotation:**
-   - 30-day expiry with no refresh mechanism
-   - **Impact:** Stolen tokens valid for 30 days
-   - **Fix:** Implement refresh token flow with short-lived access tokens
-
-**MEDIUM PRIORITY:**
-
-4. **CORS allows localhost in production:**
-   ```javascript
-   allowedOrigins = [
-     process.env.FRONTEND_URL,
-     'http://localhost:3000',
-     'http://localhost:5173',
-     'https://injazi.vercel.app'
-   ]
-   ```
-   - **Fix:** Remove localhost from production CORS
-
-5. **No-origin requests bypass CORS:**
-   ```javascript
-   if (!origin) return callback(null, true);
-   ```
-   - **Impact:** Server-to-server requests bypass CORS
-   - **Fix:** Require origin header or API key for no-origin requests
-
-6. **Rate limiter is ephemeral:**
-   - In-memory Map resets on server restart/cold start
-   - **Fix:** Move to Redis or MongoDB
-
-7. **No maximum login attempts:**
-   - No account lockout after failed attempts
-   - **Fix:** Add rate limiting to `/api/auth/login`
-
-8. **`.env.production` committed to git:**
-   - Contains API keys and secrets
-   - **Fix:** Remove from git, use Vercel/Render environment dashboards
-
-**LOW PRIORITY:**
-
-9. **Auto-sync race conditions:**
-   - 2-second sync interval with no conflict resolution
-   - Multiple tabs/devices can cause lost writes
-   - **Fix:** Add version field + optimistic locking, or debounce sync
-
-10. **Fully denormalized schema:**
-    - Single User document with unbounded arrays
-    - Can grow very large over time
-    - **Fix:** Normalize over time (separate collections for tasks, chat history, etc.)
-
----
-
-## DEPLOYMENT ARCHITECTURE
-
-### Frontend (Vercel)
-
-**Domain:** `https://injazi.vercel.app`
-
-**Build:**
-```bash
-npm run build  # vite build
-# Output: dist/
-```
-
-**Environment Variables:**
-- `VITE_API_URL` - Backend URL (Render)
-- `VITE_EMAILJS_*` - EmailJS config (only used for old email verification flow)
-
-**Features:**
-- ✅ CDN edge caching
-- ✅ Automatic HTTPS
-- ✅ Preview deployments
-- ⚠️ `.env.production` committed to git (should use dashboard)
-
-### Backend (Render)
-
-**Domain:** Set via `BACKEND_URL` environment variable
-
-**Start Command:**
-```bash
-node service/index.js  # NOT server/index.js
-```
-
-**Environment Variables (20+):**
-- Core: `JWT_SECRET`, `MONGODB_URI`, `GROQ_API_KEY`
-- URLs: `FRONTEND_URL`, `BACKEND_URL`
-- OAuth: Client IDs and secrets for 20+ platforms
-- Email: `EMAILJS_SERVICE_ID`, `EMAILJS_PUBLIC_KEY`, `EMAILJS_PRIVATE_KEY`
-
-**Features:**
-- ✅ Auto-deploy on git push
-- ✅ Health checks via `/api/health`
-- ⚠️ Cold starts reset in-memory rate limiter
-- ⚠️ No Redis/caching layer
-
-### Database (MongoDB Atlas)
-
-**Connection:** `MONGODB_URI` environment variable
-
-**Collections:**
-- `users` - Main user data
-- `pendingusers` - Email verification (TTL index)
-
-**Features:**
-- ✅ Free tier M0 cluster
-- ✅ Encryption at rest
-- ✅ TTL indexes for auto-deletion
-- ⚠️ Single denormalized collection design
-- ⚠️ No indexes documented (may need indexing on email, connectedAccounts.platform, etc.)
-
----
-
-## CONFIRMED ISSUES REQUIRING FIXES
-
-### 1. E-commerce Agent Not Mounted (Code Consistency)
-
-**Problem:**
-- `service/ecommerceAgent.js` (24KB) exists but is NOT imported in `service/index.js`
-- All `/api/ecommerce/*` endpoints return 404
-- `src/views/EcommerceAgentView.tsx` (80KB) is dead code
-- `AppView.ECOMMERCE_AGENT` routes to `MasterAgentView` instead
-
-**Fix Option A (Mount):**
+**1. JWT Secret Fallback (HIGH)**
 ```javascript
-// service/index.js
-import ecommerceRoutes from './ecommerceAgent.js';
-app.use('/api/ecommerce', ecommerceRoutes);
+const JWT_SECRET = process.env.JWT_SECRET || 'injazi-secret';
 ```
+- **Issue:** Server uses weak default 'injazi-secret' if env var missing
+- **Impact:** Anyone can forge JWTs if this default is used in production
+- **Fix:** Make JWT_SECRET required and exit if missing
 
-**Fix Option B (Remove):**
-```bash
-rm service/ecommerceAgent.js
-rm src/views/EcommerceAgentView.tsx
-```
-
-**Recommendation:** Option A if e-commerce features are needed separately, Option B if Master Agent fully replaces it.
-
-### 2. Unauthenticated Endpoints (Security)
-
-**Add `requireAuth` to:**
+**2. No Authentication Middleware (HIGH)**
 ```javascript
-// service/index.js
-app.get('/api/admob/history/:email', requireAuth, async (req, res) => {
-  const { email } = req.params;
-  if (req.userId !== email) {
-    return res.status(403).json({ error: 'Forbidden' });
-  }
-  // ...existing code
-});
+app.post('/api/sync', async (req, res) => {
+  const { email, ...updates } = req.body;
+  // No token verification!
 ```
+- **Issue:** `/api/sync` has NO authentication - anyone can update any user's data
+- **Impact:** Complete database write access without auth
+- **Fix:** Add JWT verification middleware
 
-**Same fix for:**
-- `/api/oauth/connected/:email`
-- `/api/oauth/disconnect`
+**3. No Input Validation (HIGH)**
+- No email format validation
+- No password strength requirements
+- No field sanitization
+- Can inject any field into database via `/api/sync`
+- Can overwrite `isPremium`, `realMoneyBalance`, `credits` via sync
 
-### 3. AI Endpoints Allow Anonymous Use (Cost Control)
-
-**Change to `requireAuth`:**
+**4. 50MB JSON Body Limit (MEDIUM)**
 ```javascript
-// service/index.js
-app.post('/api/ai/completion', requireAuth, rateLimiter('ai/completion'), ...);
-app.post('/api/ai/chat', requireAuth, rateLimiter('ai/chat'), ...);
-app.post('/api/ai/generate-tasks', requireAuth, rateLimiter('ai/generate-tasks'), ...);
-app.post('/api/ai/curriculum', requireAuth, rateLimiter('ai/curriculum'), ...);
+app.use(express.json({ limit: '50mb' }));
 ```
+- **Issue:** Allows huge request bodies (DoS risk)
+- **Fix:** Reduce to 1-10MB
 
-### 4. CORS Allows Localhost in Production (Security)
-
-**Remove localhost:**
+**5. CORS Allows Localhost in Production (MEDIUM)**
 ```javascript
-// service/index.js
 const allowedOrigins = [
   process.env.FRONTEND_URL,
+  'http://localhost:3000',
   'https://injazi.vercel.app'
 ].filter(Boolean);
 ```
+- **Issue:** Localhost is in the production allowed origins list
+- **Fix:** Only allow production domain
 
-### 5. No-Origin Requests Bypass CORS (Security)
-
-**Add origin requirement:**
+**6. No-Origin Requests Bypass CORS (MEDIUM)**
 ```javascript
-// service/index.js
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin) {
-      // Require API key for no-origin requests
-      return callback(new Error('Origin header required'));
-    }
-    // ...existing origin check
-  },
-  credentials: true
-}));
+if (!origin) return callback(null, true);
+```
+- **Issue:** Server-to-server requests bypass CORS entirely
+- **Impact:** Any backend can call the API
+- **Fix:** Require origin header or API key
+
+**7. Password Returned in Sync Response (MEDIUM)**
+- `/api/sync` uses `$set: updates` without filtering
+- Could potentially return password if not careful with queries
+- Should explicitly exclude password from all responses
+
+**8. 30-Day JWT with No Refresh (LOW)**
+- Tokens valid for 30 days
+- No rotation or refresh mechanism
+- Stolen tokens valid until expiry
+
+**9. No Rate Limiting (LOW)**
+- No protection against brute force attacks
+- No API rate limiting at all
+
+**10. Single Combined Auth Endpoint (LOW)**
+```javascript
+if (isRegister) {
+  // register logic
+} else {
+  // login logic
+}
+```
+- **Issue:** Using a flag to combine register/login is non-standard
+- **Better:** Separate `/api/auth/register` and `/api/auth/login` endpoints
+
+---
+
+## FRONTEND ARCHITECTURE
+
+### API Client (`services/api.ts`)
+
+```typescript
+{
+  register(data: { email, password, name, country? })
+  login(data: { email, password })
+  verify(email, code)              // ⚠️ Backend doesn't support this
+  resendCode(email)                // ⚠️ Backend doesn't support this
+  forgotPassword(email)            // ⚠️ Backend doesn't support this
+  resetPassword(email, code, pwd)  // ⚠️ Backend doesn't support this
+  sync(userData)                   // Calls /api/sync
+  getUser(email)                   // ⚠️ Backend doesn't support this
+}
 ```
 
-### 6. Rate Limiter Resets on Restart (Reliability)
+**Issue:** Frontend API client expects endpoints that **don't exist** in the backend:
+- `/api/auth/verify` - 404
+- `/api/auth/resend` - 404
+- `/api/auth/forgot-password` - 404
+- `/api/auth/reset-password` - 404
+- `/api/user/:email` - 404
 
-**Option A: Redis:**
-```javascript
-import Redis from 'ioredis';
-const redis = new Redis(process.env.REDIS_URL);
+The frontend likely uses a **different backend URL** (environment variable) that points to a separate production API.
+
+### State Management
+
+**Context API:**
+- `AppContext.tsx` - Main application state
+- `ThemeContext.tsx` - Theme preferences
+
+**Persistence:**
+- `localStorage` for offline state
+- Periodic sync to backend via `/api/sync`
+
+### Views
+
+The frontend has extensive views for features not supported by this backend:
+- Chat with AI (no AI endpoints)
+- OAuth connections (no OAuth endpoints)
+- Email verification (no verification endpoints)
+- Password reset (no reset endpoints)
+- AdMob rewards (no AdMob endpoints)
+- Master Agent (no agent endpoints)
+
+---
+
+## FRONTEND-BACKEND MISMATCH
+
+### Expected vs. Actual Backend
+
+**Frontend expects:**
+```
+POST /api/auth/register
+POST /api/auth/login
+POST /api/auth/verify
+POST /api/auth/resend
+POST /api/auth/forgot-password
+POST /api/auth/reset-password
+POST /api/sync
+GET  /api/user/:email
+POST /api/ai/completion
+POST /api/ai/chat
+POST /api/ai/generate-tasks
+GET  /api/admob/can-watch
+POST /api/admob/reward-callback
+GET  /api/oauth/platforms
+... (40+ endpoints)
 ```
 
-**Option B: MongoDB:**
-```javascript
-const rateLimitEntry = await RateLimit.findOne({ identifier });
+**This backend provides:**
+```
+GET  /
+GET  /api/health
+POST /api/auth          (combined login/register via isRegister flag)
+POST /api/sync
 ```
 
-### 7. `.env.production` Committed to Git (Security)
+**Conclusion:** The frontend in this repository is designed to work with a **completely different backend** than the one in `server/`. The production backend is likely deployed separately and not included in this repository.
 
-**Remove:**
+---
+
+## DEPLOYMENT
+
+### Frontend (Vercel)
+
+**Build Command:**
 ```bash
-git rm --cached .env.production
-echo ".env.production" >> .gitignore
+npm run build  # vite build → dist/
 ```
 
-**Use Vercel/Render dashboards** for environment variables.
+**Environment Variables:**
+```bash
+VITE_API_URL=<backend-url>  # Points to production backend, NOT server/
+```
+
+### Backend (Render/Railway)
+
+**Start Command:**
+```bash
+node server/index.js
+```
+
+**Environment Variables:**
+```bash
+MONGODB_URI=<connection-string>
+JWT_SECRET=<strong-random-secret>  # ⚠️ Defaults to 'injazi-secret'
+FRONTEND_URL=<vercel-url>
+PORT=5000
+```
 
 ---
 
-## PERFORMANCE CONSIDERATIONS
+## RECOMMENDATIONS
 
-### Frontend
+### Immediate (Security - Critical)
 
-**Strengths:**
-- Vite for fast builds and HMR
-- TailwindCSS JIT compilation
-- Lazy loading of view components (could be improved)
-- Service worker for offline capability (not implemented)
+1. **Add authentication to `/api/sync`:**
+```javascript
+const requireAuth = (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'No token' });
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.userId = decoded.id;
+    next();
+  } catch (error) {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+};
 
-**Optimizations Needed:**
-- Code splitting by view
-- Image optimization (currently stores base64 in state)
-- Debounce auto-sync (currently 2 seconds)
-- Implement service worker for offline mode
+app.post('/api/sync', requireAuth, async (req, res) => {
+  // Verify user owns the email
+  const authUser = await User.findById(req.userId);
+  if (authUser.email !== req.body.email) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  // ...sync logic
+});
+```
 
-### Backend
+2. **Make JWT_SECRET required:**
+```javascript
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('❌ FATAL: JWT_SECRET is required');
+  process.exit(1);
+}
+```
 
-**Strengths:**
-- Express.js (proven, fast)
-- MongoDB indexes on email (unique)
-- Rate limiting prevents abuse
+3. **Add input validation:**
+```javascript
+const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-**Bottlenecks:**
-- No caching layer (Redis)
-- No database connection pooling config visible
-- Groq API calls are serial (could batch)
-- Denormalized schema causes large document transfers
+if (!isValidEmail(email)) {
+  return res.status(400).json({ message: 'Invalid email' });
+}
+if (password.length < 6) {
+  return res.status(400).json({ message: 'Password too short' });
+}
+```
 
-**Optimizations Needed:**
-- Add Redis for rate limiting + caching
-- Normalize database schema
-- Add read replicas for MongoDB
-- Implement request coalescing for AI calls
+4. **Strip sensitive fields in sync:**
+```javascript
+delete updates.password;
+delete updates.isPremium;
+delete updates.realMoneyBalance;
+```
+
+5. **Reduce JSON limit:**
+```javascript
+app.use(express.json({ limit: '10mb' }));
+```
+
+### Short-term (Architecture)
+
+6. **Separate register/login endpoints:**
+```javascript
+app.post('/api/auth/register', async (req, res) => { /* ... */ });
+app.post('/api/auth/login', async (req, res) => { /* ... */ });
+```
+
+7. **Add rate limiting:**
+```javascript
+import rateLimit from 'express-rate-limit';
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5 // 5 attempts
+});
+
+app.post('/api/auth/login', authLimiter, ...);
+```
+
+8. **Remove localhost from CORS in production:**
+```javascript
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  ...(process.env.NODE_ENV === 'development' 
+    ? ['http://localhost:3000'] 
+    : [])
+].filter(Boolean);
+```
+
+### Long-term (Features)
+
+9. **Either:**
+   - **Option A:** Implement the missing endpoints the frontend expects, OR
+   - **Option B:** Update the frontend to work with this minimal backend
+
+10. **Add the missing features:**
+    - Email verification
+    - Password reset
+    - JWT refresh tokens
+    - Input validation library (joi/zod)
+    - Request logging (morgan)
+    - Error tracking (Sentry)
 
 ---
 
-## FINAL RECOMMENDATIONS
+## CLARIFICATION NEEDED
 
-### Immediate (Security)
+**Question for repository owner:**
 
-1. ✅ Add `requireAuth` to: `/api/admob/history/:email`, `/api/oauth/connected/:email`, `/api/oauth/disconnect`, all `/api/ai/*` endpoints
-2. ✅ Add email ownership checks (verify `req.userId === email`)
-3. ✅ Remove localhost from CORS allowed origins
-4. ✅ Remove `.env.production` from git
+Is this repository:
+1. **Development version** with minimal backend for testing?
+2. **Incomplete** - backend features not yet implemented?
+3. **Split architecture** - frontend here, production backend elsewhere?
 
-### Short-term (Stability)
-
-5. ✅ Decide on E-commerce Agent: mount it or delete it
-6. ✅ Delete `EcommerceAgentView.tsx` (80KB dead code)
-7. ✅ Implement JWT refresh token flow
-8. ✅ Add MongoDB indexes (email, connectedAccounts.platform, etc.)
-9. ✅ Debounce auto-sync or add optimistic locking
-
-### Long-term (Scale)
-
-10. ✅ Move rate limiter to Redis
-11. ✅ Normalize database schema (separate collections for tasks, chat, etc.)
-12. ✅ Add read replicas for MongoDB
-13. ✅ Implement caching layer (Redis)
-14. ✅ Add monitoring (Sentry, DataDog, etc.)
-15. ✅ Implement service worker for offline mode
+The frontend code references many endpoints and features that don't exist in `server/`. This suggests the production backend is deployed separately and not included in this repository.
 
 ---
 
 ## CONCLUSION
 
-**Injazi is a production-ready application** with a strong frontend and a fully implemented backend. The AI coaching, task management, and Master Agent features all work as designed using Groq's LLaMA 3.3 model.
+This repository contains a **minimal backend** with only 3 working endpoints:
+- Health check
+- Combined auth (login/register)
+- Unprotected sync
 
-**Key strengths:**
-- Complete OAuth support (20+ platforms)
-- Autonomous AI agent with real API integrations
-- Mobile-first responsive design
-- Rate limiting and input validation
+The backend has **critical security issues**:
+- ⚠️ Default JWT secret
+- ⚠️ No authentication on sync endpoint
+- ⚠️ No input validation
+- ⚠️ Can overwrite any user field via sync
 
-**Key gaps:**
-- Several endpoints lack authentication (AdMob history, OAuth management)
-- AI endpoints allow anonymous use
-- E-commerce Agent code exists but isn't mounted
-- 80KB of dead frontend code
+The frontend expects a **much more comprehensive backend** with 40+ endpoints including AI, OAuth, AdMob, email verification, password reset, and agent features. These features **do not exist** in this repository's backend.
 
-**All critical security issues can be fixed with targeted authentication middleware additions.** The architecture is sound and the codebase is production-ready with the recommended fixes applied.
+**Immediate action required:**
+1. Add authentication to `/api/sync`
+2. Make `JWT_SECRET` required (no fallback)
+3. Add input validation
+4. Strip sensitive fields from sync updates
+5. Clarify whether this is the production backend or if production uses a different API
 
 ---
 

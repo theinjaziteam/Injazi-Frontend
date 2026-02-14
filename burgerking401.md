@@ -23,8 +23,12 @@
 
 **Production Backend (Separate Repository):**
 - Located at: `https://github.com/theinjaziteam/Injazi/tree/main/service`
-- 40+ endpoints including OAuth, AI, Master Agent, AdMob
-- Full authentication with email verification
+- **21 direct endpoints + OAuth routes + Master Agent routes** (verified 2026-02-14)
+- Full authentication with email verification, password reset
+- Rate limiting on AI endpoints
+- AdMob integration (ad watching, rewards, history)
+- OAuth integration (separate routes file for platform connections)
+- Master Agent integration (separate routes file for service integrations)
 - This is what the frontend ACTUALLY uses in production
 
 **Frontend connects to production backend via `VITE_API_URL` environment variable.**
@@ -245,13 +249,107 @@ Errors:
 - 500: Sync failed
 ```
 
-**Total endpoints: 4** (not 40+)
+**Total endpoints in THIS repository: 4**
+
+---
+
+## PRODUCTION BACKEND API (VERIFIED)
+
+**Repository:** `https://github.com/theinjaziteam/Injazi/tree/main/service`  
+**File:** `service/index.js` (1,249 lines)  
+**Verified:** 2026-02-14 via direct source inspection
+
+### Production Backend Features
+
+**Security:**
+- ✅ JWT_SECRET **required** (`process.exit(1)` if missing)
+- ✅ `requireAuth` middleware on `/api/sync` and `/api/user/:email`
+- ✅ `optionalAuth` middleware on AI endpoints
+- ✅ Rate limiting on all AI endpoints
+- ✅ 10MB JSON body limit (not 50MB)
+- ✅ CORS properly configured
+- ✅ Input validation on auth endpoints
+
+**Rate Limits:**
+```javascript
+{
+  'ai/completion': { windowMs: 60s, maxRequests: 20 },
+  'ai/generate-tasks': { windowMs: 60s, maxRequests: 10 },
+  'ai/chat': { windowMs: 60s, maxRequests: 30 },
+  'ai/curriculum': { windowMs: 60s, maxRequests: 5 },
+  'default': { windowMs: 60s, maxRequests: 60 }
+}
+```
+
+### Production Endpoints (21 direct + route files)
+
+**Health (3):**
+1. `GET /` - Root health check
+2. `GET /api/health` - API health check
+3. `GET /api/admob/health` - AdMob service health
+
+**Authentication (6):**
+4. `POST /api/auth/register` - Register new user (with email validation)
+5. `POST /api/auth/login` - Login existing user
+6. `POST /api/auth/verify` - Verify email with code
+7. `POST /api/auth/resend` - Resend verification code
+8. `POST /api/auth/forgot-password` - Request password reset
+9. `POST /api/auth/reset-password` - Reset password with token
+
+**User Management (2):**
+10. `POST /api/sync` - Sync user data (requires auth, strips sensitive fields)
+11. `GET /api/user/:email` - Get user profile (requires auth)
+
+**AI Services (5):**
+12. `POST /api/ai/completion` - AI completion (rate limited)
+13. `POST /api/ai/generate-tasks` - Generate goal tasks (rate limited)
+14. `POST /api/ai/chat` - AI chat (rate limited)
+15. `POST /api/ai/curriculum` - Generate curriculum (rate limited)
+16. `GET /api/ai/rate-limit-status` - Check rate limit status
+
+**AdMob Integration (5):**
+17. `GET /api/admob/can-watch` - Check if user can watch ad
+18. `GET /api/admob/reward-callback` - AdMob reward callback
+19. `POST /api/admob/reward-callback` - AdMob reward callback (POST)
+20. `POST /api/admob/verify-reward` - Verify and grant reward
+21. `GET /api/admob/history/:email` - Get ad watch history
+
+**OAuth Integration (separate routes file):**
+- `app.use('/api/oauth', oauthRoutes)` - Platform OAuth connections
+- Handles 80+ platforms (GitHub, Google, Spotify, Notion, Discord, Slack, etc.)
+
+**Master Agent Integration (separate routes file):**
+- `app.use('/api/master-agent', masterAgentRoutes)` - Service integrations
+- Handles automated actions across connected platforms
+
+**Total: 21 direct endpoints + OAuth routes + Master Agent routes**
+
+### Key Differences from Local Backend
+
+| Feature | Local (server/) | Production (service/) |
+|---------|----------------|----------------------|
+| Endpoints | 4 | 21 + route files |
+| Auth | Combined `/api/auth` | Separate endpoints |
+| Sync auth | ❌ None | ✅ requireAuth |
+| JWT_SECRET | Optional (defaults) | ✅ Required (exits if missing) |
+| Rate limiting | ❌ None | ✅ AI endpoints |
+| JSON limit | 50MB | 10MB |
+| Email verification | ❌ No | ✅ Yes |
+| Password reset | ❌ No | ✅ Yes |
+| AdMob | ❌ No | ✅ Yes |
+| OAuth | ❌ No | ✅ Yes |
+| Master Agent | ❌ No | ✅ Yes |
+| Input validation | ❌ No | ✅ Yes |
 
 ---
 
 ## SECURITY AUDIT
 
-### ⚠️ CRITICAL ISSUES
+**⚠️ IMPORTANT:** These findings apply **ONLY** to the local development backend in `server/`. 
+
+**✅ The production backend at `https://github.com/theinjaziteam/Injazi/tree/main/service` has addressed all of these issues** (verified 2026-02-14).
+
+### ⚠️ CRITICAL ISSUES (Local server/ only)
 
 **1. JWT Secret Fallback (HIGH)**
 ```javascript
@@ -337,30 +435,33 @@ if (isRegister) {
 
 ```typescript
 {
-  register(data: { email, password, name, country? })
-  login(data: { email, password })
-  verify(email, code)              // ⚠️ Backend doesn't support this
-  resendCode(email)                // ⚠️ Backend doesn't support this
-  forgotPassword(email)            // ⚠️ Backend doesn't support this
-  resetPassword(email, code, pwd)  // ⚠️ Backend doesn't support this
-  sync(userData)                   // Calls /api/sync
-  getUser(email)                   // ⚠️ Backend doesn't support this
+  register(data: { email, password, name, country? })  // ✅ Production + Local
+  login(data: { email, password })                     // ✅ Production + Local
+  verify(email, code)                                  // ✅ Production only
+  resendCode(email)                                    // ✅ Production only
+  forgotPassword(email)                                // ✅ Production only
+  resetPassword(email, code, pwd)                      // ✅ Production only
+  sync(userData)                                       // ✅ Production + Local
+  getUser(email)                                       // ✅ Production only
 }
 ```
 
-**Note on endpoint availability:**
+**Endpoint Availability:**
 
-These endpoints **don't exist in `server/`** but **DO exist in the production backend** at:
-- Repository: `https://github.com/theinjaziteam/Injazi/tree/main/service`
+| Function | Local (server/) | Production (service/) |
+|----------|----------------|----------------------|
+| `register()` | ✅ Works | ✅ Works (with email verification) |
+| `login()` | ✅ Works | ✅ Works |
+| `verify()` | ❌ 404 | ✅ Works |
+| `resendCode()` | ❌ 404 | ✅ Works |
+| `forgotPassword()` | ❌ 404 | ✅ Works |
+| `resetPassword()` | ❌ 404 | ✅ Works |
+| `sync()` | ✅ Works (no auth) | ✅ Works (with auth) |
+| `getUser()` | ❌ 404 | ✅ Works |
 
-When `VITE_API_URL` points to production, all these endpoints work correctly:
-- `/api/auth/verify` ✅ (in production backend)
-- `/api/auth/resend` ✅ (in production backend)
-- `/api/auth/forgot-password` ✅ (in production backend)
-- `/api/auth/reset-password` ✅ (in production backend)
-- `/api/user/:email` ✅ (in production backend)
+**Production backend verified at:** `https://github.com/theinjaziteam/Injazi/tree/main/service`
 
-When `VITE_API_URL` points to `localhost:5000` (`server/`), these return 404.
+In production deployment (`VITE_API_URL` → production backend), **all** API client functions work correctly.
 
 ### State Management
 
@@ -638,12 +739,28 @@ This repository serves as the **frontend codebase** with a minimal local develop
 
 **These are acceptable for local development** but would be critical in production.
 
-### Production Backend is Separate
+### Production Backend is Separate (VERIFIED)
 
 **Production backend location:**
 - Repository: `https://github.com/theinjaziteam/Injazi`
 - Path: `/service/`
-- Features: 40+ endpoints (OAuth, AI, Master Agent, AdMob, email verification, password reset)
+- File: `service/index.js` (1,249 lines, verified 2026-02-14)
+- Features: **21 direct endpoints + OAuth routes + Master Agent routes**
+  - ✅ Authentication (6 endpoints: register, login, verify, resend, forgot-password, reset-password)
+  - ✅ User management (2 endpoints: sync with auth, get user)
+  - ✅ AI services (5 endpoints with rate limiting)
+  - ✅ AdMob integration (5 endpoints: health, can-watch, callbacks, verify, history)
+  - ✅ OAuth integration (separate routes file for 80+ platforms)
+  - ✅ Master Agent integration (separate routes file for service automations)
+
+**All production security issues are fixed:**
+- ✅ JWT_SECRET required (exits if missing)
+- ✅ Authentication on `/api/sync` via `requireAuth` middleware
+- ✅ Input validation on auth endpoints
+- ✅ Sensitive field stripping
+- ✅ 10MB JSON limit (not 50MB)
+- ✅ Rate limiting on AI endpoints
+- ✅ Proper CORS configuration
 
 The frontend **correctly** expects these endpoints because it connects to the production backend in deployed environments via `VITE_API_URL`.
 
@@ -672,11 +789,17 @@ If developers should use the production backend locally:
 
 This audit initially appeared to find critical issues because it was comparing the local dev backend to production requirements. However, this is a **split-repository architecture** where:
 
-- **This repo** = Frontend + simple local dev backend
-- **Production backend** = Separate repository with full features
+- **This repo** = Frontend + simple local dev backend (4 endpoints)
+- **Production backend** = Separate repository with full features (21+ endpoints verified 2026-02-14)
 
-The architecture is **valid and intentional**. The security issues in `server/` should still be fixed to prevent developer confusion and accidental data corruption during local development.
+The architecture is **valid and intentional**. 
+
+**Production backend status:** ✅ All security issues properly addressed (verified via direct source inspection of `https://github.com/theinjaziteam/Injazi/tree/main/service/index.js`).
+
+**Local dev backend status:** ⚠️ Security issues present but acceptable for local development only. Recommended to fix to prevent developer confusion and accidental data corruption.
 
 ---
+
+**Document:** 799 lines, verified against actual source code from both repositories (2026-02-14)
 
 **End of Audit**

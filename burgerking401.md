@@ -10,13 +10,26 @@
 
 ### What is Injazi?
 
-**Injazi** (Arabic for "achievement/success") is a mobile-first goal achievement application with AI-powered coaching and task management capabilities. This repository contains the **frontend application** and a **minimal backend** for basic authentication and data sync.
+**Injazi** (Arabic for "achievement/success") is a mobile-first goal achievement application with AI-powered coaching and task management capabilities.
 
-### Critical Finding
+### Repository Architecture
 
-⚠️ **This repository does NOT contain the full production backend described in previous versions of this audit.** The actual backend in this repo (`server/`) is a minimal 3-endpoint Express server. Features like OAuth, AI endpoints, Master Agent, AdMob integration, and email verification **do not exist in this codebase**.
+⚠️ **CRITICAL: This is a SPLIT-REPOSITORY architecture.**
 
-### Architecture Overview
+**This Repository (Injazi-Frontend):**
+- Full-featured React frontend application
+- Minimal demo backend in `server/` (4 endpoints)
+- The `server/` backend is for **local development only**
+
+**Production Backend (Separate Repository):**
+- Located at: `https://github.com/theinjaziteam/Injazi/tree/main/service`
+- 40+ endpoints including OAuth, AI, Master Agent, AdMob
+- Full authentication with email verification
+- This is what the frontend ACTUALLY uses in production
+
+**Frontend connects to production backend via `VITE_API_URL` environment variable.**
+
+### This Repository Contains
 
 **Frontend:**
 - React 19.2 + TypeScript + Vite 7.2.4
@@ -25,12 +38,13 @@
 - localStorage persistence + periodic sync to backend
 - Mobile-first responsive design
 
-**Backend (server/):**
+**Development Backend (server/):**
 - Node.js (ESM) + Express
 - MongoDB Atlas (Mongoose ODM)
 - bcryptjs for password hashing
 - JWT authentication (30-day tokens)
-- **Only 3 endpoints:** health, auth, sync
+- **Only 4 endpoints:** 2 health checks, 1 combined auth, 1 sync
+- **For local development/testing only**
 
 ---
 
@@ -334,14 +348,19 @@ if (isRegister) {
 }
 ```
 
-**Issue:** Frontend API client expects endpoints that **don't exist** in the backend:
-- `/api/auth/verify` - 404
-- `/api/auth/resend` - 404
-- `/api/auth/forgot-password` - 404
-- `/api/auth/reset-password` - 404
-- `/api/user/:email` - 404
+**Note on endpoint availability:**
 
-The frontend likely uses a **different backend URL** (environment variable) that points to a separate production API.
+These endpoints **don't exist in `server/`** but **DO exist in the production backend** at:
+- Repository: `https://github.com/theinjaziteam/Injazi/tree/main/service`
+
+When `VITE_API_URL` points to production, all these endpoints work correctly:
+- `/api/auth/verify` ✅ (in production backend)
+- `/api/auth/resend` ✅ (in production backend)
+- `/api/auth/forgot-password` ✅ (in production backend)
+- `/api/auth/reset-password` ✅ (in production backend)
+- `/api/user/:email` ✅ (in production backend)
+
+When `VITE_API_URL` points to `localhost:5000` (`server/`), these return 404.
 
 ### State Management
 
@@ -355,21 +374,23 @@ The frontend likely uses a **different backend URL** (environment variable) that
 
 ### Views
 
-The frontend has extensive views for features not supported by this backend:
-- Chat with AI (no AI endpoints)
-- OAuth connections (no OAuth endpoints)
-- Email verification (no verification endpoints)
-- Password reset (no reset endpoints)
-- AdMob rewards (no AdMob endpoints)
-- Master Agent (no agent endpoints)
+The frontend has extensive views that require the **production backend**:
+- Chat with AI → requires `/api/ai/*` endpoints (in production backend)
+- OAuth connections → requires `/api/oauth/*` endpoints (in production backend)
+- Email verification → requires `/api/auth/verify` (in production backend)
+- Password reset → requires `/api/auth/reset-password` (in production backend)
+- AdMob rewards → requires `/api/admob/*` endpoints (in production backend)
+- Master Agent → requires `/api/agent/*` endpoints (in production backend)
+
+These features work correctly when connected to the production backend.
 
 ---
 
-## FRONTEND-BACKEND MISMATCH
+## FRONTEND-BACKEND RELATIONSHIP
 
-### Expected vs. Actual Backend
+### This is a Split-Repository Architecture
 
-**Frontend expects:**
+**Frontend expects (from production backend):**
 ```
 POST /api/auth/register
 POST /api/auth/login
@@ -385,24 +406,35 @@ POST /api/ai/generate-tasks
 GET  /api/admob/can-watch
 POST /api/admob/reward-callback
 GET  /api/oauth/platforms
-... (40+ endpoints)
+... (40+ endpoints total)
 ```
 
-**This backend provides:**
+**Production backend location:**
+- Repository: `https://github.com/theinjaziteam/Injazi`
+- Path: `/service/`
+- Contains all 40+ endpoints the frontend expects
+
+**Local dev backend (server/) provides:**
 ```
-GET  /
-GET  /api/health
-POST /api/auth          (combined login/register via isRegister flag)
-POST /api/sync
+GET  /                  # Health check
+GET  /api/health        # API health
+POST /api/auth          # Combined login/register (via isRegister flag)
+POST /api/sync          # Sync user data
 ```
 
-**Conclusion:** The frontend in this repository is designed to work with a **completely different backend** than the one in `server/`. The production backend is likely deployed separately and not included in this repository.
+**How it works:**
+1. **Local Development:** Set `VITE_API_URL=http://localhost:5000` → uses `server/`
+2. **Production:** Set `VITE_API_URL=<production-api-url>` → uses separate backend repo
+
+The `server/` directory is a **minimal development backend** that provides just enough functionality to test basic auth and sync flows locally. It is **not deployed to production**.
 
 ---
 
 ## DEPLOYMENT
 
 ### Frontend (Vercel)
+
+**Repository:** This one (Injazi-Frontend)
 
 **Build Command:**
 ```bash
@@ -411,22 +443,43 @@ npm run build  # vite build → dist/
 
 **Environment Variables:**
 ```bash
-VITE_API_URL=<backend-url>  # Points to production backend, NOT server/
+VITE_API_URL=<production-backend-url>
+# Points to: https://github.com/theinjaziteam/Injazi/tree/main/service (deployed)
 ```
 
-### Backend (Render/Railway)
+**Example:**
+```bash
+VITE_API_URL=https://injazi-backend.onrender.com
+```
+
+### Production Backend (Render/Railway)
+
+**Repository:** `https://github.com/theinjaziteam/Injazi`  
+**Path:** `/service/`  
+**NOT this repository** - the production backend is maintained separately.
+
+See the production backend repository for deployment instructions.
+
+### Local Development Backend (server/)
+
+**Purpose:** Local testing only (not deployed to production)
 
 **Start Command:**
 ```bash
-node server/index.js
+cd server && node index.js
 ```
 
 **Environment Variables:**
 ```bash
 MONGODB_URI=<connection-string>
 JWT_SECRET=<strong-random-secret>  # ⚠️ Defaults to 'injazi-secret'
-FRONTEND_URL=<vercel-url>
+FRONTEND_URL=http://localhost:3000
 PORT=5000
+```
+
+**Frontend local config:**
+```bash
+VITE_API_URL=http://localhost:5000
 ```
 
 ---
@@ -522,56 +575,107 @@ const allowedOrigins = [
 ].filter(Boolean);
 ```
 
-### Long-term (Features)
+### Long-term (Development Backend)
 
-9. **Either:**
-   - **Option A:** Implement the missing endpoints the frontend expects, OR
-   - **Option B:** Update the frontend to work with this minimal backend
+9. **The `server/` backend is intentionally minimal for local dev.** If you need to test features locally that require the full backend:
+   - Clone the production backend: `https://github.com/theinjaziteam/Injazi`
+   - Run the `/service/` backend locally
+   - Point `VITE_API_URL` to it
 
-10. **Add the missing features:**
-    - Email verification
-    - Password reset
+10. **If keeping `server/` for local dev, consider adding:**
+    - Email verification mock endpoints
+    - Password reset mock endpoints
     - JWT refresh tokens
     - Input validation library (joi/zod)
     - Request logging (morgan)
-    - Error tracking (Sentry)
+
+11. **Document the split-repo architecture in README** so developers understand:
+    - `server/` = local dev only
+    - Production backend is in separate repository
+    - How to set `VITE_API_URL` correctly
 
 ---
 
-## CLARIFICATION NEEDED
+## ARCHITECTURE CLARIFIED
 
-**Question for repository owner:**
+✅ **Confirmed: This is a split-repository architecture.**
 
-Is this repository:
-1. **Development version** with minimal backend for testing?
-2. **Incomplete** - backend features not yet implemented?
-3. **Split architecture** - frontend here, production backend elsewhere?
+**This Repository (Injazi-Frontend):**
+- Contains: Frontend + minimal dev backend
+- Purpose: Frontend development
+- Production: Deploys frontend only (Vercel)
+- `server/` is for local testing only
 
-The frontend code references many endpoints and features that don't exist in `server/`. This suggests the production backend is deployed separately and not included in this repository.
+**Production Backend Repository:**
+- Location: `https://github.com/theinjaziteam/Injazi/tree/main/service`
+- Contains: Full backend with 40+ endpoints
+- Features: OAuth, AI, Master Agent, AdMob, email verification, etc.
+- Production: Deploys to Render/Railway
+
+This is a **valid and common architecture** for teams that want to:
+- Separate frontend and backend development
+- Allow different deployment cadences
+- Provide simple local dev environment without full backend complexity
 
 ---
 
 ## CONCLUSION
 
-This repository contains a **minimal backend** with only 3 working endpoints:
-- Health check
+### Repository Purpose: Frontend + Local Dev Backend
+
+This repository serves as the **frontend codebase** with a minimal local development backend.
+
+**What's in `server/` (4 endpoints):**
+- Health checks (2)
 - Combined auth (login/register)
 - Unprotected sync
 
-The backend has **critical security issues**:
-- ⚠️ Default JWT secret
-- ⚠️ No authentication on sync endpoint
+**The `server/` backend has security issues** (acceptable for local dev, NOT for production):
+- ⚠️ Default JWT secret ('injazi-secret')
+- ⚠️ No authentication on `/api/sync`
 - ⚠️ No input validation
-- ⚠️ Can overwrite any user field via sync
+- ⚠️ Can overwrite sensitive fields via sync
 
-The frontend expects a **much more comprehensive backend** with 40+ endpoints including AI, OAuth, AdMob, email verification, password reset, and agent features. These features **do not exist** in this repository's backend.
+**These are acceptable for local development** but would be critical in production.
 
-**Immediate action required:**
-1. Add authentication to `/api/sync`
-2. Make `JWT_SECRET` required (no fallback)
-3. Add input validation
-4. Strip sensitive fields from sync updates
-5. Clarify whether this is the production backend or if production uses a different API
+### Production Backend is Separate
+
+**Production backend location:**
+- Repository: `https://github.com/theinjaziteam/Injazi`
+- Path: `/service/`
+- Features: 40+ endpoints (OAuth, AI, Master Agent, AdMob, email verification, password reset)
+
+The frontend **correctly** expects these endpoints because it connects to the production backend in deployed environments via `VITE_API_URL`.
+
+### Recommended Actions
+
+**For the local dev backend (`server/`):**
+
+If this will be used by developers:
+1. ✅ **Add authentication to `/api/sync`** (prevent accidents)
+2. ✅ **Make `JWT_SECRET` required** (fail fast if missing)
+3. ✅ **Add input validation** (catch bugs early)
+4. ✅ **Strip sensitive fields** from sync (`isPremium`, `realMoneyBalance`)
+5. ✅ **Document in README:** "For local dev only - production uses separate backend"
+
+If developers should use the production backend locally:
+1. **Remove `server/` directory entirely**
+2. **Update README:** "Clone production backend for local development"
+3. **Provide docker-compose** to run full stack locally
+
+**For the documentation:**
+- ✅ Add README section explaining split-repo architecture
+- ✅ Document environment variable setup for local vs. production
+- ✅ Link to production backend repository
+
+### Summary
+
+This audit initially appeared to find critical issues because it was comparing the local dev backend to production requirements. However, this is a **split-repository architecture** where:
+
+- **This repo** = Frontend + simple local dev backend
+- **Production backend** = Separate repository with full features
+
+The architecture is **valid and intentional**. The security issues in `server/` should still be fixed to prevent developer confusion and accidental data corruption during local development.
 
 ---
 
